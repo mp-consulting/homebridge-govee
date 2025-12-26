@@ -21,6 +21,8 @@ export { SwitchSingleDevice } from './switch-single.js';
 export { SensorThermoDevice } from './sensor-thermo.js';
 export { SensorLeakDevice } from './sensor-leak.js';
 export { FanDevice } from './fan.js';
+export { HumidifierDevice } from './humidifier.js';
+export { HeaterSingleDevice } from './heater-single.js';
 
 // Initialize device handlers
 import { registerDeviceHandler, initializeModelMappings } from './registry.js';
@@ -31,6 +33,8 @@ import { SwitchSingleDevice } from './switch-single.js';
 import { SensorThermoDevice } from './sensor-thermo.js';
 import { SensorLeakDevice } from './sensor-leak.js';
 import { FanDevice } from './fan.js';
+import { HumidifierDevice } from './humidifier.js';
+import { HeaterSingleDevice } from './heater-single.js';
 
 /**
  * Register all device handlers with the registry.
@@ -48,6 +52,8 @@ export function initializeDeviceHandlers(): void {
   registerDeviceHandler('sensorThermo', SensorThermoDevice);
   registerDeviceHandler('sensorLeak', SensorLeakDevice);
   registerDeviceHandler('fan', FanDevice);
+  registerDeviceHandler('humidifier', HumidifierDevice);
+  registerDeviceHandler('heater', HeaterSingleDevice);
 
   // TODO: Add more device handlers as they are migrated
   // registerDeviceHandler('switchDouble', SwitchDoubleDevice);
