@@ -1,0 +1,259 @@
+export interface PlatformLang {
+  abnormalMessage: string;
+  accNotFound: string;
+  accTokenFail: string;
+  accTokenFromCache: string;
+  accTokenNoExist: string;
+  accTokenStoreErr: string;
+  accTokenUserChange: string;
+  alDisabled: string;
+  alDisabledScene: string;
+  awsEventClose: string;
+  awsEventConnect: string;
+  awsEventError: string;
+  awsEventMessage: string;
+  awsEventOffline: string;
+  awsEventReconnect: string;
+  available: string;
+  availableWithDevices: (n: number) => string;
+  beta: string;
+  brand: string;
+  bleNonControl: string;
+  bleNoPackage: string;
+  bleScanDisabled: string;
+  bleScanNoStart: string;
+  bleScanNoStop: string;
+  bleScanUnknown: string;
+  bleStart: string;
+  bleStop: string;
+  bleTimeout: string;
+  bleWrongState: string;
+  cfgDef: string;
+  cfgDup: string;
+  cfgIgn: string;
+  cfgIgnItem: string;
+  cfgItem: string;
+  cfgLow: string;
+  cfgRmv: string;
+  cfgQts: string;
+  clientBusy: string;
+  cmdNotAWS: string;
+  cmdNotBLE: string;
+  complete: string;
+  curAirQual: string;
+  curAmp: string;
+  curBatt: string;
+  curBright: string;
+  curColour: string;
+  curCool: string;
+  curDisplay: string;
+  curFault: string;
+  curHeat: string;
+  curHumi: string;
+  curIP: string;
+  curLeak: string;
+  curLight: string;
+  curLock: string;
+  curMode: string;
+  curOcc: string;
+  curPM25: string;
+  curScene: string;
+  curSpeed: string;
+  curState: string;
+  curSwing: string;
+  curTarg: string;
+  curTemp: string;
+  curVolt: string;
+  curWatt: string;
+  devAdd: string;
+  devInit: string;
+  devInitOpts: string;
+  devMaySupp: string;
+  devNoBlePackage: string;
+  devNotAdd: string;
+  devNotConf: string;
+  devNotInit: string;
+  devNotRef: string;
+  devNotRemove: string;
+  devNotRet: string;
+  devNotUpdated: string;
+  devRemove: string;
+  disableClient: string;
+  disabledInConfig: string;
+  disabling: string;
+  hbVersionFail: string;
+  heaterSimNoSensor: string;
+  httpRetry: string;
+  initialised: string;
+  initialising: string;
+  invalidJson: string;
+  iotFileNoExist: string;
+  labelNo: string;
+  labelYes: string;
+  lanCmdSent: string;
+  lanDevNotFound: string;
+  lanDevRemoved: string;
+  lanFoundDevice: string;
+  lanParseError: string;
+  lanReqError: string;
+  lanServerStarted: string;
+  lanUnkDevice: string;
+  loginSuccess: string;
+  logoutFail: string;
+  needHTTPClient: string;
+  newScene: string;
+  noCreds: string;
+  noConnMethod: string;
+  noDevices: string;
+  noDevs: string;
+  noExtFunc: string;
+  notAWSConn: string;
+  notAWSSent: string;
+  notBLESent: string;
+  notLANSent: string;
+  noOpenssl: string;
+  noToken: string;
+  noTokenExists: string;
+  offlineBTConn: string;
+  pluginNotConf: string;
+  receivingUpdate: string;
+  sendingUpdate: string;
+  skippingAL: string;
+  storageSetupErr: string;
+  storageWriteErr: string;
+  syncFail: string;
+  viaAL: string;
+  welcome: string;
+  unknownCommand: string;
+}
+
+const platformLang: PlatformLang = {
+  abnormalMessage: 'too many logins (max 30 per 24 hours), please contact Govee customer service',
+  accNotFound: 'accessory not found',
+  accTokenFail: 'could not use existing access token as',
+  accTokenFromCache: 'retrieved access token from cache',
+  accTokenNoExist: 'does not exist, this is normally not an issue',
+  accTokenStoreErr: 'could not store access token as',
+  accTokenUserChange: 'username has changed',
+  alDisabled: 'adaptive lighting disabled due to significant colour change',
+  alDisabledScene: 'adaptive lighting disabled due to scene change',
+  awsEventClose: 'close event',
+  awsEventConnect: 'connect event',
+  awsEventError: 'error event',
+  awsEventMessage: 'message event',
+  awsEventOffline: 'offline event',
+  awsEventReconnect: 'reconnect event',
+  available: 'client enabled',
+  availableWithDevices: (n: number) => `client enabled and found ${n} device(s)`,
+  beta: 'You are using a beta version of the plugin - you will experience more logging than normal',
+  brand: 'Govee',
+  bleNonControl: 'will be visible but uncontrollable as BLE not available',
+  bleNoPackage: 'required hardware/packages not available',
+  bleScanDisabled: 'sync for thermo-hygrometer sensors disabled as',
+  bleScanNoStart: 'could not start sync as',
+  bleScanNoStop: 'could not stop sync as',
+  bleScanUnknown: 'reading received for unknown accessory',
+  bleStart: 'scanning started',
+  bleStop: 'scanning stopped',
+  bleTimeout: 'BLE took too long',
+  bleWrongState: 'BLE adapter not in correct state',
+  cfgDef: 'is not a valid number so using default of',
+  cfgDup: 'will be ignored since another entry with this ID already exists',
+  cfgIgn: 'is not configured correctly so ignoring',
+  cfgIgnItem: 'has an invalid entry which will be ignored',
+  cfgItem: 'Config entry',
+  cfgLow: 'is set too low so increasing to',
+  cfgRmv: 'is unused and can be removed',
+  cfgQts: 'should not have quotes around its entry',
+  clientBusy: 'Skipping sync as client is busy sending updates',
+  cmdNotAWS: 'command not supported via AWS',
+  cmdNotBLE: 'command not supported via BLE',
+  complete: '✓ Setup complete',
+  curAirQual: 'current air quality',
+  curAmp: 'current amperage',
+  curBatt: 'current battery',
+  curBright: 'current brightness',
+  curColour: 'current colour',
+  curCool: 'current cooling',
+  curDisplay: 'current display',
+  curFault: 'current fault',
+  curHeat: 'current heating',
+  curHumi: 'current humidity',
+  curIP: 'current IP',
+  curLeak: 'current leak',
+  curLight: 'current light',
+  curLock: 'current lock',
+  curMode: 'current mode',
+  curOcc: 'current occupancy',
+  curPM25: 'current PM2.5',
+  curScene: 'current scene',
+  curSpeed: 'current speed',
+  curState: 'current state',
+  curSwing: 'current swing',
+  curTarg: 'current target',
+  curTemp: 'current temperature',
+  curVolt: 'current voltage',
+  curWatt: 'current wattage',
+  devAdd: 'has been added to Homebridge',
+  devInit: 'initialised with id',
+  devInitOpts: 'initialising with options',
+  devMaySupp: 'is not currently supported, do create a Github issue with the following info',
+  devNoBlePackage: 'will not be added as BLE is disabled in the config',
+  devNotAdd: 'could not be added to Homebridge as',
+  devNotConf: 'could not be configured as',
+  devNotInit: 'could not be initialised as',
+  devNotRef: 'could not be refreshed as',
+  devNotRemove: 'could not be removed from Homebridge as',
+  devNotRet: 'skipping sync as device status not retrievable',
+  devNotUpdated: 'could not be updated as',
+  devRemove: 'has been removed from Homebridge',
+  disableClient: 'disabling client as',
+  disabledInConfig: 'disabled in config',
+  disabling: 'Disabling plugin',
+  hbVersionFail: 'Your version of Homebridge is too low - please update to v1.6',
+  heaterSimNoSensor: 'you must configure a device ID that provides a temperature reading',
+  httpRetry: 'Unable to reach Govee, retrying in 30 seconds',
+  initialised: 'Plugin initialised. Setting up accessories...',
+  initialising: 'Initialising plugin',
+  invalidJson: 'incoming message contains invalid JSON',
+  iotFileNoExist: 'iot certificate does not exist',
+  labelNo: 'no',
+  labelYes: 'yes',
+  lanCmdSent: 'command sent to',
+  lanDevNotFound: 'device not found in LAN list',
+  lanDevRemoved: 'removed device due to connection error',
+  lanFoundDevice: 'found device',
+  lanParseError: 'could not parse message',
+  lanReqError: 'could not request device status as',
+  lanServerStarted: 'server started listening on',
+  lanUnkDevice: 'received update from unknown device',
+  loginSuccess: 'login successful',
+  logoutFail: 'could not log out of Govee account as',
+  needHTTPClient: 'requires HTTP client',
+  newScene: 'new scene code',
+  noCreds: 'username and/or password not provided',
+  noConnMethod: 'no connection method available, see https://shorturl.at/eCN04 for more info',
+  noDevices: 'no data received from Govee server whilst obtaining devices',
+  noDevs: 'No devices found to initialise',
+  noExtFunc: 'no externalUpdate function to process incoming update',
+  notAWSConn: 'not connected to AWS',
+  notAWSSent: 'not using AWS connection as',
+  notBLESent: 'not using BLE connection as',
+  notLANSent: 'not using LAN connection as',
+  noOpenssl: 'See https://github.com/mp-consulting/homebridge-govee/wiki/OpenSSL for more info about installing OpenSSL',
+  noToken: 'no data received from Govee server whilst obtaining token',
+  noTokenExists: 'no account token has been retrieved',
+  offlineBTConn: 'has been reported [disconnected] via BLE',
+  pluginNotConf: 'Plugin has not been configured',
+  receivingUpdate: 'receiving update',
+  sendingUpdate: 'sending update',
+  skippingAL: 'skipping adaptive lighting update as device is off or kelvin is same as before',
+  storageSetupErr: 'Could not setup storage client as',
+  storageWriteErr: 'could not save accessory to file as',
+  syncFail: 'sync failed as',
+  viaAL: 'via adaptive lighting',
+  welcome: "I'm looking for some lovely people to help maintain this plugin, please get in touch on GitHub or Discord if you'd like to help out",
+  unknownCommand: 'unknown command in payload received',
+};
+
+export default platformLang;
