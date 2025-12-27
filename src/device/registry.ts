@@ -32,6 +32,7 @@ export type DeviceCategory =
   | 'kettle'
   | 'iceMaker'
   | 'sensorThermo'
+  | 'sensorThermoSwitch'
   | 'sensorLeak'
   | 'sensorContact'
   | 'sensorPresence'
@@ -126,6 +127,21 @@ export function createDeviceInstance(
   platform: GoveePlatform,
   accessory: GoveePlatformAccessoryWithControl,
 ): GoveeDeviceBase | undefined {
+  // Check for config-based handler overrides
+  const deviceId = accessory.context.gvDeviceId;
+  const deviceConf = platform.deviceConf[deviceId] as Record<string, unknown> | undefined;
+
+  // Special case: thermo sensors with showExtraSwitch use the thermoSwitch handler
+  const category = getCategoryForModel(model);
+  if (category === 'sensorThermo' && deviceConf?.showExtraSwitch) {
+    const thermoSwitchHandler = getDeviceHandler('sensorThermoSwitch');
+    if (thermoSwitchHandler) {
+      const instance = new thermoSwitchHandler(platform, accessory);
+      instance.init();
+      return instance;
+    }
+  }
+
   const Handler = getDeviceHandlerForModel(model);
   if (Handler) {
     const instance = new Handler(platform, accessory);
