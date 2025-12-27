@@ -22,7 +22,10 @@
       "password": {
         "title": "Govee Account Password",
         "type": "string",
-        "description": "Your Govee account password."
+        "description": "Your Govee account password.",
+        "x-schema-form": {
+          "type": "password"
+        }
       },
       "ignoreMatter": {
         "title": "Ignore Matter Devices",
