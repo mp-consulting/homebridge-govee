@@ -649,6 +649,42 @@ function removeDevice(type, index) {
     }
   });
 
+  // Clear cache button
+  document.getElementById('clearCacheBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('clearCacheBtn');
+    const spinner = document.getElementById('clearCacheSpinner');
+    const resultDiv = document.getElementById('clearCacheResult');
+
+    // Confirm action
+    const msg = 'Are you sure you want to clear the cache? ' +
+      'This will remove cached credentials and device data. Restart Homebridge after clearing.';
+    if (!confirm(msg)) {
+      return;
+    }
+
+    spinner.classList.remove('d-none');
+    btn.disabled = true;
+    resultDiv.innerHTML = '';
+
+    try {
+      const response = await homebridge.request('/clear-cache');
+
+      if (response.success) {
+        homebridge.toast.success('Cache cleared successfully!');
+        resultDiv.innerHTML = `<div class="alert alert-success">${response.message}</div>`;
+      } else {
+        homebridge.toast.warning(response.message || 'Cache partially cleared');
+        resultDiv.innerHTML = `<div class="alert alert-warning">${response.message || 'Cache partially cleared'}</div>`;
+      }
+    } catch (err) {
+      homebridge.toast.error(err.message || 'Failed to clear cache');
+      resultDiv.innerHTML = `<div class="alert alert-danger">${err.message || 'Failed to clear cache'}</div>`;
+    } finally {
+      spinner.classList.add('d-none');
+      btn.disabled = false;
+    }
+  });
+
   // Make functions globally available
   window.addDevice = addDevice;
   window.removeDevice = removeDevice;
