@@ -1,20 +1,18 @@
-import type { Service, HAPStatus } from 'homebridge';
+import type { Service } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
 import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
 import { hs2rgb, rgb2hs } from '../utils/colour.js';
 import {
-  base64ToHex,
   farToCen,
   generateCodeFromHexValues,
   generateRandomString,
   getTwoItemPosition,
   hasProperty,
   hexToDecimal,
-  hexToTwoItems,
   nearestHalf,
-  parseError,
+  processCommands,
   sleep,
 } from '../utils/functions.js';
 
@@ -255,12 +253,11 @@ export class Heater2Device extends GoveeDeviceBase {
       this.cacheState = newValue;
       this.accessory.log(`${platformLang.curState} [${newValue}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      setTimeout(() => {
-        this._service.updateCharacteristic(this.hapChar.Active, this.cacheState === 'on' ? 1 : 0);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.Active),
+        this.cacheState === 'on' ? 1 : 0,
+      );
     }
   }
 
@@ -294,15 +291,11 @@ export class Heater2Device extends GoveeDeviceBase {
         this.accessory.log(`${platformLang.curMode} [${this.cacheMode}]`);
       }
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      setTimeout(() => {
-        this._service.updateCharacteristic(
-          this.hapChar.TargetHeaterCoolerState,
-          this.cacheMode === 'auto' ? 0 : 1,
-        );
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.TargetHeaterCoolerState),
+        this.cacheMode === 'auto' ? 0 : 1,
+      );
     }
   }
 
@@ -324,12 +317,11 @@ export class Heater2Device extends GoveeDeviceBase {
       this.cacheTarg = value;
       this.accessory.log(`${platformLang.curTarg} [${this.cacheTarg}°C]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      setTimeout(() => {
-        this._service.updateCharacteristic(this.hapChar.HeatingThresholdTemperature, this.cacheTarg);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.HeatingThresholdTemperature),
+        this.cacheTarg,
+      );
     }
   }
 
@@ -349,12 +341,11 @@ export class Heater2Device extends GoveeDeviceBase {
       this.cacheSwing = newValue;
       this.accessory.log(`${platformLang.curSwing} [${newValue}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      setTimeout(() => {
-        this._service.updateCharacteristic(this.hapChar.SwingMode, this.cacheSwing === 'on' ? 1 : 0);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.SwingMode),
+        this.cacheSwing === 'on' ? 1 : 0,
+      );
     }
   }
 
@@ -374,12 +365,11 @@ export class Heater2Device extends GoveeDeviceBase {
       this.cacheLock = newValue;
       this.accessory.log(`${platformLang.curLock} [${newValue}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      setTimeout(() => {
-        this._service.updateCharacteristic(this.hapChar.LockPhysicalControls, this.cacheLock === 'on' ? 1 : 0);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.LockPhysicalControls),
+        this.cacheLock === 'on' ? 1 : 0,
+      );
     }
   }
 
@@ -408,12 +398,11 @@ export class Heater2Device extends GoveeDeviceBase {
       this._service.updateCharacteristic(this.hapChar.TargetHeaterCoolerState, 0);
       this.accessory.log(`${platformLang.curMode} [${this.cacheMode}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      setTimeout(() => {
-        this.fanService.updateCharacteristic(this.hapChar.On, this.cacheFanState === 'on');
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this.fanService.getCharacteristic(this.hapChar.On),
+        this.cacheFanState === 'on',
+      );
     }
   }
 
@@ -440,12 +429,11 @@ export class Heater2Device extends GoveeDeviceBase {
         this.accessory.log(`${platformLang.curMode} [${this.cacheMode}]`);
       }
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      setTimeout(() => {
-        this.fanService.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this.fanService.getCharacteristic(this.hapChar.RotationSpeed),
+        this.cacheSpeed,
+      );
     }
   }
 
@@ -467,12 +455,11 @@ export class Heater2Device extends GoveeDeviceBase {
       this.cacheLightState = newValue;
       this.accessory.log(`${platformLang.curLight} [${newValue}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      setTimeout(() => {
-        this.lightService.updateCharacteristic(this.hapChar.On, this.cacheLightState === 'on');
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this.lightService.getCharacteristic(this.hapChar.On),
+        this.cacheLightState === 'on',
+      );
     }
   }
 
@@ -513,12 +500,11 @@ export class Heater2Device extends GoveeDeviceBase {
       this.cacheBright = value;
       this.accessory.log(`${platformLang.curBright} [${value}%]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      setTimeout(() => {
-        this.lightService.updateCharacteristic(this.hapChar.Brightness, this.cacheBright);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this.lightService.getCharacteristic(this.hapChar.Brightness),
+        this.cacheBright,
+      );
     }
   }
 
@@ -547,12 +533,11 @@ export class Heater2Device extends GoveeDeviceBase {
       this.cacheHue = value;
       this.accessory.log(`${platformLang.curColour} [rgb ${newRGB.join(' ')}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      setTimeout(() => {
-        this.lightService.updateCharacteristic(this.hapChar.Hue, this.cacheHue);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this.lightService.getCharacteristic(this.hapChar.Hue),
+        this.cacheHue,
+      );
     }
   }
 
@@ -587,151 +572,142 @@ export class Heater2Device extends GoveeDeviceBase {
       }
     }
 
-    // Check for command updates
-    (params.commands || []).forEach((command: string) => {
-      const hexString = base64ToHex(command);
-      const hexParts = hexToTwoItems(hexString);
+    if (params.commands) {
+      processCommands(
+        params.commands,
+        {
+          '1b01': (hexParts) => this.handleNightLightUpdate(hexParts),
+          '1b05': (hexParts) => this.handleNightLightColourUpdate(hexParts),
+          '1f00': (hexParts) => this.handleSwingLockUpdate(hexParts),
+          '1f01': (hexParts) => this.handleSwingLockUpdate(hexParts),
+          '0509': () => this.handleFanOnlyModeUpdate(),
+          '0501': (hexParts) => this.handleSpeedModeUpdate(hexParts),
+          '0503': () => this.handleAutoModeUpdate(),
+          '1a00': () => {}, // Timer - ignore
+          '1100': () => {}, // Timer - ignore
+          '1101': () => {}, // Timer - ignore
+          '1600': () => {}, // Display mode - ignore
+          '1601': () => {}, // Display mode - ignore
+        },
+        (command, hexString) => {
+          this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
+        },
+      );
+    }
+  }
 
-      if (getTwoItemPosition(hexParts, 1) !== 'aa') {
-        return;
-      }
+  private handleNightLightUpdate(hexParts: string[]): void {
+    const newLightState: 'on' | 'off' = getTwoItemPosition(hexParts, 4) === '01' ? 'on' : 'off';
+    if (this.cacheLightState !== newLightState) {
+      this.cacheLightState = newLightState;
+      this.lightService.updateCharacteristic(this.hapChar.On, this.cacheLightState === 'on');
+      this.accessory.log(`${platformLang.curLight} [${this.cacheLightState}]`);
+    }
+    const newBrightness = hexToDecimal(getTwoItemPosition(hexParts, 5));
+    if (this.cacheBright !== newBrightness) {
+      this.cacheBright = newBrightness;
+      this.lightService.updateCharacteristic(this.hapChar.Brightness, this.cacheBright);
+      this.accessory.log(`${platformLang.curBright} [${this.cacheBright}%]`);
+    }
+  }
 
-      const deviceFunction = `${getTwoItemPosition(hexParts, 2)}${getTwoItemPosition(hexParts, 3)}`;
+  private handleNightLightColourUpdate(hexParts: string[]): void {
+    const newR = hexToDecimal(getTwoItemPosition(hexParts, 5));
+    const newG = hexToDecimal(getTwoItemPosition(hexParts, 6));
+    const newB = hexToDecimal(getTwoItemPosition(hexParts, 7));
 
-      switch (deviceFunction) {
-      case '1b01': {
-        const newLightState: 'on' | 'off' = getTwoItemPosition(hexParts, 4) === '01' ? 'on' : 'off';
-        if (this.cacheLightState !== newLightState) {
-          this.cacheLightState = newLightState;
-          this.lightService.updateCharacteristic(this.hapChar.On, this.cacheLightState === 'on');
-          this.accessory.log(`${platformLang.curLight} [${this.cacheLightState}]`);
-        }
-        const newBrightness = hexToDecimal(getTwoItemPosition(hexParts, 5));
-        if (this.cacheBright !== newBrightness) {
-          this.cacheBright = newBrightness;
-          this.lightService.updateCharacteristic(this.hapChar.Brightness, this.cacheBright);
-          this.accessory.log(`${platformLang.curBright} [${this.cacheBright}%]`);
-        }
-        break;
-      }
-      case '1b05': {
-        // Night light colour
-        const newR = hexToDecimal(getTwoItemPosition(hexParts, 5));
-        const newG = hexToDecimal(getTwoItemPosition(hexParts, 6));
-        const newB = hexToDecimal(getTwoItemPosition(hexParts, 7));
+    const hs = rgb2hs(newR, newG, newB);
 
-        const hs = rgb2hs(newR, newG, newB);
+    if (hs[0] !== this.cacheHue) {
+      this.lightService.updateCharacteristic(this.hapChar.Hue, hs[0]);
+      this.lightService.updateCharacteristic(this.hapChar.Saturation, hs[1]);
+      this.cacheHue = hs[0];
+      this.accessory.log(`${platformLang.curColour} [rgb ${newR} ${newG} ${newB}]`);
+    }
+  }
 
-        if (hs[0] !== this.cacheHue) {
-          this.lightService.updateCharacteristic(this.hapChar.Hue, hs[0]);
-          this.lightService.updateCharacteristic(this.hapChar.Saturation, hs[1]);
-          this.cacheHue = hs[0];
+  private handleSwingLockUpdate(hexParts: string[]): void {
+    const newSwing: 'on' | 'off' = getTwoItemPosition(hexParts, 3) === '01' ? 'on' : 'off';
+    if (this.cacheSwing !== newSwing) {
+      this.cacheSwing = newSwing;
+      this._service.updateCharacteristic(this.hapChar.SwingMode, this.cacheSwing === 'on' ? 1 : 0);
+      this.accessory.log(`${platformLang.curSwing} [${this.cacheSwing}]`);
+    }
 
-          this.accessory.log(`${platformLang.curColour} [rgb ${newR} ${newG} ${newB}]`);
-        }
-        break;
-      }
-      case '1f00':
-      case '1f01': {
-        // Swing Mode
-        const newSwing: 'on' | 'off' = getTwoItemPosition(hexParts, 3) === '01' ? 'on' : 'off';
-        if (this.cacheSwing !== newSwing) {
-          this.cacheSwing = newSwing;
-          this._service.updateCharacteristic(this.hapChar.SwingMode, this.cacheSwing === 'on' ? 1 : 0);
-          this.accessory.log(`${platformLang.curSwing} [${this.cacheSwing}]`);
-        }
+    const newLock: 'on' | 'off' = getTwoItemPosition(hexParts, 4) === '01' ? 'on' : 'off';
+    if (this.cacheLock !== newLock) {
+      this.cacheLock = newLock;
+      this._service.updateCharacteristic(this.hapChar.LockPhysicalControls, this.cacheLock === 'on' ? 1 : 0);
+      this.accessory.log(`${platformLang.curLock} [${this.cacheLock}]`);
+    }
+  }
 
-        // Child Lock
-        const newLock: 'on' | 'off' = getTwoItemPosition(hexParts, 4) === '01' ? 'on' : 'off';
-        if (this.cacheLock !== newLock) {
-          this.cacheLock = newLock;
-          this._service.updateCharacteristic(this.hapChar.LockPhysicalControls, this.cacheLock === 'on' ? 1 : 0);
-          this.accessory.log(`${platformLang.curLock} [${this.cacheLock}]`);
-        }
-        break;
+  private handleFanOnlyModeUpdate(): void {
+    if (this.cacheMode !== 'fan-only') {
+      this.cacheMode = 'fan-only';
+      this.cacheFanState = 'on';
+      this.cacheSpeed = 25;
+      this.fanService.updateCharacteristic(this.hapChar.On, true);
+      this.fanService.updateCharacteristic(this.hapChar.RotationSpeed, 25);
+      this._service.updateCharacteristic(this.hapChar.TargetHeaterCoolerState, 1);
+      this.accessory.log(`${platformLang.curMode} [${this.cacheMode}]`);
+    }
+  }
+
+  private handleSpeedModeUpdate(hexParts: string[]): void {
+    const newMode = getTwoItemPosition(hexParts, 4);
+    switch (newMode) {
+    case '01': {
+      if (this.cacheMode !== 'low') {
+        this.cacheMode = 'low';
+        this.cacheFanState = 'on';
+        this.cacheSpeed = 50;
+        this.fanService.updateCharacteristic(this.hapChar.On, true);
+        this.fanService.updateCharacteristic(this.hapChar.RotationSpeed, 50);
+        this._service.updateCharacteristic(this.hapChar.TargetHeaterCoolerState, 1);
+        this.accessory.log(`${platformLang.curMode} [${this.cacheMode}]`);
       }
-      case '0509': {
-        // Fan-only mode
-        if (this.cacheMode !== 'fan-only') {
-          this.cacheMode = 'fan-only';
-          this.cacheFanState = 'on';
-          this.cacheSpeed = 25;
-          this.fanService.updateCharacteristic(this.hapChar.On, true);
-          this.fanService.updateCharacteristic(this.hapChar.RotationSpeed, 25);
-          this._service.updateCharacteristic(this.hapChar.TargetHeaterCoolerState, 1);
-          this.accessory.log(`${platformLang.curMode} [${this.cacheMode}]`);
-        }
-        break;
+      break;
+    }
+    case '02': {
+      if (this.cacheMode !== 'medium') {
+        this.cacheMode = 'medium';
+        this.cacheFanState = 'on';
+        this.cacheSpeed = 75;
+        this.fanService.updateCharacteristic(this.hapChar.On, true);
+        this.fanService.updateCharacteristic(this.hapChar.RotationSpeed, 75);
+        this._service.updateCharacteristic(this.hapChar.TargetHeaterCoolerState, 1);
+        this.accessory.log(`${platformLang.curMode} [${this.cacheMode}]`);
       }
-      case '0501': {
-        const newMode = getTwoItemPosition(hexParts, 4);
-        switch (newMode) {
-        case '01': {
-          if (this.cacheMode !== 'low') {
-            this.cacheMode = 'low';
-            this.cacheFanState = 'on';
-            this.cacheSpeed = 50;
-            this.fanService.updateCharacteristic(this.hapChar.On, true);
-            this.fanService.updateCharacteristic(this.hapChar.RotationSpeed, 50);
-            this._service.updateCharacteristic(this.hapChar.TargetHeaterCoolerState, 1);
-            this.accessory.log(`${platformLang.curMode} [${this.cacheMode}]`);
-          }
-          break;
-        }
-        case '02': {
-          if (this.cacheMode !== 'medium') {
-            this.cacheMode = 'medium';
-            this.cacheFanState = 'on';
-            this.cacheSpeed = 75;
-            this.fanService.updateCharacteristic(this.hapChar.On, true);
-            this.fanService.updateCharacteristic(this.hapChar.RotationSpeed, 75);
-            this._service.updateCharacteristic(this.hapChar.TargetHeaterCoolerState, 1);
-            this.accessory.log(`${platformLang.curMode} [${this.cacheMode}]`);
-          }
-          break;
-        }
-        case '03': {
-          if (this.cacheMode !== 'high') {
-            this.cacheMode = 'high';
-            this.cacheFanState = 'on';
-            this.cacheSpeed = 100;
-            this.fanService.updateCharacteristic(this.hapChar.On, true);
-            this.fanService.updateCharacteristic(this.hapChar.RotationSpeed, 100);
-            this._service.updateCharacteristic(this.hapChar.TargetHeaterCoolerState, 1);
-            this.accessory.log(`${platformLang.curMode} [${this.cacheMode}]`);
-          }
-          break;
-        }
-        default:
-          break;
-        }
-        break;
+      break;
+    }
+    case '03': {
+      if (this.cacheMode !== 'high') {
+        this.cacheMode = 'high';
+        this.cacheFanState = 'on';
+        this.cacheSpeed = 100;
+        this.fanService.updateCharacteristic(this.hapChar.On, true);
+        this.fanService.updateCharacteristic(this.hapChar.RotationSpeed, 100);
+        this._service.updateCharacteristic(this.hapChar.TargetHeaterCoolerState, 1);
+        this.accessory.log(`${platformLang.curMode} [${this.cacheMode}]`);
       }
-      case '0503': {
-        // Auto mode
-        if (this.cacheMode !== 'auto') {
-          this.cacheMode = 'auto';
-          this.cacheFanState = 'off';
-          this.cacheSpeed = 0;
-          this.fanService.updateCharacteristic(this.hapChar.On, false);
-          this.fanService.updateCharacteristic(this.hapChar.RotationSpeed, 0);
-          this._service.updateCharacteristic(this.hapChar.TargetHeaterCoolerState, 0);
-          this.accessory.log(`${platformLang.curMode} [${this.cacheMode}]`);
-        }
-        break;
-      }
-      case '1a00':
-      case '1100':
-      case '1101':
-      case '1600':
-      case '1601':
-        // Timer/display mode - ignore
-        break;
-      default:
-        this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
-        break;
-      }
-    });
+      break;
+    }
+    default:
+      break;
+    }
+  }
+
+  private handleAutoModeUpdate(): void {
+    if (this.cacheMode !== 'auto') {
+      this.cacheMode = 'auto';
+      this.cacheFanState = 'off';
+      this.cacheSpeed = 0;
+      this.fanService.updateCharacteristic(this.hapChar.On, false);
+      this.fanService.updateCharacteristic(this.hapChar.RotationSpeed, 0);
+      this._service.updateCharacteristic(this.hapChar.TargetHeaterCoolerState, 0);
+      this.accessory.log(`${platformLang.curMode} [${this.cacheMode}]`);
+    }
   }
 }
 

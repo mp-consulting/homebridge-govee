@@ -1,4 +1,4 @@
-import type { Service, HAPStatus } from 'homebridge';
+import type { Service } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
 import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
@@ -174,13 +174,11 @@ export class CoolerSingleDevice extends GoveeDeviceBase {
         value === 1 ? newOnState : 0,
       );
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      // Throw a 'no response' error and set a timeout to revert this after 2 seconds
-      setTimeout(() => {
-        this._service.updateCharacteristic(this.hapChar.Active, this.cacheState === 'on' ? 1 : 0);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.Active),
+        this.cacheState === 'on' ? 1 : 0,
+      );
     }
   }
 
@@ -235,16 +233,11 @@ export class CoolerSingleDevice extends GoveeDeviceBase {
         this.cacheCool === 'on' ? 3 : 1,
       );
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      // Throw a 'no response' error and set a timeout to revert this after 2 seconds
-      setTimeout(() => {
-        this._service.updateCharacteristic(
-          this.hapChar.CoolingThresholdTemperature,
-          this.accessory.context.cacheTarget ?? 20,
-        );
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.CoolingThresholdTemperature),
+        this.accessory.context.cacheTarget ?? 20,
+      );
     }
   }
 
