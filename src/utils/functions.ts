@@ -5,6 +5,7 @@ import NodeRSA from 'node-rsa';
 import pem from 'pem';
 
 import type { IotCertificate } from '../types.js';
+import { hs2rgb as hs2rgbInternal, rgb2hs as rgb2hsInternal } from './colour.js';
 
 export function base64ToHex(base64: string): string {
   return Buffer.from(base64, 'base64').toString('hex');
@@ -189,5 +190,35 @@ export function processCommands(
   }
 }
 
-// Re-export colour functions for convenience
-export { hs2rgb, rgb2hs } from './colour.js';
+// Night light command bytes
+const NIGHT_LIGHT_CMD = 0x33;
+const NIGHT_LIGHT_TYPE = 0x1b;
+const NIGHT_LIGHT_ON = 0x01;
+const NIGHT_LIGHT_OFF = 0x00;
+
+/**
+ * Generate a night light command code from HSB values.
+ * @param brightness - Brightness value (0-100)
+ * @param hue - Hue value (0-360)
+ * @param saturation - Saturation value (0-100)
+ * @returns Base64-encoded command string
+ */
+export function generateNightLightCode(
+  brightness: number,
+  hue: number,
+  saturation: number,
+): string {
+  const rgb = hs2rgbInternal(hue, saturation);
+  const hexValues = [NIGHT_LIGHT_CMD, NIGHT_LIGHT_TYPE, NIGHT_LIGHT_ON, brightness, ...rgb];
+  return generateCodeFromHexValues(hexValues) as string;
+}
+
+/**
+ * Generate a night light off command code.
+ * @returns Base64-encoded command string
+ */
+export function generateNightLightOffCode(): string {
+  const hexValues = [NIGHT_LIGHT_CMD, NIGHT_LIGHT_TYPE, NIGHT_LIGHT_OFF];
+  return generateCodeFromHexValues(hexValues) as string;
+}
+

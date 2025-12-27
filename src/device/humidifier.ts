@@ -3,9 +3,9 @@ import type { GoveePlatform } from '../platform.js';
 import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
-import { hs2rgb } from '../utils/colour.js';
 import {
-  generateCodeFromHexValues,
+  generateNightLightCode,
+  generateNightLightOffCode,
   processCommands,
   speedPercentToValue,
   speedValueToPercent,
@@ -120,19 +120,17 @@ export class HumidifierDevice extends GoveeDeviceBase {
         return;
       }
 
-      // Generate the hex values for the code
-      let hexValues: number[];
+      // Generate the night light code
+      let code: string;
       if (value) {
-        const newRGB = hs2rgb(
-          this.lightService.getCharacteristic(this.hapChar.Hue).value as number,
-          this.lightService.getCharacteristic(this.hapChar.Saturation).value as number,
-        );
-        hexValues = [0x33, 0x1b, 0x01, this.cacheBright, ...newRGB];
+        const hue = this.lightService.getCharacteristic(this.hapChar.Hue).value as number;
+        const saturation = this.lightService.getCharacteristic(this.hapChar.Saturation).value as number;
+        code = generateNightLightCode(this.cacheBright, hue, saturation);
       } else {
-        hexValues = [0x33, 0x1b, 0x00];
+        code = generateNightLightOffCode();
       }
 
-      await this.sendDeviceUpdate({ cmd: 'ptReal', value: generateCodeFromHexValues(hexValues) });
+      await this.sendDeviceUpdate({ cmd: 'ptReal', value: code });
 
       this.cacheLightState = newValue;
       this.accessory.log(`${platformLang.curLight} [${newValue}]`);
