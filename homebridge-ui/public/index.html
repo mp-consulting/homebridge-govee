@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
   <style>
     .card { margin-bottom: 1rem; }
-    .device-list { max-height: 300px; overflow-y: auto; }
+    .device-list { max-height: 400px; overflow-y: auto; }
     .spinner-border { width: 1rem; height: 1rem; }
     .form-check { margin-bottom: 0.5rem; }
     .nav-tabs { margin-bottom: 1rem; }
@@ -17,6 +17,11 @@
       margin-left: 0.25rem;
     }
     .info-icon:hover { color: #0d6efd; }
+    .device-card { border-left: 4px solid #0d6efd; }
+    .device-card.ignored { border-left-color: #dc3545; opacity: 0.7; }
+    .device-type-badge { font-size: 0.75rem; }
+    .accordion-button:not(.collapsed) { background-color: #e7f1ff; }
+    .btn-add-device { margin-bottom: 1rem; }
   </style>
 </head>
 <body>
@@ -29,6 +34,9 @@
       </li>
       <li class="nav-item" role="presentation">
         <button class="nav-link" id="connection-tab" data-bs-toggle="tab" data-bs-target="#connection" type="button" role="tab">Connection</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="devices-tab" data-bs-toggle="tab" data-bs-target="#devices" type="button" role="tab">Devices</button>
       </li>
       <li class="nav-item" role="presentation">
         <button class="nav-link" id="tools-tab" data-bs-toggle="tab" data-bs-target="#tools" type="button" role="tab">Tools</button>
@@ -176,6 +184,135 @@
         </div>
       </div>
 
+      <!-- Devices Tab -->
+      <div class="tab-pane fade" id="devices" role="tabpanel">
+        <div class="alert alert-info">
+          <strong>Tip:</strong> Configure device-specific settings here. Use "Discover Devices" in the Tools tab to find your device IDs.
+        </div>
+
+        <div class="accordion" id="deviceAccordion">
+          <!-- Light Devices -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#lightDevicesCollapse">
+                <span class="me-2">💡</span> Light Devices <span class="badge bg-secondary ms-2" id="lightDevicesCount">0</span>
+              </button>
+            </h2>
+            <div id="lightDevicesCollapse" class="accordion-collapse collapse" data-bs-parent="#deviceAccordion">
+              <div class="accordion-body">
+                <button class="btn btn-outline-primary btn-sm btn-add-device" onclick="addDevice('lightDevices')">+ Add Light Device</button>
+                <div id="lightDevicesList"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Switch Devices -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#switchDevicesCollapse">
+                <span class="me-2">🔌</span> Switch/Outlet Devices <span class="badge bg-secondary ms-2" id="switchDevicesCount">0</span>
+              </button>
+            </h2>
+            <div id="switchDevicesCollapse" class="accordion-collapse collapse" data-bs-parent="#deviceAccordion">
+              <div class="accordion-body">
+                <button class="btn btn-outline-primary btn-sm btn-add-device" onclick="addDevice('switchDevices')">+ Add Switch Device</button>
+                <div id="switchDevicesList"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Thermo Devices -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#thermoDevicesCollapse">
+                <span class="me-2">🌡️</span> Temperature/Humidity Sensors <span class="badge bg-secondary ms-2" id="thermoDevicesCount">0</span>
+              </button>
+            </h2>
+            <div id="thermoDevicesCollapse" class="accordion-collapse collapse" data-bs-parent="#deviceAccordion">
+              <div class="accordion-body">
+                <button class="btn btn-outline-primary btn-sm btn-add-device" onclick="addDevice('thermoDevices')">+ Add Sensor</button>
+                <div id="thermoDevicesList"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Leak Devices -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#leakDevicesCollapse">
+                <span class="me-2">💧</span> Leak Sensors <span class="badge bg-secondary ms-2" id="leakDevicesCount">0</span>
+              </button>
+            </h2>
+            <div id="leakDevicesCollapse" class="accordion-collapse collapse" data-bs-parent="#deviceAccordion">
+              <div class="accordion-body">
+                <button class="btn btn-outline-primary btn-sm btn-add-device" onclick="addDevice('leakDevices')">+ Add Leak Sensor</button>
+                <div id="leakDevicesList"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fan Devices -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#fanDevicesCollapse">
+                <span class="me-2">🌀</span> Fan Devices <span class="badge bg-secondary ms-2" id="fanDevicesCount">0</span>
+              </button>
+            </h2>
+            <div id="fanDevicesCollapse" class="accordion-collapse collapse" data-bs-parent="#deviceAccordion">
+              <div class="accordion-body">
+                <button class="btn btn-outline-primary btn-sm btn-add-device" onclick="addDevice('fanDevices')">+ Add Fan</button>
+                <div id="fanDevicesList"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Heater Devices -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#heaterDevicesCollapse">
+                <span class="me-2">🔥</span> Heater Devices <span class="badge bg-secondary ms-2" id="heaterDevicesCount">0</span>
+              </button>
+            </h2>
+            <div id="heaterDevicesCollapse" class="accordion-collapse collapse" data-bs-parent="#deviceAccordion">
+              <div class="accordion-body">
+                <button class="btn btn-outline-primary btn-sm btn-add-device" onclick="addDevice('heaterDevices')">+ Add Heater</button>
+                <div id="heaterDevicesList"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Humidifier Devices -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#humidifierDevicesCollapse">
+                <span class="me-2">💨</span> Humidifier Devices <span class="badge bg-secondary ms-2" id="humidifierDevicesCount">0</span>
+              </button>
+            </h2>
+            <div id="humidifierDevicesCollapse" class="accordion-collapse collapse" data-bs-parent="#deviceAccordion">
+              <div class="accordion-body">
+                <button class="btn btn-outline-primary btn-sm btn-add-device" onclick="addDevice('humidifierDevices')">+ Add Humidifier</button>
+                <div id="humidifierDevicesList"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Purifier Devices -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#purifierDevicesCollapse">
+                <span class="me-2">🌬️</span> Air Purifier Devices <span class="badge bg-secondary ms-2" id="purifierDevicesCount">0</span>
+              </button>
+            </h2>
+            <div id="purifierDevicesCollapse" class="accordion-collapse collapse" data-bs-parent="#deviceAccordion">
+              <div class="accordion-body">
+                <button class="btn btn-outline-primary btn-sm btn-add-device" onclick="addDevice('purifierDevices')">+ Add Purifier</button>
+                <div id="purifierDevicesList"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Tools Tab -->
       <div class="tab-pane fade" id="tools" role="tabpanel">
         <div class="card">
@@ -197,7 +334,7 @@
             <h5 class="mb-0">Device Discovery</h5>
           </div>
           <div class="card-body">
-            <p class="text-muted">Discover all devices linked to your Govee account.</p>
+            <p class="text-muted">Discover all devices linked to your Govee account. Use the device IDs to configure specific devices in the Devices tab.</p>
             <button id="discoverBtn" class="btn btn-secondary">
               <span id="discoverSpinner" class="spinner-border d-none" role="status"></span>
               Discover Devices
@@ -233,6 +370,242 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script>
+    // Device type configurations
+    const deviceTypes = {
+      lightDevices: {
+        fields: [
+          { id: 'deviceId', label: 'Device ID', type: 'text', required: true },
+          { id: 'label', label: 'Custom Label', type: 'text' },
+          { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' },
+          { id: 'showAs', label: 'Show As', type: 'select', options: [
+            { value: 'default', label: 'Light (default)' },
+            { value: 'switch', label: 'Switch' }
+          ]},
+          { id: 'customIPAddress', label: 'Custom IP Address', type: 'text', advanced: true },
+          { id: 'customAddress', label: 'Custom BLE Address', type: 'text', advanced: true },
+          { id: 'brightnessStep', label: 'Brightness Step', type: 'number', min: 1, max: 100, advanced: true },
+          { id: 'adaptiveLightingShift', label: 'Adaptive Lighting Shift', type: 'number', advanced: true },
+          { id: 'awsBrightnessNoScale', label: 'AWS Brightness No Scale', type: 'checkbox', advanced: true },
+          { id: 'awsColourMode', label: 'AWS Colour Mode', type: 'select', advanced: true, options: [
+            { value: 'default', label: 'Default' },
+            { value: 'rgb', label: 'RGB' },
+            { value: 'redgreenblue', label: 'Red/Green/Blue' }
+          ]}
+        ]
+      },
+      switchDevices: {
+        fields: [
+          { id: 'deviceId', label: 'Device ID', type: 'text', required: true },
+          { id: 'label', label: 'Custom Label', type: 'text' },
+          { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' },
+          { id: 'showAs', label: 'Show As', type: 'select', options: [
+            { value: 'default', label: 'Outlet (default)' },
+            { value: 'switch', label: 'Switch' },
+            { value: 'purifier', label: 'Air Purifier' },
+            { value: 'heater', label: 'Heater' },
+            { value: 'cooler', label: 'Cooler' },
+            { value: 'tap', label: 'Tap/Faucet' },
+            { value: 'valve', label: 'Valve' },
+            { value: 'audio', label: 'Audio Receiver' },
+            { value: 'box', label: 'Set-Top Box' },
+            { value: 'stick', label: 'Streaming Stick' }
+          ]},
+          { id: 'temperatureSource', label: 'Temperature Source (Device ID)', type: 'text', advanced: true }
+        ]
+      },
+      thermoDevices: {
+        fields: [
+          { id: 'deviceId', label: 'Device ID', type: 'text', required: true },
+          { id: 'label', label: 'Custom Label', type: 'text' },
+          { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' },
+          { id: 'lowBattThreshold', label: 'Low Battery Threshold (%)', type: 'number', min: 1, max: 100 },
+          { id: 'showExtraSwitch', label: 'Show Extra Switch', type: 'checkbox' }
+        ]
+      },
+      leakDevices: {
+        fields: [
+          { id: 'deviceId', label: 'Device ID', type: 'text', required: true },
+          { id: 'label', label: 'Custom Label', type: 'text' },
+          { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' },
+          { id: 'lowBattThreshold', label: 'Low Battery Threshold (%)', type: 'number', min: 1, max: 100 }
+        ]
+      },
+      fanDevices: {
+        fields: [
+          { id: 'deviceId', label: 'Device ID', type: 'text', required: true },
+          { id: 'label', label: 'Custom Label', type: 'text' },
+          { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' },
+          { id: 'hideLight', label: 'Hide Light Control', type: 'checkbox' }
+        ]
+      },
+      heaterDevices: {
+        fields: [
+          { id: 'deviceId', label: 'Device ID', type: 'text', required: true },
+          { id: 'label', label: 'Custom Label', type: 'text' },
+          { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' },
+          { id: 'tempReporting', label: 'Temperature Reporting', type: 'checkbox' }
+        ]
+      },
+      humidifierDevices: {
+        fields: [
+          { id: 'deviceId', label: 'Device ID', type: 'text', required: true },
+          { id: 'label', label: 'Custom Label', type: 'text' },
+          { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' }
+        ]
+      },
+      purifierDevices: {
+        fields: [
+          { id: 'deviceId', label: 'Device ID', type: 'text', required: true },
+          { id: 'label', label: 'Custom Label', type: 'text' },
+          { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' }
+        ]
+      }
+    };
+
+    let pluginConfig = { platform: 'Govee', name: 'Govee' };
+
+    function renderDeviceField(type, index, field, value) {
+      const fieldId = `${type}_${index}_${field.id}`;
+      let html = '';
+
+      if (field.type === 'checkbox') {
+        html = `
+          <div class="form-check form-switch mb-2">
+            <input class="form-check-input device-field" type="checkbox" id="${fieldId}"
+              data-type="${type}" data-index="${index}" data-field="${field.id}"
+              ${value ? 'checked' : ''}>
+            <label class="form-check-label" for="${fieldId}">${field.label}</label>
+          </div>`;
+      } else if (field.type === 'select') {
+        const options = field.options.map(opt =>
+          `<option value="${opt.value}" ${value === opt.value ? 'selected' : ''}>${opt.label}</option>`
+        ).join('');
+        html = `
+          <div class="mb-2">
+            <label class="form-label" for="${fieldId}">${field.label}</label>
+            <select class="form-select form-select-sm device-field" id="${fieldId}"
+              data-type="${type}" data-index="${index}" data-field="${field.id}">
+              ${options}
+            </select>
+          </div>`;
+      } else {
+        html = `
+          <div class="mb-2">
+            <label class="form-label" for="${fieldId}">${field.label}${field.required ? ' *' : ''}</label>
+            <input type="${field.type}" class="form-control form-control-sm device-field" id="${fieldId}"
+              data-type="${type}" data-index="${index}" data-field="${field.id}"
+              value="${value || ''}" ${field.min !== undefined ? `min="${field.min}"` : ''}
+              ${field.max !== undefined ? `max="${field.max}"` : ''}>
+          </div>`;
+      }
+      return html;
+    }
+
+    function renderDevice(type, index, device) {
+      const config = deviceTypes[type];
+      const isIgnored = device.ignoreDevice;
+      const displayName = device.label || device.deviceId || 'New Device';
+
+      const basicFields = config.fields.filter(f => !f.advanced);
+      const advancedFields = config.fields.filter(f => f.advanced);
+
+      let fieldsHtml = basicFields.map(f => renderDeviceField(type, index, f, device[f.id])).join('');
+
+      if (advancedFields.length > 0) {
+        const advancedHtml = advancedFields.map(f => renderDeviceField(type, index, f, device[f.id])).join('');
+        fieldsHtml += `
+          <div class="mt-2">
+            <a class="btn btn-link btn-sm p-0" data-bs-toggle="collapse" href="#${type}_${index}_advanced">
+              Advanced Settings
+            </a>
+            <div class="collapse mt-2" id="${type}_${index}_advanced">
+              ${advancedHtml}
+            </div>
+          </div>`;
+      }
+
+      return `
+        <div class="card device-card mb-2 ${isIgnored ? 'ignored' : ''}" id="${type}_${index}_card">
+          <div class="card-body py-2">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <strong>${displayName}</strong>
+              <button class="btn btn-outline-danger btn-sm" onclick="removeDevice('${type}', ${index})">Remove</button>
+            </div>
+            ${fieldsHtml}
+          </div>
+        </div>`;
+    }
+
+    function renderDeviceList(type) {
+      const devices = pluginConfig[type] || [];
+      const container = document.getElementById(`${type}List`);
+      const countBadge = document.getElementById(`${type}Count`);
+
+      if (devices.length === 0) {
+        container.innerHTML = '<p class="text-muted">No devices configured.</p>';
+      } else {
+        container.innerHTML = devices.map((device, index) => renderDevice(type, index, device)).join('');
+      }
+
+      countBadge.textContent = devices.length;
+
+      // Add event listeners for field changes
+      container.querySelectorAll('.device-field').forEach(field => {
+        field.addEventListener('change', handleDeviceFieldChange);
+        field.addEventListener('input', handleDeviceFieldChange);
+      });
+    }
+
+    function handleDeviceFieldChange(event) {
+      const field = event.target;
+      const type = field.dataset.type;
+      const index = parseInt(field.dataset.index);
+      const fieldName = field.dataset.field;
+
+      if (!pluginConfig[type]) pluginConfig[type] = [];
+      if (!pluginConfig[type][index]) pluginConfig[type][index] = {};
+
+      if (field.type === 'checkbox') {
+        pluginConfig[type][index][fieldName] = field.checked;
+      } else if (field.type === 'number') {
+        const val = parseInt(field.value);
+        if (!isNaN(val)) {
+          pluginConfig[type][index][fieldName] = val;
+        }
+      } else {
+        const val = field.value.trim();
+        if (val) {
+          pluginConfig[type][index][fieldName] = val;
+        } else {
+          delete pluginConfig[type][index][fieldName];
+        }
+      }
+
+      // Update card appearance if ignoreDevice changed
+      if (fieldName === 'ignoreDevice') {
+        const card = document.getElementById(`${type}_${index}_card`);
+        if (card) {
+          card.classList.toggle('ignored', field.checked);
+        }
+      }
+    }
+
+    function addDevice(type) {
+      if (!pluginConfig[type]) pluginConfig[type] = [];
+      pluginConfig[type].push({ deviceId: '' });
+      renderDeviceList(type);
+    }
+
+    function removeDevice(type, index) {
+      if (pluginConfig[type]) {
+        pluginConfig[type].splice(index, 1);
+        if (pluginConfig[type].length === 0) {
+          delete pluginConfig[type];
+        }
+        renderDeviceList(type);
+      }
+    }
+
     (async () => {
       // Get the homebridge object
       const homebridge = window.homebridge;
@@ -254,7 +627,7 @@
       const loadConfig = async () => {
         try {
           const config = await homebridge.getPluginConfig();
-          const pluginConfig = config[0] || {};
+          pluginConfig = config[0] || { platform: 'Govee', name: 'Govee' };
 
           // Load text fields
           textFields.forEach(field => {
@@ -276,6 +649,9 @@
             if (el) el.checked = pluginConfig[field] || false;
           });
 
+          // Render device lists
+          Object.keys(deviceTypes).forEach(type => renderDeviceList(type));
+
         } catch (err) {
           console.error('Failed to load config:', err);
           homebridge.toast.error('Failed to load configuration');
@@ -291,9 +667,6 @@
         saveBtn.disabled = true;
 
         try {
-          const config = await homebridge.getPluginConfig();
-          const pluginConfig = config[0] || { platform: 'Govee', name: 'Govee' };
-
           // Save text fields
           textFields.forEach(field => {
             const el = document.getElementById(field);
@@ -323,6 +696,13 @@
             const el = document.getElementById(field);
             if (el) {
               pluginConfig[field] = el.checked;
+            }
+          });
+
+          // Clean up empty device arrays
+          Object.keys(deviceTypes).forEach(type => {
+            if (pluginConfig[type] && pluginConfig[type].length === 0) {
+              delete pluginConfig[type];
             }
           });
 
@@ -434,8 +814,14 @@
             let html = '<ul class="list-group">';
             for (const device of devices) {
               html += `<li class="list-group-item d-flex justify-content-between align-items-center">
-                <span><strong>${device.deviceName || 'Unknown'}</strong> (${device.model || 'Unknown'})</span>
-                <span class="badge bg-secondary">${device.deviceId || ''}</span>
+                <div>
+                  <strong>${device.deviceName || 'Unknown'}</strong><br>
+                  <small class="text-muted">Model: ${device.model || 'Unknown'}</small>
+                </div>
+                <div class="text-end">
+                  <code class="user-select-all">${device.deviceId || ''}</code>
+                  <br><small class="text-muted">Copy this ID</small>
+                </div>
               </li>`;
             }
             html += '</ul>';
@@ -449,6 +835,10 @@
           btn.disabled = false;
         }
       });
+
+      // Make functions globally available
+      window.addDevice = addDevice;
+      window.removeDevice = removeDevice;
     })();
   </script>
 </body>
