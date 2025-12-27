@@ -113,6 +113,15 @@ export abstract class GoveeDeviceBase {
   }
 
   /**
+   * Remove multiple services at once
+   */
+  protected removeServices(...serviceNames: (keyof HapService)[]): void {
+    for (const serviceName of serviceNames) {
+      this.removeServiceIfExists(serviceName);
+    }
+  }
+
+  /**
    * Get or add a service by service type
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -133,6 +142,32 @@ export abstract class GoveeDeviceBase {
       service.addCharacteristic(CharacteristicClass);
     }
     return service.getCharacteristic(CharacteristicClass);
+  }
+
+  /**
+   * Add a custom characteristic with optional onSet handler
+   * Returns the characteristic or undefined if the class doesn't exist
+   */
+  protected addCustomCharacteristic(
+    service: Service,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    characteristicClass: any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onSetHandler?: (value: any) => Promise<void>,
+  ): Characteristic | undefined {
+    if (!characteristicClass) {
+      return undefined;
+    }
+
+    if (!service.testCharacteristic(characteristicClass)) {
+      service.addCharacteristic(characteristicClass);
+    }
+
+    const characteristic = service.getCharacteristic(characteristicClass);
+    if (onSetHandler) {
+      characteristic.onSet(onSetHandler);
+    }
+    return characteristic;
   }
 
   /**

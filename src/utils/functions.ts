@@ -124,5 +124,70 @@ export function statusToActionCode(statusCode: string): string {
   return Buffer.from(generatedCode as string, 'base64').toString('hex');
 }
 
+/**
+ * Convert rotation speed percentage (0-100) to a discrete speed value.
+ * @param speed - Speed percentage (0-100)
+ * @param maxSpeed - Maximum speed value (e.g., 3, 4, 5, 8, 9)
+ * @param roundingFn - Optional rounding function (default: Math.floor)
+ * @returns Converted speed value (1 to maxSpeed)
+ */
+export function speedPercentToValue(
+  speed: number,
+  maxSpeed: number,
+  roundingFn: (n: number) => number = Math.floor,
+): number {
+  const increment = 100 / maxSpeed;
+  return Math.min(Math.max(roundingFn(speed / increment), 1), maxSpeed);
+}
+
+/**
+ * Convert a discrete speed value to percentage.
+ * @param value - Speed value (1 to maxSpeed)
+ * @param maxSpeed - Maximum speed value
+ * @returns Speed percentage
+ */
+export function speedValueToPercent(value: number, maxSpeed: number): number {
+  const increment = 100 / maxSpeed;
+  return Math.round(value * increment);
+}
+
+/**
+ * Command handler type for processCommands utility
+ */
+export type CommandHandlerFn = (hexParts: string[], hexString: string) => void;
+
+/**
+ * Process device commands with a map of handlers.
+ * Parses base64-encoded commands and dispatches to appropriate handlers.
+ *
+ * @param commands - Array of base64-encoded commands
+ * @param handlers - Map of device function codes to handler functions
+ * @param defaultHandler - Optional handler for unknown commands
+ */
+export function processCommands(
+  commands: string[],
+  handlers: Record<string, CommandHandlerFn>,
+  defaultHandler?: (command: string, hexString: string, deviceFunction: string) => void,
+): void {
+  for (const command of commands) {
+    const hexString = base64ToHex(command);
+    const hexParts = hexToTwoItems(hexString);
+
+    // Skip if not a device query update code
+    if (getTwoItemPosition(hexParts, 1) !== 'aa') {
+      continue;
+    }
+
+    const deviceFunction = `${getTwoItemPosition(hexParts, 2)}${getTwoItemPosition(hexParts, 3)}`;
+    const handler = handlers[deviceFunction];
+
+    if (handler) {
+      handler(hexParts, hexString);
+    } else if (defaultHandler) {
+      defaultHandler(command, hexString, deviceFunction);
+    }
+  }
+}
+
 // Re-export colour functions for convenience
 export { hs2rgb, rgb2hs } from './colour.js';

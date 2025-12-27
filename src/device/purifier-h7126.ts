@@ -1,13 +1,13 @@
-import type { Service, HAPStatus } from 'homebridge';
+import type { Characteristic, Service } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
 import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
 import {
-  base64ToHex,
   getTwoItemPosition,
-  hexToTwoItems,
-  parseError,
+  processCommands,
+  speedPercentToValue,
+  speedValueToPercent,
 } from '../utils/functions.js';
 
 // Speed codes for H7126 model (3 speeds)
@@ -29,6 +29,8 @@ const DISPLAY_CODES: Record<'on' | 'off', string> = {
   off: 'MxYAAAAAAAAAAAAAAAAAAAAAACU=',
 };
 
+const MAX_SPEED = 3;
+
 /**
  * Purifier device handler for H7126 model.
  * Supports on/off, 3-speed control, lock, and display light.
@@ -43,8 +45,7 @@ export class PurifierH7126Device extends GoveeDeviceBase {
   private cacheDisplay: 'on' | 'off' = 'off';
 
   // Custom characteristic for display light
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private displayLightChar?: any;
+  private displayLightChar?: Characteristic;
 
   constructor(platform: GoveePlatform, accessory: GoveePlatformAccessoryWithControl) {
     super(platform, accessory);
@@ -54,17 +55,9 @@ export class PurifierH7126Device extends GoveeDeviceBase {
     return this._service;
   }
 
-  /**
-   * Convert rotation speed (0-99) to value (1-3)
-   */
-  private speed2Value(speed: number): number {
-    return Math.min(Math.max(Math.floor(speed / 33), 1), 3);
-  }
-
   init(): void {
     // Add the purifier service if it doesn't already exist
-    this._service = this.accessory.getService(this.hapServ.AirPurifier)
-      || this.accessory.addService(this.hapServ.AirPurifier);
+    this._service = this.getOrAddService(this.hapServ.AirPurifier);
 
     // Add the set handler to the switch on/off characteristic
     this._service.getCharacteristic(this.hapChar.Active).onSet(async (value) => {
@@ -93,18 +86,14 @@ export class PurifierH7126Device extends GoveeDeviceBase {
     });
     this.cacheLock = this._service.getCharacteristic(this.hapChar.LockPhysicalControls).value === 1 ? 'on' : 'off';
 
-    // Add display light custom characteristic if available
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const displayLightClass = (this.platform.cusChar as any)?.DisplayLight;
-    if (displayLightClass) {
-      if (!this._service.testCharacteristic(displayLightClass)) {
-        this._service.addCharacteristic(displayLightClass);
-      }
-
-      this.displayLightChar = this._service.getCharacteristic(displayLightClass);
-      this.displayLightChar.onSet(async (value: boolean) => {
-        await this.internalDisplayLightUpdate(value);
-      });
+    // Add display light custom characteristic using helper
+    this.displayLightChar = this.addCustomCharacteristic(
+      this._service,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (this.platform.cusChar as any)?.DisplayLight,
+      async (value: boolean) => this.internalDisplayLightUpdate(value),
+    );
+    if (this.displayLightChar) {
       this.cacheDisplay = this.displayLightChar.value ? 'on' : 'off';
     }
 
@@ -118,69 +107,55 @@ export class PurifierH7126Device extends GoveeDeviceBase {
     try {
       const newValue = value === 1 ? 'on' : 'off';
 
-      // Don't continue if the new value is the same as before
       if (this.cacheState === newValue) {
         return;
       }
 
-      // Send the request to the platform sender function
       await this.sendDeviceUpdate({
         cmd: 'statePuri',
         value: value ? 1 : 0,
       });
 
-      // Update the current state characteristic
       this._service.updateCharacteristic(this.hapChar.CurrentAirPurifierState, value === 1 ? 2 : 0);
-
-      // Cache the new state and log if appropriate
       this.cacheState = newValue;
       this.accessory.log(`${platformLang.curState} [${newValue}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      // Throw a 'no response' error and set a timeout to revert this after 2 seconds
-      setTimeout(() => {
-        this._service.updateCharacteristic(this.hapChar.Active, this.cacheState === 'on' ? 1 : 0);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.Active),
+        this.cacheState === 'on' ? 1 : 0,
+      );
     }
   }
 
   private async internalSpeedUpdate(value: number): Promise<void> {
     try {
-      // Don't continue if the speed is 0
       if (value === 0) {
         return;
       }
 
-      // Get the single Govee value {1, 2, 3}
-      const newValue = this.speed2Value(value);
+      const newValue = speedPercentToValue(value, MAX_SPEED);
+      const newPercent = speedValueToPercent(newValue, MAX_SPEED);
 
-      // Don't continue if the speed value won't have effect
-      if (newValue * 33 === this.cacheSpeed) {
+      if (newPercent === this.cacheSpeed) {
         return;
       }
 
-      // Get the scene code for this value
       const newCode = SPEED_VALUE_CODES[newValue];
 
-      // Send the request to the platform sender function
       await this.sendDeviceUpdate({
         cmd: 'ptReal',
         value: newCode,
       });
 
-      // Cache the new state and log if appropriate
-      this.cacheSpeed = newValue * 33;
+      this.cacheSpeed = newPercent;
       this.accessory.log(`${platformLang.curSpeed} [${this.cacheSpeed}%]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      // Throw a 'no response' error and set a timeout to revert this after 2 seconds
-      setTimeout(() => {
-        this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.RotationSpeed),
+        this.cacheSpeed,
+      );
     }
   }
 
@@ -188,31 +163,23 @@ export class PurifierH7126Device extends GoveeDeviceBase {
     try {
       const newValue = value === 1 ? 'on' : 'off';
 
-      // Don't continue if the new value is the same as before
       if (this.cacheLock === newValue) {
         return;
       }
 
-      // Send the request to the platform sender function
       await this.sendDeviceUpdate({
         cmd: 'ptReal',
         value: LOCK_CODES[newValue],
       });
 
-      // Cache the new state and log if appropriate
       this.cacheLock = newValue;
       this.accessory.log(`${platformLang.curLock} [${newValue}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      // Throw a 'no response' error and set a timeout to revert this after 2 seconds
-      setTimeout(() => {
-        this._service.updateCharacteristic(
-          this.hapChar.LockPhysicalControls,
-          this.cacheLock === 'on' ? 1 : 0,
-        );
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.LockPhysicalControls),
+        this.cacheLock === 'on' ? 1 : 0,
+      );
     }
   }
 
@@ -220,30 +187,21 @@ export class PurifierH7126Device extends GoveeDeviceBase {
     try {
       const newValue = value ? 'on' : 'off';
 
-      // Don't continue if the new value is the same as before
       if (this.cacheDisplay === newValue) {
         return;
       }
 
-      // Send the request to the platform sender function
       await this.sendDeviceUpdate({
         cmd: 'ptReal',
         value: DISPLAY_CODES[newValue],
       });
 
-      // Cache the new state and log if appropriate
       this.cacheDisplay = newValue;
       this.accessory.log(`${platformLang.curDisplay} [${newValue}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      // Throw a 'no response' error and set a timeout to revert this after 2 seconds
-      setTimeout(() => {
-        if (this.displayLightChar) {
-          this.displayLightChar.updateValue(this.cacheDisplay === 'on');
-        }
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      if (this.displayLightChar) {
+        this.handleUpdateError(err, this.displayLightChar, this.cacheDisplay === 'on');
+      }
     }
   }
 
@@ -253,67 +211,52 @@ export class PurifierH7126Device extends GoveeDeviceBase {
       this.cacheState = params.state;
       this._service.updateCharacteristic(this.hapChar.Active, this.cacheState === 'on' ? 1 : 0);
       this._service.updateCharacteristic(this.hapChar.CurrentAirPurifierState, this.cacheState === 'on' ? 2 : 0);
-
-      // Log the change
       this.accessory.log(`${platformLang.curState} [${this.cacheState}]`);
     }
 
-    // Check for some other scene/mode change
+    // Process commands using the utility
     if (params.commands) {
-      this.handleCommandUpdates(params.commands);
+      processCommands(
+        params.commands,
+        {
+          '0501': (hexParts) => this.handleSpeedUpdate(hexParts),
+          '1000': () => this.handleLockUpdate('off'),
+          '1001': () => this.handleLockUpdate('on'),
+          '1600': () => this.handleDisplayUpdate('off'),
+          '1601': () => this.handleDisplayUpdate('on'),
+        },
+        (command, hexString) => {
+          this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
+        },
+      );
     }
   }
 
-  private handleCommandUpdates(commands: string[]): void {
-    for (const command of commands) {
-      const hexString = base64ToHex(command);
-      const hexParts = hexToTwoItems(hexString);
+  private handleSpeedUpdate(hexParts: string[]): void {
+    const newSpeedRaw = getTwoItemPosition(hexParts, 4);
+    if (newSpeedRaw !== this.cacheSpeedRaw) {
+      this.cacheSpeedRaw = newSpeedRaw;
+      this.cacheSpeed = Number.parseInt(newSpeedRaw, 10) * 10;
+      this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
+      this.accessory.log(`${platformLang.curSpeed} [${this.cacheSpeed}]`);
+    }
+  }
 
-      // Return now if not a device query update code
-      if (getTwoItemPosition(hexParts, 1) !== 'aa') {
-        continue;
-      }
+  private handleLockUpdate(newLock: 'on' | 'off'): void {
+    if (newLock !== this.cacheLock) {
+      this.cacheLock = newLock;
+      this._service.updateCharacteristic(this.hapChar.LockPhysicalControls, this.cacheLock === 'on' ? 1 : 0);
+      this.accessory.log(`${platformLang.curLock} [${this.cacheLock}]`);
+    }
+  }
 
-      const deviceFunction = `${getTwoItemPosition(hexParts, 2)}${getTwoItemPosition(hexParts, 3)}`;
-
-      switch (deviceFunction) {
-      case '0501': {
-        // Manual speed
-        const newSpeedRaw = getTwoItemPosition(hexParts, 4);
-        if (newSpeedRaw !== this.cacheSpeedRaw) {
-          this.cacheSpeedRaw = newSpeedRaw;
-          this.cacheSpeed = Number.parseInt(newSpeedRaw, 10) * 10;
-          this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
-          this.accessory.log(`${platformLang.curSpeed} [${this.cacheSpeed}]`);
-        }
-        break;
+  private handleDisplayUpdate(newDisplay: 'on' | 'off'): void {
+    if (newDisplay !== this.cacheDisplay) {
+      this.cacheDisplay = newDisplay;
+      if (this.displayLightChar) {
+        this.displayLightChar.updateValue(this.cacheDisplay === 'on');
       }
-      case '1000': // lock off
-      case '1001': { // lock on
-        const newLock = deviceFunction === '1001' ? 'on' : 'off';
-        if (newLock !== this.cacheLock) {
-          this.cacheLock = newLock;
-          this._service.updateCharacteristic(this.hapChar.LockPhysicalControls, this.cacheLock === 'on' ? 1 : 0);
-          this.accessory.log(`${platformLang.curLock} [${this.cacheLock}]`);
-        }
-        break;
-      }
-      case '1600': // display light off
-      case '1601': { // display light on
-        const newDisplay = deviceFunction === '1601' ? 'on' : 'off';
-        if (newDisplay !== this.cacheDisplay) {
-          this.cacheDisplay = newDisplay;
-          if (this.displayLightChar) {
-            this.displayLightChar.updateValue(this.cacheDisplay === 'on');
-          }
-          this.accessory.log(`${platformLang.curDisplay} [${this.cacheDisplay}]`);
-        }
-        break;
-      }
-      default:
-        this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
-        break;
-      }
+      this.accessory.log(`${platformLang.curDisplay} [${this.cacheDisplay}]`);
     }
   }
 }
