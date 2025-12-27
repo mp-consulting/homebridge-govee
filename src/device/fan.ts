@@ -22,6 +22,9 @@ const FAN_SPEED_VALUES = [0, 11, 22, 33, 44, 55, 66, 77, 88, 99];
 const FAN_AUTO_SPEED = 99;
 const FAN_MAX_MANUAL_SPEED = 88;
 
+// Mode byte for auto mode detection
+const AUTO_MODE_BYTE = '03';
+
 /**
  * Fan device handler for H7102 model.
  * Supports on/off, speed control, and swing mode.
@@ -222,7 +225,7 @@ export class FanDevice extends GoveeDeviceBase {
 
   private handleModeUpdate(hexParts: string[]): void {
     // (Guess) Fixed Speed: 1, Custom: 2, Auto: 3, Sleep: 5, Nature: 6, Turbo: 7
-    const newMode = getTwoItemPosition(hexParts, 4) === '03' ? 'auto' : 'manual';
+    const newMode = getTwoItemPosition(hexParts, 4) === AUTO_MODE_BYTE ? 'auto' : 'manual';
     if (this.cacheMode !== newMode) {
       this.cacheMode = newMode;
       this.accessory.log(`${platformLang.curMode} [${this.cacheMode}]`);

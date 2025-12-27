@@ -22,6 +22,9 @@ import {
 const HEATER_SPEED_STEP = 33;
 const HEATER_SPEED_VALUES = [0, 33, 66, 99];
 
+// Temperature threshold for reporting warning
+const TEMP_THRESHOLD = 100;
+
 /**
  * Heater 1A device handler for H7130 (without temperature reporting).
  * Uses Fanv2 service with Low/Medium/High speed modes.
@@ -167,8 +170,8 @@ export class Heater1aDevice extends GoveeDeviceBase {
 
     // Check for temperature (should not be reported for this device)
     if (hasProperty(params, 'temperature')) {
-      const newTemp = nearestHalf(farToCen(params.temperature! / 100));
-      if (newTemp <= 100) {
+      const newTemp = nearestHalf(farToCen(params.temperature! / TEMP_THRESHOLD));
+      if (newTemp <= TEMP_THRESHOLD) {
         // Device must be one that DOES support ambient temperature
         this.accessory.logWarn('you should enable `tempReporting` in the config for this device');
       }
@@ -215,18 +218,14 @@ export class Heater1aDevice extends GoveeDeviceBase {
 
   private handleSpeedExternalUpdate(hexParts: string[]): void {
     const speedByte = getTwoItemPosition(hexParts, 3);
-    let newSpeed: number;
-    switch (speedByte) {
-    case '01':
-      newSpeed = 33;
-      break;
-    case '02':
-      newSpeed = 66;
-      break;
-    case '03':
-      newSpeed = 99;
-      break;
-    default:
+    // Map hex speed byte to percentage: 01=33%, 02=66%, 03=99%
+    const speedByteMap: Record<string, number> = {
+      '01': HEATER_SPEED_VALUES[1],
+      '02': HEATER_SPEED_VALUES[2],
+      '03': HEATER_SPEED_VALUES[3],
+    };
+    const newSpeed = speedByteMap[speedByte];
+    if (newSpeed === undefined) {
       return;
     }
     if (this.cacheSpeed !== newSpeed) {
