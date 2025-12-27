@@ -2,6 +2,8 @@ import type { GoveePlatform } from '../platform.js';
 import type { GoveePlatformAccessoryWithControl } from '../types.js';
 import type { GoveeDeviceBase } from './base.js';
 import { platformConsts } from '../utils/index.js';
+import { getDeviceDefinition } from '../catalog/index.js';
+import type { DeviceModelDefinition } from '../catalog/index.js';
 
 // Device handler type
 export type DeviceHandlerClass = new (
@@ -216,6 +218,32 @@ export function isModelSupported(model: string): boolean {
   return modelCategoryMap.has(model.toUpperCase());
 }
 
+/**
+ * Get the device definition from the catalog for a model
+ */
+export function getModelDefinition(model: string): DeviceModelDefinition | undefined {
+  return getDeviceDefinition(model);
+}
+
+/**
+ * Check if a model has a specific capability in the catalog
+ */
+export function modelHasCapability(
+  model: string,
+  capability: keyof DeviceModelDefinition['capabilities'],
+): boolean {
+  const definition = getDeviceDefinition(model);
+  return definition?.capabilities?.[capability] !== undefined;
+}
+
+/**
+ * Get the speed configuration for a model from the catalog
+ */
+export function getModelSpeedConfig(model: string): DeviceModelDefinition['capabilities']['speed'] {
+  const definition = getDeviceDefinition(model);
+  return definition?.capabilities?.speed;
+}
+
 export default {
   registerDeviceHandler,
   registerModelsForCategory,
@@ -227,4 +255,7 @@ export default {
   initializeModelMappings,
   getRegisteredCategories,
   isModelSupported,
+  getModelDefinition,
+  modelHasCapability,
+  getModelSpeedConfig,
 };
