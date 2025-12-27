@@ -1,14 +1,9 @@
-import type { Service, HAPStatus } from 'homebridge';
+import type { Service } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
 import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
-import {
-  base64ToHex,
-  getTwoItemPosition,
-  hexToTwoItems,
-  parseError,
-} from '../utils/functions.js';
+import { processCommands, speedPercentToValue, speedValueToPercent } from '../utils/functions.js';
 
 /**
  * Dehumidifier device handler for H7150/H7151.
@@ -18,7 +13,7 @@ export class DehumidifierDevice extends GoveeDeviceBase {
   private _service!: Service;
 
   // Speed codes (1-8 levels)
-  private readonly value2Code: Record<number, string> = {
+  private readonly speedCodes: Record<number, string> = {
     1: 'MwUBAQAAAAAAAAAAAAAAAAAAADY=',
     2: 'MwUBAgAAAAAAAAAAAAAAAAAAADU=',
     3: 'MwUBAwAAAAAAAAAAAAAAAAAAADQ=',
@@ -29,8 +24,10 @@ export class DehumidifierDevice extends GoveeDeviceBase {
     8: 'MwUBCAAAAAAAAAAAAAAAAAAAAD8=',
   };
 
+  private static readonly MAX_SPEED = 8;
+
   // Cached values
-  private cacheSpeed = 10;
+  private cacheSpeed = 0;
 
   constructor(platform: GoveePlatform, accessory: GoveePlatformAccessoryWithControl) {
     super(platform, accessory);
@@ -40,17 +37,9 @@ export class DehumidifierDevice extends GoveeDeviceBase {
     return this._service;
   }
 
-  /**
-   * Convert rotation speed percentage to Govee value (1-8)
-   */
-  private speed2Value(speed: number): number {
-    return Math.min(Math.max(Math.round(speed / 10), 1), 8);
-  }
-
   init(): void {
     // Add the Fan service if it doesn't already exist
-    this._service = this.accessory.getService(this.hapServ.Fan)
-      || this.accessory.addService(this.hapServ.Fan);
+    this._service = this.getOrAddService(this.hapServ.Fan);
 
     // Set up On characteristic
     this._service
@@ -77,89 +66,57 @@ export class DehumidifierDevice extends GoveeDeviceBase {
   private async internalStateUpdate(value: boolean): Promise<void> {
     try {
       const newValue: 'on' | 'off' = value ? 'on' : 'off';
-
       if (this.cacheState === newValue) {
         return;
       }
 
-      await this.sendDeviceUpdate({
-        cmd: 'stateHumi',
-        value: value ? 1 : 0,
-      });
+      await this.sendDeviceUpdate({ cmd: 'stateHumi', value: value ? 1 : 0 });
 
       this.cacheState = newValue;
       this.accessory.log(`${platformLang.curState} [${newValue}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      setTimeout(() => {
-        this._service.updateCharacteristic(this.hapChar.On, this.cacheState === 'on');
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(err, this._service.getCharacteristic(this.hapChar.On), this.cacheState === 'on');
     }
   }
 
   private async internalSpeedUpdate(value: number): Promise<void> {
     try {
-      // Don't continue if the speed is 0
       if (value === 0) {
         return;
       }
 
-      // Get the single Govee value (1-8)
-      const newValue = this.speed2Value(value);
+      const newValue = speedPercentToValue(value, DehumidifierDevice.MAX_SPEED, Math.round);
+      const newPercent = speedValueToPercent(newValue, DehumidifierDevice.MAX_SPEED);
 
-      // Don't continue if the speed value won't have effect
-      if (newValue * 10 === this.cacheSpeed) {
+      if (newPercent === this.cacheSpeed) {
         return;
       }
 
-      // Get the scene code for this value
-      const newCode = this.value2Code[newValue];
+      await this.sendDeviceUpdate({ cmd: 'ptReal', value: this.speedCodes[newValue] });
 
-      await this.sendDeviceUpdate({
-        cmd: 'ptReal',
-        value: newCode,
-      });
-
-      this.cacheSpeed = newValue * 10;
+      this.cacheSpeed = newPercent;
       this.accessory.log(`${platformLang.curSpeed} [${newValue}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      setTimeout(() => {
-        this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(err, this._service.getCharacteristic(this.hapChar.RotationSpeed), this.cacheSpeed);
     }
   }
 
   externalUpdate(params: ExternalUpdateParams): void {
-    // Check for an ON/OFF change
     if (params.state && params.state !== this.cacheState) {
       this.cacheState = params.state;
       this._service.updateCharacteristic(this.hapChar.On, this.cacheState === 'on');
-
       this.accessory.log(`${platformLang.curState} [${this.cacheState}]`);
     }
 
-    // Check for command updates
-    (params.commands || []).forEach((command: string) => {
-      const hexString = base64ToHex(command);
-      const hexParts = hexToTwoItems(hexString);
-
-      if (getTwoItemPosition(hexParts, 1) !== 'aa') {
-        return;
-      }
-
-      const deviceFunction = `${getTwoItemPosition(hexParts, 1)}${getTwoItemPosition(hexParts, 2)}`;
-
-      switch (deviceFunction) {
-      default:
-        this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
-        break;
-      }
-    });
+    if (params.commands) {
+      processCommands(
+        params.commands,
+        {},
+        (command, hexString) => {
+          this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
+        },
+      );
+    }
   }
 }
 

@@ -1,15 +1,9 @@
-import type { Service, HAPStatus } from 'homebridge';
+import type { Service } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
 import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
-import {
-  base64ToHex,
-  getTwoItemPosition,
-  hexToTwoItems,
-  parseError,
-  sleep,
-} from '../utils/functions.js';
+import { getTwoItemPosition, processCommands, sleep } from '../utils/functions.js';
 
 /**
  * Kettle device handler.
@@ -192,18 +186,11 @@ export class KettleDevice extends GoveeDeviceBase {
       }
 
       // Send the request to change the mode
-      await this.sendDeviceUpdate({
-        cmd: 'ptReal',
-        value: b64Code,
-      });
-
+      await this.sendDeviceUpdate({ cmd: 'ptReal', value: b64Code });
       await sleep(1000);
 
       // Send the request to turn to boiling mode
-      await this.sendDeviceUpdate({
-        cmd: 'ptReal',
-        value: 'MwEBAAAAAAAAAAAAAAAAAAAAADM=',
-      });
+      await this.sendDeviceUpdate({ cmd: 'ptReal', value: 'MwEBAAAAAAAAAAAAAAAAAAAAADM=' });
 
       this.cacheState = 'on';
       this.accessory.log(`${platformLang.curMode} [${service.displayName}]`);
@@ -213,54 +200,36 @@ export class KettleDevice extends GoveeDeviceBase {
         service.updateCharacteristic(this.hapChar.On, false);
       }, 3000);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      setTimeout(() => {
-        service.updateCharacteristic(this.hapChar.On, false);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(err, service.getCharacteristic(this.hapChar.On), false);
     }
   }
 
   externalUpdate(params: ExternalUpdateParams): void {
-    // Check for command updates
-    (params.commands || []).forEach((command: string) => {
-      const hexString = base64ToHex(command);
-      const hexParts = hexToTwoItems(hexString);
+    if (params.commands) {
+      processCommands(
+        params.commands,
+        {
+          '0500': () => {}, // Current mode - no action needed
+          '1001': () => {}, // Current temperature - could be exposed in future
+          '1700': (hexParts) => this.handleOnBaseUpdate(hexParts),
+          '2200': () => {}, // Keep warm - ignore
+          '2201': () => {}, // Keep warm - ignore
+          '2300': () => {}, // Scheduled start - ignore
+          '2301': () => {}, // Scheduled start - ignore
+        },
+        (command, hexString) => {
+          this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
+        },
+      );
+    }
+  }
 
-      if (getTwoItemPosition(hexParts, 1) !== 'aa') {
-        return;
-      }
-
-      const deviceFunction = `${getTwoItemPosition(hexParts, 2)}${getTwoItemPosition(hexParts, 3)}`;
-
-      switch (deviceFunction) {
-      case '0500':
-        // Current mode - no action needed for brief state
-        break;
-      case '1001':
-        // Current temperature - could be exposed in future
-        break;
-      case '1700': {
-        // On/off base
-        const onBase: 'yes' | 'no' = getTwoItemPosition(hexParts, 4) === '00' ? 'yes' : 'no';
-        if (this.cacheOnBase !== onBase) {
-          this.cacheOnBase = onBase;
-          this.accessory.log(`current on base [${this.cacheOnBase}]`);
-        }
-        break;
-      }
-      case '2200':
-      case '2201':
-      case '2300':
-      case '2301':
-        // Keep warm / scheduled start - ignore
-        break;
-      default:
-        this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
-        break;
-      }
-    });
+  private handleOnBaseUpdate(hexParts: string[]): void {
+    const onBase: 'yes' | 'no' = getTwoItemPosition(hexParts, 4) === '00' ? 'yes' : 'no';
+    if (this.cacheOnBase !== onBase) {
+      this.cacheOnBase = onBase;
+      this.accessory.log(`current on base [${this.cacheOnBase}]`);
+    }
   }
 }
 
