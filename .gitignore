@@ -5,6 +5,9 @@ dist
 homebridge-ui/*.js
 !homebridge-ui/server.js
 
+# Auto-generated UI models file (generated from src/utils/constants.ts during build)
+homebridge-ui/public/models.js
+
 # ------------- Defaults ------------- #
 .DS_Store
 

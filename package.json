@@ -41,7 +41,7 @@
     "homebridge": "^1.8.0 || ^2.0.0-beta.0"
   },
   "scripts": {
-    "build": "rimraf ./dist && tsc && cp -r src/connection/cert dist/connection/",
+    "build": "rimraf ./dist && tsc && cp -r src/connection/cert dist/connection/ && node scripts/generate-ui-models.js",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "npm run lint -- --fix",
     "prepublishOnly": "npm run lint && npm run build",
