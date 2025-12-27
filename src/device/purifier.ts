@@ -1,9 +1,9 @@
-import type { Service, HAPStatus } from 'homebridge';
+import type { Service } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
 import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
-import { generateRandomString, parseError } from '../utils/functions.js';
+import { generateRandomString } from '../utils/functions.js';
 
 /**
  * Purifier device handler (simple on/off control).
@@ -31,8 +31,7 @@ export class PurifierDevice extends GoveeDeviceBase {
     }
 
     // Add the AirPurifier service if it doesn't already exist
-    this._service = this.accessory.getService(this.hapServ.AirPurifier)
-      || this.accessory.addService(this.hapServ.AirPurifier);
+    this._service = this.getOrAddService(this.hapServ.AirPurifier);
 
     // Set up Active characteristic
     this._service
@@ -64,7 +63,6 @@ export class PurifierDevice extends GoveeDeviceBase {
   private async internalStateUpdate(value: number): Promise<void> {
     try {
       const newValue: 'on' | 'off' = value === 1 ? 'on' : 'off';
-
       if (newValue === this.cacheState) {
         return;
       }
@@ -78,10 +76,7 @@ export class PurifierDevice extends GoveeDeviceBase {
         }
       }, 60000);
 
-      await this.sendDeviceUpdate({
-        cmd: 'stateOutlet',
-        value: newValue,
-      });
+      await this.sendDeviceUpdate({ cmd: 'stateOutlet', value: newValue });
 
       this.cacheState = newValue;
       this.accessory.log(`${platformLang.curState} [${this.cacheState}]`);
@@ -92,12 +87,11 @@ export class PurifierDevice extends GoveeDeviceBase {
       }
       this._service.updateCharacteristic(this.hapChar.CurrentAirPurifierState, value === 1 ? 2 : 0);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      setTimeout(() => {
-        this._service.updateCharacteristic(this.hapChar.Active, this.cacheState === 'on' ? 1 : 0);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.Active),
+        this.cacheState === 'on' ? 1 : 0,
+      );
     }
   }
 

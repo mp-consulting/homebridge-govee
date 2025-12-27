@@ -1,14 +1,14 @@
-import type { Service, HAPStatus } from 'homebridge';
+import type { Service } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
 import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
 import {
-  base64ToHex,
   generateRandomString,
   getTwoItemPosition,
-  hexToTwoItems,
-  parseError,
+  processCommands,
+  speedPercentToValue,
+  speedValueToPercent,
 } from '../utils/functions.js';
 
 // Speed codes for H7121 model (Low=1, Medium=2, High=3, Sleep=16)
@@ -29,6 +29,8 @@ export class PurifierFullDevice extends GoveeDeviceBase {
   // Update timeout
   private updateTimeout: string | false = false;
 
+  private static readonly MAX_SPEED = 4;
+
   // Cached values
   private cacheSpeed = 0;
 
@@ -40,13 +42,6 @@ export class PurifierFullDevice extends GoveeDeviceBase {
     return this._service;
   }
 
-  /**
-   * Convert rotation speed (0-100) to value (1-4)
-   */
-  private speed2Value(speed: number): number {
-    return Math.min(Math.max(Math.round(speed / 25), 1), 4);
-  }
-
   init(): void {
     // Remove any old services from simulations
     const servicesToRemove = ['HeaterCooler', 'Lightbulb', 'Outlet', 'Switch', 'Valve'] as const;
@@ -55,8 +50,7 @@ export class PurifierFullDevice extends GoveeDeviceBase {
     }
 
     // Add the AirPurifier service if it doesn't already exist
-    this._service = this.accessory.getService(this.hapServ.AirPurifier)
-      || this.accessory.addService(this.hapServ.AirPurifier);
+    this._service = this.getOrAddService(this.hapServ.AirPurifier);
 
     // Set up Active characteristic
     this._service
@@ -98,7 +92,6 @@ export class PurifierFullDevice extends GoveeDeviceBase {
   private async internalStateUpdate(value: number): Promise<void> {
     try {
       const newValue: 'on' | 'off' = value === 1 ? 'on' : 'off';
-
       if (newValue === this.cacheState) {
         return;
       }
@@ -112,10 +105,7 @@ export class PurifierFullDevice extends GoveeDeviceBase {
         }
       }, 60000);
 
-      await this.sendDeviceUpdate({
-        cmd: 'statePuri',
-        value: newValue,
-      });
+      await this.sendDeviceUpdate({ cmd: 'statePuri', value: newValue });
 
       this.cacheState = newValue;
       this.accessory.log(`${platformLang.curState} [${this.cacheState}]`);
@@ -126,12 +116,11 @@ export class PurifierFullDevice extends GoveeDeviceBase {
       }
       this._service.updateCharacteristic(this.hapChar.CurrentAirPurifierState, value === 1 ? 2 : 0);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      setTimeout(() => {
-        this._service.updateCharacteristic(this.hapChar.Active, this.cacheState === 'on' ? 1 : 0);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.Active),
+        this.cacheState === 'on' ? 1 : 0,
+      );
     }
   }
 
@@ -141,27 +130,23 @@ export class PurifierFullDevice extends GoveeDeviceBase {
         return;
       }
 
-      const newValue = this.speed2Value(value);
+      const newValue = speedPercentToValue(value, PurifierFullDevice.MAX_SPEED, Math.round);
+      const newPercent = speedValueToPercent(newValue, PurifierFullDevice.MAX_SPEED);
 
-      if (newValue * 25 === this.cacheSpeed) {
+      if (newPercent === this.cacheSpeed) {
         return;
       }
 
-      const newCode = SPEED_VALUE_CODES[newValue];
+      await this.sendDeviceUpdate({ cmd: 'ptReal', value: SPEED_VALUE_CODES[newValue] });
 
-      await this.sendDeviceUpdate({
-        cmd: 'ptReal',
-        value: newCode,
-      });
-
-      this.cacheSpeed = newValue * 25;
+      this.cacheSpeed = newPercent;
       this.accessory.log(`${platformLang.curSpeed} [${newValue}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-      setTimeout(() => {
-        this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.RotationSpeed),
+        this.cacheSpeed,
+      );
     }
   }
 
@@ -185,58 +170,46 @@ export class PurifierFullDevice extends GoveeDeviceBase {
       }
     }
 
-    // Check for command updates
     if (params.commands) {
-      this.handleCommandUpdates(params.commands);
+      processCommands(
+        params.commands,
+        {
+          '0500': (hexParts) => this.handleSpeedUpdate(hexParts),
+          '0501': (hexParts) => this.handleSpeedUpdate(hexParts),
+          '0502': (hexParts) => this.handleSpeedUpdate(hexParts),
+          '0503': (hexParts) => this.handleSpeedUpdate(hexParts),
+          '0510': (hexParts) => this.handleSpeedUpdate(hexParts),
+        },
+        (command, hexString) => {
+          this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
+        },
+      );
     }
   }
 
-  private handleCommandUpdates(commands: string[]): void {
-    for (const command of commands) {
-      const hexString = base64ToHex(command);
-      const hexParts = hexToTwoItems(hexString);
+  private handleSpeedUpdate(hexParts: string[]): void {
+    const modeValue = Number.parseInt(getTwoItemPosition(hexParts, 4), 16);
+    let speedPercent = 0;
 
-      // Return now if not a device query update code
-      if (getTwoItemPosition(hexParts, 1) !== 'aa') {
-        continue;
-      }
+    switch (modeValue) {
+    case 0x10: // Sleep
+      speedPercent = 25;
+      break;
+    case 0x01: // Low
+      speedPercent = 50;
+      break;
+    case 0x02: // Medium
+      speedPercent = 75;
+      break;
+    case 0x03: // High
+      speedPercent = 100;
+      break;
+    }
 
-      const deviceFunction = `${getTwoItemPosition(hexParts, 2)}${getTwoItemPosition(hexParts, 3)}`;
-
-      switch (deviceFunction) {
-      case '0500':
-      case '0501':
-      case '0502':
-      case '0503':
-      case '0510': {
-        // Speed update (0500 = mode selection, others are specific speeds)
-        const modeValue = Number.parseInt(getTwoItemPosition(hexParts, 4), 16);
-        let speedPercent = 0;
-        switch (modeValue) {
-        case 0x10: // Sleep
-          speedPercent = 25;
-          break;
-        case 0x01: // Low
-          speedPercent = 50;
-          break;
-        case 0x02: // Medium
-          speedPercent = 75;
-          break;
-        case 0x03: // High
-          speedPercent = 100;
-          break;
-        }
-        if (speedPercent > 0 && this.cacheSpeed !== speedPercent) {
-          this.cacheSpeed = speedPercent;
-          this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
-          this.accessory.log(`${platformLang.curSpeed} [${speedPercent}%]`);
-        }
-        break;
-      }
-      default:
-        this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
-        break;
-      }
+    if (speedPercent > 0 && this.cacheSpeed !== speedPercent) {
+      this.cacheSpeed = speedPercent;
+      this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
+      this.accessory.log(`${platformLang.curSpeed} [${speedPercent}%]`);
     }
   }
 }
