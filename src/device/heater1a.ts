@@ -10,6 +10,17 @@ import {
   nearestHalf,
   processCommands,
 } from '../utils/functions.js';
+import {
+  DEVICE_STATE_CODES,
+  HEATER_SWING_CODES,
+  LOCK_CODES,
+  HEATER_H7130_SPEED_CODES,
+  HEATER_SPEED_LABELS,
+} from '../catalog/index.js';
+
+// Speed step and valid values
+const HEATER_SPEED_STEP = 33;
+const HEATER_SPEED_VALUES = [0, 33, 66, 99];
 
 /**
  * Heater 1A device handler for H7130 (without temperature reporting).
@@ -17,19 +28,6 @@ import {
  */
 export class Heater1aDevice extends GoveeDeviceBase {
   private _service!: Service;
-
-  // Speed codes (base64 encoded commands)
-  private readonly speedCode: Record<number, string> = {
-    33: 'MwUBAAAAAAAAAAAAAAAAAAAAADc=',
-    66: 'MwUCAAAAAAAAAAAAAAAAAAAAADQ=',
-    99: 'MwUDAAAAAAAAAAAAAAAAAAAAADU=',
-  };
-
-  private readonly speedCodeLabel: Record<number, string> = {
-    33: 'low',
-    66: 'medium',
-    99: 'high',
-  };
 
   // Cached values
   private cacheSpeed = 33;
@@ -63,8 +61,8 @@ export class Heater1aDevice extends GoveeDeviceBase {
     this._service
       .getCharacteristic(this.hapChar.RotationSpeed)
       .setProps({
-        minStep: 33,
-        validValues: [0, 33, 66, 99],
+        minStep: HEATER_SPEED_STEP,
+        validValues: HEATER_SPEED_VALUES,
       })
       .onSet(async (value) => this.internalSpeedUpdate(value as number));
     this.cacheSpeed = this._service.getCharacteristic(this.hapChar.RotationSpeed).value as number;
@@ -96,7 +94,7 @@ export class Heater1aDevice extends GoveeDeviceBase {
 
       await this.sendDeviceUpdate({
         cmd: 'ptReal',
-        value: value ? 'MwEBAAAAAAAAAAAAAAAAAAAAADM=' : 'MwEAAAAAAAAAAAAAAAAAAAAAADI=',
+        value: value ? DEVICE_STATE_CODES.on : DEVICE_STATE_CODES.off,
       });
 
       this.cacheState = newValue;
@@ -115,7 +113,7 @@ export class Heater1aDevice extends GoveeDeviceBase {
 
       await this.sendDeviceUpdate({
         cmd: 'ptReal',
-        value: value ? 'MxgBAAAAAAAAAAAAAAAAAAAAACo=' : 'MxgAAAAAAAAAAAAAAAAAAAAAACs=',
+        value: value ? HEATER_SWING_CODES.on : HEATER_SWING_CODES.off,
       });
 
       this.cacheSwing = newValue;
@@ -134,7 +132,7 @@ export class Heater1aDevice extends GoveeDeviceBase {
 
       await this.sendDeviceUpdate({
         cmd: 'ptReal',
-        value: value ? 'MxABAAAAAAAAAAAAAAAAAAAAACI=' : 'MxAAAAAAAAAAAAAAAAAAAAAAACM=',
+        value: value ? LOCK_CODES.on : LOCK_CODES.off,
       });
 
       this.cacheLock = newValue;
@@ -150,10 +148,10 @@ export class Heater1aDevice extends GoveeDeviceBase {
         return;
       }
 
-      await this.sendDeviceUpdate({ cmd: 'ptReal', value: this.speedCode[value] });
+      await this.sendDeviceUpdate({ cmd: 'ptReal', value: HEATER_H7130_SPEED_CODES[value] });
 
       this.cacheSpeed = value;
-      this.accessory.log(`${platformLang.curSpeed} [${this.speedCodeLabel[value]}]`);
+      this.accessory.log(`${platformLang.curSpeed} [${HEATER_SPEED_LABELS[value]}]`);
     } catch (err) {
       this.handleUpdateError(err, this._service.getCharacteristic(this.hapChar.RotationSpeed), this.cacheSpeed);
     }
@@ -234,7 +232,7 @@ export class Heater1aDevice extends GoveeDeviceBase {
     if (this.cacheSpeed !== newSpeed) {
       this.cacheSpeed = newSpeed;
       this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
-      this.accessory.log(`${platformLang.curSpeed} [${this.speedCodeLabel[this.cacheSpeed]}]`);
+      this.accessory.log(`${platformLang.curSpeed} [${HEATER_SPEED_LABELS[this.cacheSpeed]}]`);
     }
   }
 }

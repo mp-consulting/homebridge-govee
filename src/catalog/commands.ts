@@ -26,6 +26,77 @@ export const DISPLAY_CODES = {
   off: 'MxYAAAAAAAAAAAAAAAAAAAAAACU=',
 } as const;
 
+/**
+ * Device state on/off codes (shared by heaters and fans)
+ */
+export const DEVICE_STATE_CODES = {
+  on: 'MwEBAAAAAAAAAAAAAAAAAAAAADM=',
+  off: 'MwEAAAAAAAAAAAAAAAAAAAAAADI=',
+} as const;
+
+/**
+ * Swing/oscillation codes for heaters (H7130)
+ */
+export const HEATER_SWING_CODES = {
+  on: 'MxgBAAAAAAAAAAAAAAAAAAAAACo=',
+  off: 'MxgAAAAAAAAAAAAAAAAAAAAAACs=',
+} as const;
+
+/**
+ * Swing/oscillation codes for fans (H7102)
+ */
+export const FAN_SWING_CODES = {
+  on: 'Mx8BAQAAAAAAAAAAAAAAAAAAACw=',
+  off: 'Mx8BAAAAAAAAAAAAAAAAAAAAAC0=',
+} as const;
+
+// ============================================================================
+// Heater Speed Codes
+// ============================================================================
+
+/**
+ * Speed codes for H7130/H7131 heater (3 speeds at 33% increments)
+ * 33=low, 66=medium, 99=high
+ */
+export const HEATER_H7130_SPEED_CODES: Record<number, string> = {
+  33: 'MwUBAAAAAAAAAAAAAAAAAAAAADc=',
+  66: 'MwUCAAAAAAAAAAAAAAAAAAAAADQ=',
+  99: 'MwUDAAAAAAAAAAAAAAAAAAAAADU=',
+};
+
+/**
+ * Speed labels for heater
+ */
+export const HEATER_SPEED_LABELS: Record<number, string> = {
+  33: 'low',
+  66: 'medium',
+  99: 'high',
+};
+
+// ============================================================================
+// Fan Speed Codes
+// ============================================================================
+
+/**
+ * Speed codes for H7102 fan (8 speeds at 11% increments)
+ */
+export const FAN_H7102_SPEED_CODES: Record<number, string> = {
+  11: 'MwUBAQAAAAAAAAAAAAAAAAAAADY=',
+  22: 'MwUBAgAAAAAAAAAAAAAAAAAAADU=',
+  33: 'MwUBAwAAAAAAAAAAAAAAAAAAADQ=',
+  44: 'MwUBBAAAAAAAAAAAAAAAAAAAADM=',
+  55: 'MwUBBQAAAAAAAAAAAAAAAAAAADI=',
+  66: 'MwUBBgAAAAAAAAAAAAAAAAAAADE=',
+  77: 'MwUBBwAAAAAAAAAAAAAAAAAAADA=',
+  88: 'MwUBCAAAAAAAAAAAAAAAAAAAAD8=',
+};
+
+/**
+ * Fan speed step size constants
+ */
+export const FAN_SPEED_STEP = 11;
+export const FAN_MAX_SPEED = 8;
+
 // ============================================================================
 // Humidifier Speed Codes
 // ============================================================================
@@ -220,6 +291,14 @@ export type OnOffCodes = { on: string; off: string };
 export default {
   LOCK_CODES,
   DISPLAY_CODES,
+  DEVICE_STATE_CODES,
+  HEATER_SWING_CODES,
+  FAN_SWING_CODES,
+  HEATER_H7130_SPEED_CODES,
+  HEATER_SPEED_LABELS,
+  FAN_H7102_SPEED_CODES,
+  FAN_SPEED_STEP,
+  FAN_MAX_SPEED,
   HUMIDIFIER_H7140_SPEED_CODES,
   HUMIDIFIER_H7142_SPEED_CODES,
   HUMIDIFIER_H7142_UV_ON,

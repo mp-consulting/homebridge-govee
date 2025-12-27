@@ -10,18 +10,17 @@ import {
   hexToTwoItems,
   processCommands,
 } from '../utils/functions.js';
+import {
+  DEVICE_STATE_CODES,
+  FAN_SWING_CODES,
+  FAN_H7102_SPEED_CODES,
+  FAN_SPEED_STEP,
+} from '../catalog/index.js';
 
-// Speed codes for H7102 fan model (8 speeds)
-const SPEED_CODES_H7102: Record<number, string> = {
-  11: 'MwUBAQAAAAAAAAAAAAAAAAAAADY=',
-  22: 'MwUBAgAAAAAAAAAAAAAAAAAAADU=',
-  33: 'MwUBAwAAAAAAAAAAAAAAAAAAADQ=',
-  44: 'MwUBBAAAAAAAAAAAAAAAAAAAADM=',
-  55: 'MwUBBQAAAAAAAAAAAAAAAAAAADI=',
-  66: 'MwUBBgAAAAAAAAAAAAAAAAAAADE=',
-  77: 'MwUBBwAAAAAAAAAAAAAAAAAAADA=',
-  88: 'MwUBCAAAAAAAAAAAAAAAAAAAAD8=',
-};
+// Speed valid values for HomeKit
+const FAN_SPEED_VALUES = [0, 11, 22, 33, 44, 55, 66, 77, 88, 99];
+const FAN_AUTO_SPEED = 99;
+const FAN_MAX_MANUAL_SPEED = 88;
 
 /**
  * Fan device handler for H7102 model.
@@ -31,7 +30,7 @@ export class FanDevice extends GoveeDeviceBase {
   private _service!: Service;
 
   // Speed codes (can be overridden by subclasses)
-  protected speedCodes: Record<number, string> = SPEED_CODES_H7102;
+  protected speedCodes: Record<number, string> = FAN_H7102_SPEED_CODES;
 
   // Cached values
   private cacheSpeed = 0;
@@ -64,13 +63,13 @@ export class FanDevice extends GoveeDeviceBase {
     this._service
       .getCharacteristic(this.hapChar.RotationSpeed)
       .setProps({
-        minStep: 11,
+        minStep: FAN_SPEED_STEP,
         minValue: 0,
-        validValues: [0, 11, 22, 33, 44, 55, 66, 77, 88, 99],
+        validValues: FAN_SPEED_VALUES,
       })
       .onSet(async (value) => this.internalSpeedUpdate(value as number));
     this.cacheSpeed = this._service.getCharacteristic(this.hapChar.RotationSpeed).value as number;
-    this.cacheMode = this.cacheSpeed === 99 ? 'auto' : 'manual';
+    this.cacheMode = this.cacheSpeed === FAN_AUTO_SPEED ? 'auto' : 'manual';
 
     // Add the set handler to the fan swing mode
     this._service
@@ -93,7 +92,7 @@ export class FanDevice extends GoveeDeviceBase {
 
       await this.sendDeviceUpdate({
         cmd: 'ptReal',
-        value: value ? 'MwEBAAAAAAAAAAAAAAAAAAAAADM=' : 'MwEAAAAAAAAAAAAAAAAAAAAAADI=',
+        value: value ? DEVICE_STATE_CODES.on : DEVICE_STATE_CODES.off,
       });
 
       this.cacheState = newValue;
@@ -109,11 +108,11 @@ export class FanDevice extends GoveeDeviceBase {
 
   private async internalSpeedUpdate(value: number): Promise<void> {
     try {
-      if (value < 11 || this.cacheSpeed === value) {
+      if (value < FAN_SPEED_STEP || this.cacheSpeed === value) {
         return;
       }
 
-      let newMode: 'auto' | 'manual' = value === 99 ? 'auto' : 'manual';
+      let newMode: 'auto' | 'manual' = value === FAN_AUTO_SPEED ? 'auto' : 'manual';
       let newValue = value;
 
       // Don't continue if trying to access auto mode but there is no sensor attached
@@ -121,9 +120,9 @@ export class FanDevice extends GoveeDeviceBase {
       if (newMode === 'auto') {
         if (!this.accessory.context.sensorAttached || !this.cacheAutoCode) {
           this.accessory.logWarn('auto mode not supported without a linked sensor');
-          codeToSend = this.speedCodes[88];
+          codeToSend = this.speedCodes[FAN_MAX_MANUAL_SPEED];
           newMode = 'manual';
-          newValue = 88;
+          newValue = FAN_MAX_MANUAL_SPEED;
         } else {
           codeToSend = this.cacheAutoCode;
         }
@@ -159,7 +158,7 @@ export class FanDevice extends GoveeDeviceBase {
 
       await this.sendDeviceUpdate({
         cmd: 'ptReal',
-        value: value ? 'Mx8BAQAAAAAAAAAAAAAAAAAAACw=' : 'Mx8BAAAAAAAAAAAAAAAAAAAAAC0=',
+        value: value ? FAN_SWING_CODES.on : FAN_SWING_CODES.off,
       });
 
       this.cacheSwing = newValue;
@@ -208,7 +207,7 @@ export class FanDevice extends GoveeDeviceBase {
 
   private handleSpeedUpdate(hexParts: string[]): void {
     const newSpeed = getTwoItemPosition(hexParts, 4);
-    const newSpeedInt = Number.parseInt(newSpeed, 10) * 11;
+    const newSpeedInt = Number.parseInt(newSpeed, 10) * FAN_SPEED_STEP;
     const newMode = 'manual';
     if (this.cacheMode !== newMode) {
       this.cacheMode = newMode;
@@ -228,8 +227,8 @@ export class FanDevice extends GoveeDeviceBase {
       this.cacheMode = newMode;
       this.accessory.log(`${platformLang.curMode} [${this.cacheMode}]`);
 
-      if (this.cacheMode === 'auto' && this.cacheSpeed !== 99) {
-        this.cacheSpeed = 99;
+      if (this.cacheMode === 'auto' && this.cacheSpeed !== FAN_AUTO_SPEED) {
+        this.cacheSpeed = FAN_AUTO_SPEED;
         this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
         this.accessory.log(`${platformLang.curSpeed} [${this.cacheSpeed}%]`);
       }
