@@ -16,6 +16,13 @@ import { HUMIDIFIER_H7140_SPEED_CODES } from '../catalog/index.js';
 const SPEED_VALUE_CODES = HUMIDIFIER_H7140_SPEED_CODES;
 const MAX_SPEED = 8;
 
+// Speed step for rotation speed
+const SPEED_STEP = 10;
+const SPEED_VALUES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+
+// Default brightness for night light
+const DEFAULT_BRIGHTNESS = 100;
+
 /**
  * Humidifier device handler for H7140 model.
  * Supports on/off, speed control, and night light.
@@ -27,7 +34,7 @@ export class HumidifierDevice extends GoveeDeviceBase {
   // Cached values
   private cacheSpeed = 0;
   private cacheLightState: 'on' | 'off' = 'off';
-  private cacheBright = 100;
+  private cacheBright = DEFAULT_BRIGHTNESS;
 
   constructor(platform: GoveePlatform, accessory: GoveePlatformAccessoryWithControl) {
     super(platform, accessory);
@@ -53,7 +60,7 @@ export class HumidifierDevice extends GoveeDeviceBase {
     // Rotation speed (8 speeds at 10% increments)
     this._service
       .getCharacteristic(this.hapChar.RotationSpeed)
-      .setProps({ minStep: 10, validValues: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] })
+      .setProps({ minStep: SPEED_STEP, validValues: SPEED_VALUES })
       .onSet(async (value) => this.internalSpeedUpdate(value as number));
     this.cacheSpeed = this._service.getCharacteristic(this.hapChar.RotationSpeed).value as number;
 

@@ -5,7 +5,7 @@ import NodeRSA from 'node-rsa';
 import pem from 'pem';
 
 import type { IotCertificate } from '../types.js';
-import { hs2rgb as hs2rgbInternal, rgb2hs as rgb2hsInternal } from './colour.js';
+import { hs2rgb as hs2rgbInternal } from './colour.js';
 
 export function base64ToHex(base64: string): string {
   return Buffer.from(base64, 'base64').toString('hex');
