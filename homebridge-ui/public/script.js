@@ -649,14 +649,46 @@ function removeDevice(type, index) {
     }
   });
 
+  // Helper function to show confirmation modal
+  const showConfirm = (title, message) => {
+    return new Promise((resolve) => {
+      const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+      document.getElementById('confirmModalLabel').textContent = title;
+      document.getElementById('confirmModalBody').textContent = message;
+
+      const confirmBtn = document.getElementById('confirmModalBtn');
+      const modalEl = document.getElementById('confirmModal');
+
+      // Clean up previous listeners by cloning the button
+      const newConfirmBtn = confirmBtn.cloneNode(true);
+      confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+
+      let resolved = false;
+
+      newConfirmBtn.addEventListener('click', () => {
+        resolved = true;
+        modal.hide();
+        resolve(true);
+      });
+
+      modalEl.addEventListener('hidden.bs.modal', () => {
+        if (!resolved) {
+          resolve(false);
+        }
+      }, { once: true });
+
+      modal.show();
+    });
+  };
+
   // Clear cache button
   document.getElementById('clearCacheBtn').addEventListener('click', async () => {
     const btn = document.getElementById('clearCacheBtn');
     const spinner = document.getElementById('clearCacheSpinner');
     const resultDiv = document.getElementById('clearCacheResult');
 
-    // Confirm action using Homebridge modal (native confirm() doesn't work in iframe)
-    const confirmed = await homebridge.showConfirmModal(
+    // Confirm action using Bootstrap modal
+    const confirmed = await showConfirm(
       'Clear Cache',
       'Are you sure you want to clear the cache? This will remove cached credentials and device data. You will need to restart Homebridge after clearing.',
     );
