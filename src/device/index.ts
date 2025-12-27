@@ -17,7 +17,10 @@ export type { DeviceCategory, DeviceHandlerClass } from './registry.js';
 export { LightDevice } from './light.js';
 export { OutletSingleDevice } from './outlet-single.js';
 export { OutletDoubleDevice } from './outlet-double.js';
+export { OutletTripleDevice } from './outlet-triple.js';
 export { SwitchSingleDevice } from './switch-single.js';
+export { SwitchDoubleDevice } from './switch-double.js';
+export { SwitchTripleDevice } from './switch-triple.js';
 export { SensorThermoDevice } from './sensor-thermo.js';
 export { SensorLeakDevice } from './sensor-leak.js';
 export { FanDevice } from './fan.js';
@@ -29,7 +32,10 @@ import { registerDeviceHandler, initializeModelMappings } from './registry.js';
 import { LightDevice } from './light.js';
 import { OutletSingleDevice } from './outlet-single.js';
 import { OutletDoubleDevice } from './outlet-double.js';
+import { OutletTripleDevice } from './outlet-triple.js';
 import { SwitchSingleDevice } from './switch-single.js';
+import { SwitchDoubleDevice } from './switch-double.js';
+import { SwitchTripleDevice } from './switch-triple.js';
 import { SensorThermoDevice } from './sensor-thermo.js';
 import { SensorLeakDevice } from './sensor-leak.js';
 import { FanDevice } from './fan.js';
@@ -48,7 +54,10 @@ export function initializeDeviceHandlers(): void {
   registerDeviceHandler('light', LightDevice);
   registerDeviceHandler('outletSingle', OutletSingleDevice);
   registerDeviceHandler('outletDouble', OutletDoubleDevice);
+  registerDeviceHandler('outletTriple', OutletTripleDevice);
   registerDeviceHandler('switchSingle', SwitchSingleDevice);
+  registerDeviceHandler('switchDouble', SwitchDoubleDevice);
+  registerDeviceHandler('switchTriple', SwitchTripleDevice);
   registerDeviceHandler('sensorThermo', SensorThermoDevice);
   registerDeviceHandler('sensorLeak', SensorLeakDevice);
   registerDeviceHandler('fan', FanDevice);
@@ -56,12 +65,7 @@ export function initializeDeviceHandlers(): void {
   registerDeviceHandler('heater', HeaterSingleDevice);
 
   // TODO: Add more device handlers as they are migrated
-  // registerDeviceHandler('switchDouble', SwitchDoubleDevice);
-  // registerDeviceHandler('switchTriple', SwitchTripleDevice);
-  // registerDeviceHandler('outletTriple', OutletTripleDevice);
-  // registerDeviceHandler('heater', HeaterDevice);
   // registerDeviceHandler('cooler', CoolerDevice);
-  // registerDeviceHandler('humidifier', HumidifierDevice);
   // registerDeviceHandler('dehumidifier', DehumidifierDevice);
   // registerDeviceHandler('purifier', PurifierDevice);
   // registerDeviceHandler('diffuser', DiffuserDevice);
