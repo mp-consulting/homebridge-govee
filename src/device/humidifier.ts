@@ -1,18 +1,17 @@
-import type { Service, HAPStatus } from 'homebridge';
+import type { Service } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
 import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
 import { hs2rgb } from '../utils/colour.js';
 import {
-  base64ToHex,
   generateCodeFromHexValues,
-  getTwoItemPosition,
-  hexToTwoItems,
-  parseError,
+  processCommands,
+  speedPercentToValue,
+  speedValueToPercent,
 } from '../utils/functions.js';
 
-// Speed codes for H7140 model
+// Speed codes for H7140 model (8 speeds)
 const SPEED_VALUE_CODES: Record<number, string> = {
   1: 'MwUBAQAAAAAAAAAAAAAAAAAAADY=',
   2: 'MwUBAgAAAAAAAAAAAAAAAAAAADU=',
@@ -23,6 +22,8 @@ const SPEED_VALUE_CODES: Record<number, string> = {
   7: 'MwUBBwAAAAAAAAAAAAAAAAAAADA=',
   8: 'MwUBCAAAAAAAAAAAAAAAAAAAAD8=',
 };
+
+const MAX_SPEED = 8;
 
 /**
  * Humidifier device handler for H7140 model.
@@ -45,122 +46,85 @@ export class HumidifierDevice extends GoveeDeviceBase {
     return this._service;
   }
 
-  /**
-   * Convert rotation speed (0-100) to value (1-8)
-   */
-  private speed2Value(speed: number): number {
-    return Math.min(Math.max(Math.round(speed / 10), 1), 8);
-  }
-
   init(): void {
-    // Add the fan service if it doesn't already exist
-    this._service = this.accessory.getService(this.hapServ.Fan)
-      || this.accessory.addService(this.hapServ.Fan);
+    // Add the fan service
+    this._service = this.getOrAddService(this.hapServ.Fan);
 
-    // Add the night light service if it doesn't already exist
-    this.lightService = this.accessory.getService(this.hapServ.Lightbulb)
-      || this.accessory.addService(this.hapServ.Lightbulb);
+    // Add the night light service
+    this.lightService = this.getOrAddService(this.hapServ.Lightbulb);
 
-    // Add the set handler to the fan on/off characteristic
+    // Fan on/off characteristic
     this._service
       .getCharacteristic(this.hapChar.On)
       .onSet(async (value) => this.internalStateUpdate(value as boolean));
     this.cacheState = this._service.getCharacteristic(this.hapChar.On).value ? 'on' : 'off';
 
-    // Add the set handler to the fan rotation speed characteristic
+    // Rotation speed (8 speeds at 10% increments)
     this._service
       .getCharacteristic(this.hapChar.RotationSpeed)
-      .setProps({
-        minStep: 10,
-        validValues: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
-      })
+      .setProps({ minStep: 10, validValues: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] })
       .onSet(async (value) => this.internalSpeedUpdate(value as number));
     this.cacheSpeed = this._service.getCharacteristic(this.hapChar.RotationSpeed).value as number;
 
-    // Add the set handler to the lightbulb on/off characteristic
+    // Lightbulb on/off characteristic
     this.lightService.getCharacteristic(this.hapChar.On).onSet(async (value) => {
       await this.internalLightStateUpdate(value as boolean);
     });
     this.cacheLightState = this.lightService.getCharacteristic(this.hapChar.On).value ? 'on' : 'off';
 
-    // Output the customised options to the log
     this.logInitOptions({});
-
     this.initialised = true;
   }
 
   private async internalStateUpdate(value: boolean): Promise<void> {
     try {
       const newValue = value ? 'on' : 'off';
-
-      // Don't continue if the new value is the same as before
       if (this.cacheState === newValue) {
         return;
       }
 
-      // Send the request to the platform sender function
-      await this.sendDeviceUpdate({
-        cmd: 'stateHumi',
-        value: value ? 1 : 0,
-      });
+      await this.sendDeviceUpdate({ cmd: 'stateHumi', value: value ? 1 : 0 });
 
-      // Cache the new state and log if appropriate
       this.cacheState = newValue;
       this.accessory.log(`${platformLang.curState} [${this.cacheState}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      // Throw a 'no response' error and set a timeout to revert this after 2 seconds
-      setTimeout(() => {
-        this._service.updateCharacteristic(this.hapChar.On, this.cacheState === 'on');
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.On),
+        this.cacheState === 'on',
+      );
     }
   }
 
   private async internalSpeedUpdate(value: number): Promise<void> {
     try {
-      // Don't continue if the speed is 0
       if (value === 0) {
         return;
       }
 
-      // Get the single Govee value {1, 2, ..., 8}
-      const newValue = this.speed2Value(value);
+      const newValue = speedPercentToValue(value, MAX_SPEED, Math.round);
+      const newPercent = speedValueToPercent(newValue, MAX_SPEED);
 
-      // Don't continue if the speed value won't have effect
-      if (newValue * 10 === this.cacheSpeed) {
+      if (newPercent === this.cacheSpeed) {
         return;
       }
 
-      // Get the scene code for this value
-      const newCode = SPEED_VALUE_CODES[newValue];
+      await this.sendDeviceUpdate({ cmd: 'ptReal', value: SPEED_VALUE_CODES[newValue] });
 
-      // Send the request to the platform sender function
-      await this.sendDeviceUpdate({
-        cmd: 'ptReal',
-        value: newCode,
-      });
-
-      // Cache the new state and log if appropriate
-      this.cacheSpeed = newValue * 10;
+      this.cacheSpeed = newPercent;
       this.accessory.log(`${platformLang.curSpeed} [${newValue}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      // Throw a 'no response' error and set a timeout to revert this after 2 seconds
-      setTimeout(() => {
-        this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.RotationSpeed),
+        this.cacheSpeed,
+      );
     }
   }
 
   private async internalLightStateUpdate(value: boolean): Promise<void> {
     try {
       const newValue = value ? 'on' : 'off';
-
-      // Don't continue if the new value is the same as before
       if (this.cacheLightState === newValue) {
         return;
       }
@@ -168,7 +132,6 @@ export class HumidifierDevice extends GoveeDeviceBase {
       // Generate the hex values for the code
       let hexValues: number[];
       if (value) {
-        // Calculate current RGB values
         const newRGB = hs2rgb(
           this.lightService.getCharacteristic(this.hapChar.Hue).value as number,
           this.lightService.getCharacteristic(this.hapChar.Saturation).value as number,
@@ -178,71 +141,45 @@ export class HumidifierDevice extends GoveeDeviceBase {
         hexValues = [0x33, 0x1b, 0x00];
       }
 
-      // Send the request to the platform sender function
-      await this.sendDeviceUpdate({
-        cmd: 'ptReal',
-        value: generateCodeFromHexValues(hexValues),
-      });
+      await this.sendDeviceUpdate({ cmd: 'ptReal', value: generateCodeFromHexValues(hexValues) });
 
-      // Cache the new state and log if appropriate
-      if (this.cacheLightState !== newValue) {
-        this.cacheLightState = newValue;
-        this.accessory.log(`${platformLang.curLight} [${newValue}]`);
-      }
+      this.cacheLightState = newValue;
+      this.accessory.log(`${platformLang.curLight} [${newValue}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      // Throw a 'no response' error and set a timeout to revert this after 2 seconds
-      setTimeout(() => {
-        this.lightService.updateCharacteristic(this.hapChar.On, this.cacheLightState === 'on');
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this.lightService.getCharacteristic(this.hapChar.On),
+        this.cacheLightState === 'on',
+      );
     }
   }
 
   externalUpdate(params: ExternalUpdateParams): void {
-    // Check for an ON/OFF change
     if (params.state && params.state !== this.cacheState) {
       this.cacheState = params.state;
       this._service.updateCharacteristic(this.hapChar.On, this.cacheState === 'on');
-
-      // Log the change
       this.accessory.log(`${platformLang.curState} [${this.cacheState}]`);
     }
 
-    // Check for some other scene/mode change
     if (params.commands) {
-      this.handleCommandUpdates(params.commands);
+      processCommands(
+        params.commands,
+        {
+          '1b00': () => this.handleNightLightUpdate('off'),
+          '1b01': () => this.handleNightLightUpdate('on'),
+        },
+        (command, hexString) => {
+          this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
+        },
+      );
     }
   }
 
-  private handleCommandUpdates(commands: string[]): void {
-    for (const command of commands) {
-      const hexString = base64ToHex(command);
-      const hexParts = hexToTwoItems(hexString);
-
-      // Return now if not a device query update code
-      if (getTwoItemPosition(hexParts, 1) !== 'aa') {
-        continue;
-      }
-
-      const deviceFunction = `${getTwoItemPosition(hexParts, 2)}${getTwoItemPosition(hexParts, 3)}`;
-
-      switch (deviceFunction) {
-      case '1b00': // night light off
-      case '1b01': { // night light on
-        const newNight = deviceFunction === '1b01' ? 'on' : 'off';
-        if (newNight !== this.cacheLightState) {
-          this.cacheLightState = newNight;
-          this.lightService.updateCharacteristic(this.hapChar.On, this.cacheLightState === 'on');
-          this.accessory.log(`current night light state [${this.cacheLightState}]`);
-        }
-        break;
-      }
-      default:
-        this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
-        break;
-      }
+  private handleNightLightUpdate(newState: 'on' | 'off'): void {
+    if (newState !== this.cacheLightState) {
+      this.cacheLightState = newState;
+      this.lightService.updateCharacteristic(this.hapChar.On, this.cacheLightState === 'on');
+      this.accessory.log(`current night light state [${this.cacheLightState}]`);
     }
   }
 }
