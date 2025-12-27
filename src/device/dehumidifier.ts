@@ -4,27 +4,18 @@ import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '..
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
 import { processCommands, speedPercentToValue, speedValueToPercent } from '../utils/functions.js';
+import { HUMIDIFIER_H7140_SPEED_CODES } from '../catalog/index.js';
 
 /**
  * Dehumidifier device handler for H7150/H7151.
  * Exposes as a Fan service with rotation speed control.
  */
+// Use centralized speed codes from catalog (same as humidifier)
+const SPEED_CODES = HUMIDIFIER_H7140_SPEED_CODES;
+const MAX_SPEED = 8;
+
 export class DehumidifierDevice extends GoveeDeviceBase {
   private _service!: Service;
-
-  // Speed codes (1-8 levels)
-  private readonly speedCodes: Record<number, string> = {
-    1: 'MwUBAQAAAAAAAAAAAAAAAAAAADY=',
-    2: 'MwUBAgAAAAAAAAAAAAAAAAAAADU=',
-    3: 'MwUBAwAAAAAAAAAAAAAAAAAAADQ=',
-    4: 'MwUBBAAAAAAAAAAAAAAAAAAAADM=',
-    5: 'MwUBBQAAAAAAAAAAAAAAAAAAADI=',
-    6: 'MwUBBgAAAAAAAAAAAAAAAAAAADE=',
-    7: 'MwUBBwAAAAAAAAAAAAAAAAAAADA=',
-    8: 'MwUBCAAAAAAAAAAAAAAAAAAAAD8=',
-  };
-
-  private static readonly MAX_SPEED = 8;
 
   // Cached values
   private cacheSpeed = 0;
@@ -85,14 +76,14 @@ export class DehumidifierDevice extends GoveeDeviceBase {
         return;
       }
 
-      const newValue = speedPercentToValue(value, DehumidifierDevice.MAX_SPEED, Math.round);
-      const newPercent = speedValueToPercent(newValue, DehumidifierDevice.MAX_SPEED);
+      const newValue = speedPercentToValue(value, MAX_SPEED, Math.round);
+      const newPercent = speedValueToPercent(newValue, MAX_SPEED);
 
       if (newPercent === this.cacheSpeed) {
         return;
       }
 
-      await this.sendDeviceUpdate({ cmd: 'ptReal', value: this.speedCodes[newValue] });
+      await this.sendDeviceUpdate({ cmd: 'ptReal', value: SPEED_CODES[newValue] });
 
       this.cacheSpeed = newPercent;
       this.accessory.log(`${platformLang.curSpeed} [${newValue}]`);

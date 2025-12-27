@@ -4,6 +4,7 @@ import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '..
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
 import { getTwoItemPosition, processCommands } from '../utils/functions.js';
+import { ICE_MAKER_CODES } from '../catalog/index.js';
 
 /**
  * Ice Maker device handler for H7172.
@@ -46,7 +47,7 @@ export class IceMakerDevice extends GoveeDeviceBase {
       // On: Start making ice, Off: Cancel
       await this.sendDeviceUpdate({
         cmd: 'ptReal',
-        value: value ? 'MwUCAAAAAAAAAAAAAAAAAAAAADQ=' : 'MxkAAAAAAAAAAAAAAAAAAAAAACo=',
+        value: value ? ICE_MAKER_CODES.startMakingIce : ICE_MAKER_CODES.cancel,
       });
 
       this.cacheState = newState;

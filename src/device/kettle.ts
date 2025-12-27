@@ -4,6 +4,7 @@ import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '..
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
 import { getTwoItemPosition, processCommands, sleep } from '../utils/functions.js';
+import { KETTLE_MODE_CODES } from '../catalog/index.js';
 
 /**
  * Kettle device handler.
@@ -18,16 +19,6 @@ export class KettleDevice extends GoveeDeviceBase {
   private service5?: Service;
   private service6?: Service;
   private cacheOnBase?: 'yes' | 'no';
-
-  // Mode codes
-  private readonly codes: Record<string, string> = {
-    greenTea: 'MwUAAgAAAAAAAAAAAAAAAAAAADQ=',
-    oolongTea: 'MwUAAwAAAAAAAAAAAAAAAAAAADU=',
-    coffee: 'MwUABAAAAAAAAAAAAAAAAAAAADI=',
-    blackTea: 'MwUABQAAAAAAAAAAAAAAAAAAADM=',
-    customMode1: 'MwUAAQEAAAAAAAAAAAAAAAAAADY=',
-    customMode2: 'MwUAAQIAAAAAAAAAAAAAAAAAADU=',
-  };
 
   constructor(platform: GoveePlatform, accessory: GoveePlatformAccessoryWithControl) {
     super(platform, accessory);
@@ -137,37 +128,37 @@ export class KettleDevice extends GoveeDeviceBase {
     if (this.service1) {
       this.service1.getCharacteristic(this.hapChar.On)
         .updateValue(false)
-        .onSet(async (value) => this.internalStateUpdate(this.service1!, value as boolean, this.codes.greenTea));
+        .onSet(async (value) => this.internalStateUpdate(this.service1!, value as boolean, KETTLE_MODE_CODES.greenTea));
     }
 
     if (this.service2) {
       this.service2.getCharacteristic(this.hapChar.On)
         .updateValue(false)
-        .onSet(async (value) => this.internalStateUpdate(this.service2!, value as boolean, this.codes.oolongTea));
+        .onSet(async (value) => this.internalStateUpdate(this.service2!, value as boolean, KETTLE_MODE_CODES.oolongTea));
     }
 
     if (this.service3) {
       this.service3.getCharacteristic(this.hapChar.On)
         .updateValue(false)
-        .onSet(async (value) => this.internalStateUpdate(this.service3!, value as boolean, this.codes.coffee));
+        .onSet(async (value) => this.internalStateUpdate(this.service3!, value as boolean, KETTLE_MODE_CODES.coffee));
     }
 
     if (this.service4) {
       this.service4.getCharacteristic(this.hapChar.On)
         .updateValue(false)
-        .onSet(async (value) => this.internalStateUpdate(this.service4!, value as boolean, this.codes.blackTea));
+        .onSet(async (value) => this.internalStateUpdate(this.service4!, value as boolean, KETTLE_MODE_CODES.blackTea));
     }
 
     if (this.service5) {
       this.service5.getCharacteristic(this.hapChar.On)
         .updateValue(false)
-        .onSet(async (value) => this.internalStateUpdate(this.service5!, value as boolean, this.codes.customMode1));
+        .onSet(async (value) => this.internalStateUpdate(this.service5!, value as boolean, KETTLE_MODE_CODES.customMode1));
     }
 
     if (this.service6) {
       this.service6.getCharacteristic(this.hapChar.On)
         .updateValue(false)
-        .onSet(async (value) => this.internalStateUpdate(this.service6!, value as boolean, this.codes.customMode2));
+        .onSet(async (value) => this.internalStateUpdate(this.service6!, value as boolean, KETTLE_MODE_CODES.customMode2));
     }
 
     // Set the main service to the first available
@@ -190,7 +181,7 @@ export class KettleDevice extends GoveeDeviceBase {
       await sleep(1000);
 
       // Send the request to turn to boiling mode
-      await this.sendDeviceUpdate({ cmd: 'ptReal', value: 'MwEBAAAAAAAAAAAAAAAAAAAAADM=' });
+      await this.sendDeviceUpdate({ cmd: 'ptReal', value: KETTLE_MODE_CODES.boil });
 
       this.cacheState = 'on';
       this.accessory.log(`${platformLang.curMode} [${service.displayName}]`);

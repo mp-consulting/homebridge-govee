@@ -15,6 +15,14 @@ import {
   processCommands,
   sleep,
 } from '../utils/functions.js';
+import {
+  HEATER2_SWING_CODES,
+  HEATER2_LOCK_CODES,
+  HEATER2_SPEED_CODES,
+  HEATER2_SPEED_LABELS,
+  HEATER2_TEMP_CODES_AUTO,
+  HEATER2_TEMP_CODES_AUTO_TURN,
+} from '../catalog/index.js';
 
 /**
  * Heater 2 device handler for H7131/H7132.
@@ -24,82 +32,6 @@ export class Heater2Device extends GoveeDeviceBase {
   private _service!: Service;
   private fanService!: Service;
   private lightService!: Service;
-
-  // Speed codes
-  private readonly speedCode: Record<number, string> = {
-    25: 'OgUJAAAAAAAAAAAAAAAAAAAAADY=',
-    50: 'OgUBAQAAAAAAAAAAAAAAAAAAAD8=',
-    75: 'OgUBAgAAAAAAAAAAAAAAAAAAADw=',
-    100: 'OgUBAwAAAAAAAAAAAAAAAAAAAD0=',
-  };
-
-  private readonly speedCodeLabel: Record<number, string> = {
-    0: 'auto',
-    25: 'fan-only',
-    50: 'low',
-    75: 'medium',
-    100: 'high',
-  };
-
-  // Temperature codes for auto mode
-  private readonly tempCodeAuto: Record<number, string> = {
-    5: 'MwUDAZAEAAAAAAAAAAAAAAAAAKA=',
-    6: 'MwUDAZBoAAAAAAAAAAAAAAAAAMw=',
-    7: 'MwUDAZEwAAAAAAAAAAAAAAAAAJU=',
-    8: 'MwUDAZH4AAAAAAAAAAAAAAAAAF0=',
-    9: 'MwUDAZLAAAAAAAAAAAAAAAAAAGY=',
-    10: 'MwUDAZOIAAAAAAAAAAAAAAAAAC8=',
-    11: 'MwUDAZPsAAAAAAAAAAAAAAAAAEs=',
-    12: 'MwUDAZS0AAAAAAAAAAAAAAAAABQ=',
-    13: 'MwUDAZV8AAAAAAAAAAAAAAAAAN0=',
-    14: 'MwUDAZZEAAAAAAAAAAAAAAAAAOY=',
-    15: 'MwUDAZcMAAAAAAAAAAAAAAAAAK8=',
-    16: 'MwUDAZdwAAAAAAAAAAAAAAAAANM=',
-    17: 'MwUDAZg4AAAAAAAAAAAAAAAAAJQ=',
-    18: 'MwUDAZkAAAAAAAAAAAAAAAAAAK0=',
-    19: 'MwUDAZnIAAAAAAAAAAAAAAAAAGU=',
-    20: 'MwUDAZqQAAAAAAAAAAAAAAAAAD4=',
-    21: 'MwUDAZr0AAAAAAAAAAAAAAAAAFo=',
-    22: 'MwUDAZu8AAAAAAAAAAAAAAAAABM=',
-    23: 'MwUDAZyEAAAAAAAAAAAAAAAAACw=',
-    24: 'MwUDAZ1MAAAAAAAAAAAAAAAAAOU=',
-    25: 'MwUDAZ4UAAAAAAAAAAAAAAAAAL4=',
-    26: 'MwUDAZ54AAAAAAAAAAAAAAAAANI=',
-    27: 'MwUDAZ9AAAAAAAAAAAAAAAAAAOs=',
-    28: 'MwUDAaAIAAAAAAAAAAAAAAAAAJw=',
-    29: 'MwUDAaDQAAAAAAAAAAAAAAAAAEQ=',
-    30: 'MwUDAaGYAAAAAAAAAAAAAAAAAA0=',
-  };
-
-  // Temperature codes for auto mode (turn on)
-  private readonly tempCodeAutoTurn: Record<number, string> = {
-    5: 'OgUDAZAEAAAAAAAAAAAAAAAAAKk=',
-    6: 'OgUDAZBoAAAAAAAAAAAAAAAAAMU=',
-    7: 'OgUDAZEwAAAAAAAAAAAAAAAAAJw=',
-    8: 'OgUDAZH4AAAAAAAAAAAAAAAAAFQ=',
-    9: 'OgUDAZLAAAAAAAAAAAAAAAAAAG8=',
-    10: 'OgUDAZOIAAAAAAAAAAAAAAAAACY=',
-    11: 'OgUDAZPsAAAAAAAAAAAAAAAAAEI=',
-    12: 'OgUDAZS0AAAAAAAAAAAAAAAAAB0=',
-    13: 'OgUDAZV8AAAAAAAAAAAAAAAAANQ=',
-    14: 'OgUDAZZEAAAAAAAAAAAAAAAAAO8=',
-    15: 'OgUDAZcMAAAAAAAAAAAAAAAAAKY=',
-    16: 'OgUDAZdwAAAAAAAAAAAAAAAAANo=',
-    17: 'OgUDAZg4AAAAAAAAAAAAAAAAAJ0=',
-    18: 'OgUDAZkAAAAAAAAAAAAAAAAAAKQ=',
-    19: 'OgUDAZnIAAAAAAAAAAAAAAAAAGw=',
-    20: 'OgUDAZqQAAAAAAAAAAAAAAAAADc=',
-    21: 'OgUDAZr0AAAAAAAAAAAAAAAAAFM=',
-    22: 'OgUDAZu8AAAAAAAAAAAAAAAAABo=',
-    23: 'OgUDAZyEAAAAAAAAAAAAAAAAACU=',
-    24: 'OgUDAZ1MAAAAAAAAAAAAAAAAAOw=',
-    25: 'OgUDAZ4UAAAAAAAAAAAAAAAAALc=',
-    26: 'OgUDAZ54AAAAAAAAAAAAAAAAANs=',
-    27: 'OgUDAZ9AAAAAAAAAAAAAAAAAAOI=',
-    28: 'OgUDAaAIAAAAAAAAAAAAAAAAAJU=',
-    29: 'OgUDAaDQAAAAAAAAAAAAAAAAAE0=',
-    30: 'OgUDAaGYAAAAAAAAAAAAAAAAAAQ=',
-  };
 
   // Cached values
   private cacheMode = 'auto';
@@ -205,7 +137,7 @@ export class Heater2Device extends GoveeDeviceBase {
     this.cacheSpeed = this.fanService.getCharacteristic(this.hapChar.RotationSpeed).value as number;
 
     // Obtain the current mode
-    this.cacheMode = this.speedCodeLabel[this.cacheSpeed];
+    this.cacheMode = HEATER2_SPEED_LABELS[this.cacheSpeed];
 
     // Set up Lightbulb On characteristic
     this.lightService
@@ -268,12 +200,12 @@ export class Heater2Device extends GoveeDeviceBase {
 
       if (value === 0) {
         // Auto mode
-        codeToSend = this.tempCodeAutoTurn[this.cacheTarg];
+        codeToSend = HEATER2_TEMP_CODES_AUTO_TURN[this.cacheTarg];
         newMode = 'auto';
       } else {
         // Heat mode
-        codeToSend = this.speedCode[this.cacheSpeed] || this.speedCode[25];
-        newMode = this.speedCodeLabel[this.cacheSpeed] || this.speedCodeLabel[25];
+        codeToSend = HEATER2_SPEED_CODES[this.cacheSpeed] || HEATER2_SPEED_CODES[25];
+        newMode = HEATER2_SPEED_LABELS[this.cacheSpeed] || HEATER2_SPEED_LABELS[25];
       }
 
       await this.sendDeviceUpdate({
@@ -306,7 +238,7 @@ export class Heater2Device extends GoveeDeviceBase {
       }
 
       // If not in auto mode, switch to auto mode
-      const codeToSend = this.cacheMode === 'auto' ? this.tempCodeAuto[value] : this.tempCodeAutoTurn[value];
+      const codeToSend = this.cacheMode === 'auto' ? HEATER2_TEMP_CODES_AUTO[value] : HEATER2_TEMP_CODES_AUTO_TURN[value];
 
       await this.sendDeviceUpdate({
         cmd: 'multiSync',
@@ -335,7 +267,7 @@ export class Heater2Device extends GoveeDeviceBase {
 
       await this.sendDeviceUpdate({
         cmd: 'multiSync',
-        value: value === 1 ? 'Mx8BAQAAAAAAAAAAAAAAAAAAACw=' : 'Mx8BAAAAAAAAAAAAAAAAAAAAAC0=',
+        value: value === 1 ? HEATER2_SWING_CODES.on : HEATER2_SWING_CODES.off,
       });
 
       this.cacheSwing = newValue;
@@ -359,7 +291,7 @@ export class Heater2Device extends GoveeDeviceBase {
 
       await this.sendDeviceUpdate({
         cmd: 'multiSync',
-        value: value === 1 ? 'Mx8CAQAAAAAAAAAAAAAAAAAAAC8=' : 'Mx8CAAAAAAAAAAAAAAAAAAAAAC4=',
+        value: value === 1 ? HEATER2_LOCK_CODES.on : HEATER2_LOCK_CODES.off,
       });
 
       this.cacheLock = newValue;
@@ -412,7 +344,7 @@ export class Heater2Device extends GoveeDeviceBase {
         return;
       }
 
-      const codeToSend = this.speedCode[value];
+      const codeToSend = HEATER2_SPEED_CODES[value];
 
       await this.sendDeviceUpdate({
         cmd: 'multiSync',
@@ -425,7 +357,7 @@ export class Heater2Device extends GoveeDeviceBase {
 
       if (this.cacheSpeed !== value) {
         this.cacheSpeed = value;
-        this.cacheMode = this.speedCodeLabel[value];
+        this.cacheMode = HEATER2_SPEED_LABELS[value];
         this.accessory.log(`${platformLang.curMode} [${this.cacheMode}]`);
       }
     } catch (err) {

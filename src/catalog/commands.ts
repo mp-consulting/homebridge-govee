@@ -144,6 +144,112 @@ export const HEATER_TEMP_MIN = 5;
 export const HEATER_TEMP_MAX = 30;
 
 // ============================================================================
+// Heater 2 (H7131/H7132) Codes
+// ============================================================================
+
+/**
+ * Swing codes for Heater 2 (H7131/H7132)
+ */
+export const HEATER2_SWING_CODES = {
+  on: 'Mx8BAQAAAAAAAAAAAAAAAAAAACw=',
+  off: 'Mx8BAAAAAAAAAAAAAAAAAAAAAC0=',
+} as const;
+
+/**
+ * Lock codes for Heater 2 (H7131/H7132)
+ */
+export const HEATER2_LOCK_CODES = {
+  on: 'Mx8CAQAAAAAAAAAAAAAAAAAAAC8=',
+  off: 'Mx8CAAAAAAAAAAAAAAAAAAAAAC4=',
+} as const;
+
+/**
+ * Speed codes for Heater 2 (H7131/H7132)
+ * 25=fan-only, 50=low, 75=medium, 100=high
+ */
+export const HEATER2_SPEED_CODES: Record<number, string> = {
+  25: 'OgUJAAAAAAAAAAAAAAAAAAAAADY=',
+  50: 'OgUBAQAAAAAAAAAAAAAAAAAAAD8=',
+  75: 'OgUBAgAAAAAAAAAAAAAAAAAAADw=',
+  100: 'OgUBAwAAAAAAAAAAAAAAAAAAAD0=',
+};
+
+/**
+ * Speed labels for Heater 2
+ */
+export const HEATER2_SPEED_LABELS: Record<number, string> = {
+  0: 'auto',
+  25: 'fan-only',
+  50: 'low',
+  75: 'medium',
+  100: 'high',
+};
+
+/**
+ * Temperature codes for Heater 2 in auto mode (5-30°C)
+ */
+export const HEATER2_TEMP_CODES_AUTO: Record<number, string> = {
+  5: 'MwUDAZAEAAAAAAAAAAAAAAAAAKA=',
+  6: 'MwUDAZBoAAAAAAAAAAAAAAAAAMw=',
+  7: 'MwUDAZEwAAAAAAAAAAAAAAAAAJU=',
+  8: 'MwUDAZH4AAAAAAAAAAAAAAAAAF0=',
+  9: 'MwUDAZLAAAAAAAAAAAAAAAAAAGY=',
+  10: 'MwUDAZOIAAAAAAAAAAAAAAAAAC8=',
+  11: 'MwUDAZPsAAAAAAAAAAAAAAAAAEs=',
+  12: 'MwUDAZS0AAAAAAAAAAAAAAAAABQ=',
+  13: 'MwUDAZV8AAAAAAAAAAAAAAAAAN0=',
+  14: 'MwUDAZZEAAAAAAAAAAAAAAAAAOY=',
+  15: 'MwUDAZcMAAAAAAAAAAAAAAAAAK8=',
+  16: 'MwUDAZdwAAAAAAAAAAAAAAAAANM=',
+  17: 'MwUDAZg4AAAAAAAAAAAAAAAAAJQ=',
+  18: 'MwUDAZkAAAAAAAAAAAAAAAAAAK0=',
+  19: 'MwUDAZnIAAAAAAAAAAAAAAAAAGU=',
+  20: 'MwUDAZqQAAAAAAAAAAAAAAAAAD4=',
+  21: 'MwUDAZr0AAAAAAAAAAAAAAAAAFo=',
+  22: 'MwUDAZu8AAAAAAAAAAAAAAAAABM=',
+  23: 'MwUDAZyEAAAAAAAAAAAAAAAAACw=',
+  24: 'MwUDAZ1MAAAAAAAAAAAAAAAAAOU=',
+  25: 'MwUDAZ4UAAAAAAAAAAAAAAAAAL4=',
+  26: 'MwUDAZ54AAAAAAAAAAAAAAAAANI=',
+  27: 'MwUDAZ9AAAAAAAAAAAAAAAAAAOs=',
+  28: 'MwUDAaAIAAAAAAAAAAAAAAAAAJw=',
+  29: 'MwUDAaDQAAAAAAAAAAAAAAAAAEQ=',
+  30: 'MwUDAaGYAAAAAAAAAAAAAAAAAA0=',
+};
+
+/**
+ * Temperature codes for Heater 2 in auto mode (turn on) (5-30°C)
+ */
+export const HEATER2_TEMP_CODES_AUTO_TURN: Record<number, string> = {
+  5: 'OgUDAZAEAAAAAAAAAAAAAAAAAKk=',
+  6: 'OgUDAZBoAAAAAAAAAAAAAAAAAMU=',
+  7: 'OgUDAZEwAAAAAAAAAAAAAAAAAJw=',
+  8: 'OgUDAZH4AAAAAAAAAAAAAAAAAFQ=',
+  9: 'OgUDAZLAAAAAAAAAAAAAAAAAAG8=',
+  10: 'OgUDAZOIAAAAAAAAAAAAAAAAACY=',
+  11: 'OgUDAZPsAAAAAAAAAAAAAAAAAEI=',
+  12: 'OgUDAZS0AAAAAAAAAAAAAAAAAB0=',
+  13: 'OgUDAZV8AAAAAAAAAAAAAAAAANQ=',
+  14: 'OgUDAZZEAAAAAAAAAAAAAAAAAO8=',
+  15: 'OgUDAZcMAAAAAAAAAAAAAAAAAKY=',
+  16: 'OgUDAZdwAAAAAAAAAAAAAAAAANo=',
+  17: 'OgUDAZg4AAAAAAAAAAAAAAAAAJ0=',
+  18: 'OgUDAZkAAAAAAAAAAAAAAAAAAKQ=',
+  19: 'OgUDAZnIAAAAAAAAAAAAAAAAAGw=',
+  20: 'OgUDAZqQAAAAAAAAAAAAAAAAADc=',
+  21: 'OgUDAZr0AAAAAAAAAAAAAAAAAFM=',
+  22: 'OgUDAZu8AAAAAAAAAAAAAAAAABo=',
+  23: 'OgUDAZyEAAAAAAAAAAAAAAAAACU=',
+  24: 'OgUDAZ1MAAAAAAAAAAAAAAAAAOw=',
+  25: 'OgUDAZ4UAAAAAAAAAAAAAAAAALc=',
+  26: 'OgUDAZ54AAAAAAAAAAAAAAAAANs=',
+  27: 'OgUDAZ9AAAAAAAAAAAAAAAAAAOI=',
+  28: 'OgUDAaAIAAAAAAAAAAAAAAAAAJU=',
+  29: 'OgUDAaDQAAAAAAAAAAAAAAAAAE0=',
+  30: 'OgUDAaGYAAAAAAAAAAAAAAAAAAQ=',
+};
+
+// ============================================================================
 // Fan Speed Codes
 // ============================================================================
 
@@ -204,6 +310,35 @@ export const HUMIDIFIER_H7142_SPEED_CODES: Record<number, string> = {
  * UV light code for H7142 humidifier
  */
 export const HUMIDIFIER_H7142_UV_ON = 'MxoBAAAAAAAAAAAAAAAAAAAAACg=';
+
+// ============================================================================
+// Kettle Codes
+// ============================================================================
+
+/**
+ * Kettle mode codes for H7170/H7171
+ */
+export const KETTLE_MODE_CODES = {
+  greenTea: 'MwUAAgAAAAAAAAAAAAAAAAAAADQ=',
+  oolongTea: 'MwUAAwAAAAAAAAAAAAAAAAAAADU=',
+  coffee: 'MwUABAAAAAAAAAAAAAAAAAAAADI=',
+  blackTea: 'MwUABQAAAAAAAAAAAAAAAAAAADM=',
+  customMode1: 'MwUAAQEAAAAAAAAAAAAAAAAAADY=',
+  customMode2: 'MwUAAQIAAAAAAAAAAAAAAAAAADU=',
+  boil: 'MwEBAAAAAAAAAAAAAAAAAAAAADM=',
+} as const;
+
+// ============================================================================
+// Ice Maker Codes
+// ============================================================================
+
+/**
+ * Ice maker command codes for H7172
+ */
+export const ICE_MAKER_CODES = {
+  startMakingIce: 'MwUCAAAAAAAAAAAAAAAAAAAAADQ=',
+  cancel: 'MxkAAAAAAAAAAAAAAAAAAAAAACo=',
+} as const;
 
 // ============================================================================
 // Purifier Speed Codes
@@ -370,12 +505,20 @@ export default {
   HEATER_H7130_TEMP_CODES_HEAT,
   HEATER_TEMP_MIN,
   HEATER_TEMP_MAX,
+  HEATER2_SWING_CODES,
+  HEATER2_LOCK_CODES,
+  HEATER2_SPEED_CODES,
+  HEATER2_SPEED_LABELS,
+  HEATER2_TEMP_CODES_AUTO,
+  HEATER2_TEMP_CODES_AUTO_TURN,
   FAN_H7102_SPEED_CODES,
   FAN_SPEED_STEP,
   FAN_MAX_SPEED,
   HUMIDIFIER_H7140_SPEED_CODES,
   HUMIDIFIER_H7142_SPEED_CODES,
   HUMIDIFIER_H7142_UV_ON,
+  KETTLE_MODE_CODES,
+  ICE_MAKER_CODES,
   PURIFIER_H7120_SPEED_CODES,
   PURIFIER_H7120_NIGHT_LIGHT_CODES,
   PURIFIER_H7122_SPEED_CODES,
