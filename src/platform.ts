@@ -668,6 +668,16 @@ export class GoveePlatform implements DynamicPlatformPlugin {
   addAccessory(device: { device: string; deviceName: string; model: string }): GoveePlatformAccessoryWithControl | undefined {
     try {
       const uuid = this.api.hap.uuid.generate(device.device);
+
+      // Check if the accessory is already cached (might have been restored from a different UUID)
+      // This can happen if the device ID format changed between runs
+      for (const [existingUuid, existingAccessory] of devicesInHB) {
+        if (existingAccessory.context?.gvDeviceId === device.device) {
+          this.log.debug('[%s] Found existing accessory with matching device ID (different UUID: %s vs %s)', device.deviceName, existingUuid, uuid);
+          return existingAccessory;
+        }
+      }
+
       const accessory = new this.api.platformAccessory(device.deviceName, uuid) as unknown as GoveePlatformAccessoryWithControl;
 
       // Apply default logging methods
