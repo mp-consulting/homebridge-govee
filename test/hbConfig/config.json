@@ -7,7 +7,6 @@
     },
     "description": "HomeBridge HTTP Status Control",
     "plugins": [
-        "homebridge-plugin-name",
         "homebridge-config-ui-x"
     ],
     "platforms": [

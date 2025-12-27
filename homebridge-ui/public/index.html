@@ -11,6 +11,12 @@
     .spinner-border { width: 1rem; height: 1rem; }
     .form-check { margin-bottom: 0.5rem; }
     .nav-tabs { margin-bottom: 1rem; }
+    .info-icon {
+      cursor: help;
+      color: #6c757d;
+      margin-left: 0.25rem;
+    }
+    .info-icon:hover { color: #0d6efd; }
   </style>
 </head>
 <body>
@@ -38,17 +44,21 @@
           </div>
           <div class="card-body">
             <div class="mb-3">
-              <label for="username" class="form-label">Govee Account Email</label>
+              <label for="username" class="form-label">
+                Govee Account Email
+                <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="The email address you use to log in to the Govee app. Required for cloud control and device discovery.">&#9432;</span>
+              </label>
               <input type="email" class="form-control" id="username" placeholder="your-email@example.com">
-              <div class="form-text">Your Govee account email address.</div>
             </div>
             <div class="mb-3">
-              <label for="password" class="form-label">Govee Account Password</label>
+              <label for="password" class="form-label">
+                Govee Account Password
+                <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="Your Govee account password. This is stored locally and used only to authenticate with Govee servers.">&#9432;</span>
+              </label>
               <div class="input-group">
                 <input type="password" class="form-control" id="password">
                 <button class="btn btn-outline-secondary" type="button" id="togglePassword">Show</button>
               </div>
-              <div class="form-text">Your Govee account password.</div>
             </div>
           </div>
         </div>
@@ -60,15 +70,24 @@
           <div class="card-body">
             <div class="form-check form-switch">
               <input class="form-check-input" type="checkbox" id="ignoreMatter">
-              <label class="form-check-label" for="ignoreMatter">Ignore Matter Devices</label>
+              <label class="form-check-label" for="ignoreMatter">
+                Ignore Matter Devices
+                <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="Skip devices that support Matter protocol. Enable this if you're using Matter to connect those devices directly to HomeKit.">&#9432;</span>
+              </label>
             </div>
             <div class="form-check form-switch">
               <input class="form-check-input" type="checkbox" id="disableDeviceLogging">
-              <label class="form-check-label" for="disableDeviceLogging">Disable Device Logging</label>
+              <label class="form-check-label" for="disableDeviceLogging">
+                Disable Device Logging
+                <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="Stop logging device state changes to reduce log clutter. Errors will still be logged.">&#9432;</span>
+              </label>
             </div>
             <div class="form-check form-switch">
               <input class="form-check-input" type="checkbox" id="colourSafeMode">
-              <label class="form-check-label" for="colourSafeMode">Colour Safe Mode</label>
+              <label class="form-check-label" for="colourSafeMode">
+                Colour Safe Mode
+                <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="Use a slower but more reliable method for setting colours. Enable this if you experience colour issues with your lights.">&#9432;</span>
+              </label>
             </div>
           </div>
         </div>
@@ -83,12 +102,17 @@
           <div class="card-body">
             <div class="form-check form-switch mb-3">
               <input class="form-check-input" type="checkbox" id="awsDisable">
-              <label class="form-check-label" for="awsDisable">Disable AWS IoT Connection</label>
+              <label class="form-check-label" for="awsDisable">
+                Disable AWS IoT Connection
+                <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="Disable real-time cloud control via AWS IoT. The plugin will fall back to HTTP polling only. Not recommended unless you have connection issues.">&#9432;</span>
+              </label>
             </div>
             <div class="mb-3">
-              <label for="httpRefreshTime" class="form-label">HTTP Refresh Time (seconds)</label>
+              <label for="httpRefreshTime" class="form-label">
+                HTTP Refresh Time (seconds)
+                <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="How often to poll the Govee API for device state updates. Lower values mean faster updates but more API calls. Minimum 60 seconds.">&#9432;</span>
+              </label>
               <input type="number" class="form-control" id="httpRefreshTime" min="60" value="60">
-              <div class="form-text">How often to poll the Govee API for device updates (minimum 60).</div>
             </div>
           </div>
         </div>
@@ -100,14 +124,23 @@
           <div class="card-body">
             <div class="form-check form-switch mb-3">
               <input class="form-check-input" type="checkbox" id="lanDisable">
-              <label class="form-check-label" for="lanDisable">Disable LAN Control</label>
+              <label class="form-check-label" for="lanDisable">
+                Disable LAN Control
+                <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="Disable local network control. LAN control is faster and works without internet. Only disable if you experience network issues.">&#9432;</span>
+              </label>
             </div>
             <div class="mb-3">
-              <label for="lanRefreshTime" class="form-label">LAN Refresh Time (seconds)</label>
+              <label for="lanRefreshTime" class="form-label">
+                LAN Refresh Time (seconds)
+                <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="How often to poll LAN devices for state updates. Lower values mean faster updates. Minimum 15 seconds.">&#9432;</span>
+              </label>
               <input type="number" class="form-control" id="lanRefreshTime" min="15" value="30">
             </div>
             <div class="mb-3">
-              <label for="lanScanInterval" class="form-label">LAN Scan Interval (seconds)</label>
+              <label for="lanScanInterval" class="form-label">
+                LAN Scan Interval (seconds)
+                <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="How often to scan the network for new LAN-capable devices. Minimum 30 seconds.">&#9432;</span>
+              </label>
               <input type="number" class="form-control" id="lanScanInterval" min="30" value="60">
             </div>
           </div>
@@ -120,14 +153,23 @@
           <div class="card-body">
             <div class="form-check form-switch mb-3">
               <input class="form-check-input" type="checkbox" id="bleDisable">
-              <label class="form-check-label" for="bleDisable">Disable Bluetooth Control</label>
+              <label class="form-check-label" for="bleDisable">
+                Disable Bluetooth Control
+                <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="Disable Bluetooth Low Energy control. BLE works for nearby devices without network. Requires compatible hardware (works best on Raspberry Pi).">&#9432;</span>
+              </label>
             </div>
             <div class="mb-3">
-              <label for="bleRefreshTime" class="form-label">BLE Refresh Time (seconds)</label>
+              <label for="bleRefreshTime" class="form-label">
+                BLE Refresh Time (seconds)
+                <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="How often to scan for BLE sensor readings (temperature, humidity, etc.). Minimum 15 seconds.">&#9432;</span>
+              </label>
               <input type="number" class="form-control" id="bleRefreshTime" min="15" value="30">
             </div>
             <div class="mb-3">
-              <label for="bleControlInterval" class="form-label">BLE Control Interval (ms)</label>
+              <label for="bleControlInterval" class="form-label">
+                BLE Control Interval (ms)
+                <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="Minimum time between BLE commands to prevent overwhelming devices. Increase if you experience connection drops. Minimum 500ms.">&#9432;</span>
+              </label>
               <input type="number" class="form-control" id="bleControlInterval" min="500" value="500">
             </div>
           </div>
@@ -141,7 +183,7 @@
             <h5 class="mb-0">Account Connection Test</h5>
           </div>
           <div class="card-body">
-            <p class="text-muted">Test your Govee account credentials.</p>
+            <p class="text-muted">Test your Govee account credentials to verify they work correctly.</p>
             <button id="testLoginBtn" class="btn btn-primary">
               <span id="testLoginSpinner" class="spinner-border d-none" role="status"></span>
               Test Connection
@@ -155,7 +197,7 @@
             <h5 class="mb-0">Device Discovery</h5>
           </div>
           <div class="card-body">
-            <p class="text-muted">Discover devices linked to your Govee account.</p>
+            <p class="text-muted">Discover all devices linked to your Govee account.</p>
             <button id="discoverBtn" class="btn btn-secondary">
               <span id="discoverSpinner" class="spinner-border d-none" role="status"></span>
               Discover Devices
@@ -171,9 +213,9 @@
           <div class="card-body">
             <p>For more information about configuration options, see the <a href="https://github.com/mp-consulting/homebridge-govee#readme" target="_blank">README</a>.</p>
             <ul>
-              <li><strong>AWS IoT:</strong> Real-time control via Govee cloud</li>
-              <li><strong>LAN:</strong> Local network control (faster, no internet required)</li>
-              <li><strong>BLE:</strong> Bluetooth control for nearby devices</li>
+              <li><strong>AWS IoT:</strong> Real-time control via Govee cloud (requires credentials)</li>
+              <li><strong>LAN:</strong> Local network control (faster, works without internet)</li>
+              <li><strong>BLE:</strong> Bluetooth control for nearby devices (requires compatible hardware)</li>
             </ul>
           </div>
         </div>
@@ -198,6 +240,10 @@
         console.error('Homebridge UI utils not available');
         return;
       }
+
+      // Initialize Bootstrap tooltips
+      const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+      tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
 
       // Field mappings
       const textFields = ['username', 'password'];

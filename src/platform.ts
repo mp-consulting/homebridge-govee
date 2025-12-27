@@ -258,7 +258,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       // Initialize devices
       await this.initializeDevices();
 
-      this.log.info('%s. %s', platformLang.complete, platformLang.welcome);
+      this.log.info('%s.', platformLang.complete);
     } catch (err) {
       this.log.warn('***** %s. *****', platformLang.disabling);
       this.log.warn('***** %s. *****', parseError(err));
