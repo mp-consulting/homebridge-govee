@@ -32,13 +32,16 @@
     "govee"
   ],
   "main": "dist/index.js",
+  "homebridge-ui": {
+    "public": "homebridge-ui/public",
+    "server": "homebridge-ui/server.js"
+  },
   "engines": {
     "node": "^20.18.0 || ^22.10.0 || ^24.0.0",
     "homebridge": "^1.8.0 || ^2.0.0-beta.0"
   },
   "scripts": {
-    "build": "rimraf ./dist && tsc && npm run build:ui",
-    "build:ui": "tsc -p homebridge-ui/tsconfig.json",
+    "build": "rimraf ./dist && tsc",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "npm run lint -- --fix",
     "prepublishOnly": "npm run lint && npm run build",
