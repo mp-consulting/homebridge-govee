@@ -1,14 +1,11 @@
 <p align="center">
-   <a href="https://github.com/mp-consulting/homebridge-govee"><img src="https://user-images.githubusercontent.com/43026681/101324574-5e997d80-3862-11eb-81b0-932330f6e242.png" width="600px"></a>
+   <a href="https://github.com/mp-consulting/homebridge-govee"><img src="images/homebridge-govee.png" width="600px"></a>
 </p>
 <span align="center">
 
 # homebridge-govee
 
 Homebridge plugin to integrate Govee devices into HomeKit
-
-[![npm](https://img.shields.io/npm/v/@mp-consulting/homebridge-govee/latest?label=latest)](https://www.npmjs.com/package/@mp-consulting/homebridge-govee)
-[![verified-by-homebridge](https://img.shields.io/badge/homebridge-verified-blueviolet?color=%23491F59&style=flat)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins)
 
 </span>
 
