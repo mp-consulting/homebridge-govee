@@ -1,14 +1,12 @@
-import type { Service, HAPStatus } from 'homebridge';
+import type { Characteristic, Service } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
 import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
 import {
-  base64ToHex,
   getTwoItemPosition,
   hexToBase64,
-  hexToTwoItems,
-  parseError,
+  processCommands,
   statusToActionCode,
 } from '../utils/functions.js';
 
@@ -65,10 +63,8 @@ export class PurifierH7123Device extends GoveeDeviceBase {
   private cacheDisplay: 'on' | 'off' = 'off';
 
   // Custom characteristics
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private nightLightChar?: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private displayLightChar?: any;
+  private nightLightChar?: Characteristic;
+  private displayLightChar?: Characteristic;
 
   constructor(platform: GoveePlatform, accessory: GoveePlatformAccessoryWithControl) {
     super(platform, accessory);
@@ -79,194 +75,131 @@ export class PurifierH7123Device extends GoveeDeviceBase {
   }
 
   init(): void {
-    // Add the purifier service if it doesn't already exist
-    this._service = this.accessory.getService(this.hapServ.AirPurifier)
-      || this.accessory.addService(this.hapServ.AirPurifier);
+    // Add the purifier service
+    this._service = this.getOrAddService(this.hapServ.AirPurifier);
 
-    // Add the air quality service if it doesn't already exist
-    this.airService = this.accessory.getService(this.hapServ.AirQualitySensor)
-      || this.accessory.addService(this.hapServ.AirQualitySensor);
+    // Add the air quality service
+    this.airService = this.getOrAddService(this.hapServ.AirQualitySensor);
 
     // Remove PM2.5 density characteristic if it exists (H7123 doesn't have it)
-    if (this.airService.testCharacteristic(this.hapChar.PM2_5Density)) {
-      this.airService.removeCharacteristic(
-        this.airService.getCharacteristic(this.hapChar.PM2_5Density),
-      );
-    }
-
+    this.removeCharacteristicIfExists(this.airService, this.hapChar.PM2_5Density);
     this.cacheAir = this.airService.getCharacteristic(this.hapChar.AirQuality).value as number || 1;
 
-    // Add the set handler to the switch on/off characteristic
+    // Active characteristic
     this._service.getCharacteristic(this.hapChar.Active).onSet(async (value) => {
       await this.internalStateUpdate(value as number);
     });
     this.cacheState = this._service.getCharacteristic(this.hapChar.Active).value === 1 ? 'on' : 'off';
 
-    // Add options to the purifier target state characteristic
+    // Target state (manual only)
     this._service
       .getCharacteristic(this.hapChar.TargetAirPurifierState)
       .updateValue(1)
-      .setProps({
-        minValue: 1,
-        maxValue: 1,
-        validValues: [1],
-      });
+      .setProps({ minValue: 1, maxValue: 1, validValues: [1] });
 
-    // Add the set handler to the fan rotation speed characteristic (5 modes at 20% increments)
+    // Rotation speed (5 modes at 20% increments)
     this._service
       .getCharacteristic(this.hapChar.RotationSpeed)
-      .setProps({
-        minStep: 20,
-        validValues: [0, 20, 40, 60, 80, 100],
-      })
+      .setProps({ minStep: 20, validValues: [0, 20, 40, 60, 80, 100] })
       .onSet(async (value) => this.internalModeUpdate(value as number));
     this.cacheMode = Math.floor((this._service.getCharacteristic(this.hapChar.RotationSpeed).value as number || 20) / 20);
 
-    // Add the set handler to the lock controls characteristic
+    // Lock controls
     this._service.getCharacteristic(this.hapChar.LockPhysicalControls).onSet(async (value) => {
       await this.internalLockUpdate(value as number);
     });
     this.cacheLock = this._service.getCharacteristic(this.hapChar.LockPhysicalControls).value === 1 ? 'on' : 'off';
 
-    // Add night light custom characteristic if available
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const nightLightClass = (this.platform.cusChar as any)?.NightLight;
-    if (nightLightClass) {
-      if (!this._service.testCharacteristic(nightLightClass)) {
-        this._service.addCharacteristic(nightLightClass);
-      }
-      this.nightLightChar = this._service.getCharacteristic(nightLightClass);
-      // Night light is read-only for H7123 (no set handler)
-    }
+    // Night light custom characteristic (read-only for H7123)
+    this.nightLightChar = this.addCustomCharacteristic(
+      this._service,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (this.platform.cusChar as any)?.NightLight,
+    );
 
-    // Add display light custom characteristic if available
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const displayLightClass = (this.platform.cusChar as any)?.DisplayLight;
-    if (displayLightClass) {
-      if (!this._service.testCharacteristic(displayLightClass)) {
-        this._service.addCharacteristic(displayLightClass);
-      }
-
-      this.displayLightChar = this._service.getCharacteristic(displayLightClass);
-      this.displayLightChar.onSet(async (value: boolean) => {
-        await this.internalDisplayLightUpdate(value);
-      });
+    // Display light custom characteristic
+    this.displayLightChar = this.addCustomCharacteristic(
+      this._service,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (this.platform.cusChar as any)?.DisplayLight,
+      async (value: boolean) => this.internalDisplayLightUpdate(value),
+    );
+    if (this.displayLightChar) {
       this.cacheDisplay = this.displayLightChar.value ? 'on' : 'off';
     }
 
-    // Output the customised options to the log
     this.logInitOptions({});
-
     this.initialised = true;
   }
 
   private async internalStateUpdate(value: number): Promise<void> {
     try {
       const newValue = value === 1 ? 'on' : 'off';
-
-      // Don't continue if the new value is the same as before
       if (this.cacheState === newValue) {
         return;
       }
 
-      // Send the request to the platform sender function
-      await this.sendDeviceUpdate({
-        cmd: 'statePuri',
-        value: value ? 1 : 0,
-      });
+      await this.sendDeviceUpdate({ cmd: 'statePuri', value: value ? 1 : 0 });
 
-      // Update the current state characteristic
       this._service.updateCharacteristic(this.hapChar.CurrentAirPurifierState, value === 1 ? 2 : 0);
-
-      // Cache the new state and log if appropriate
       this.cacheState = newValue;
       this.accessory.log(`${platformLang.curState} [${newValue}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      // Throw a 'no response' error and set a timeout to revert this after 2 seconds
-      setTimeout(() => {
-        this._service.updateCharacteristic(this.hapChar.Active, this.cacheState === 'on' ? 1 : 0);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.Active),
+        this.cacheState === 'on' ? 1 : 0,
+      );
     }
   }
 
   private async internalModeUpdate(value: number): Promise<void> {
     try {
-      // Don't continue if the speed is 0
       if (value === 0) {
         return;
       }
 
-      // Get the mode key {1, 2, 3, 4, 5}
       const newModeKey = Math.floor(value / 20);
-
-      // Don't continue if the mode won't change
       if (!newModeKey || newModeKey === this.cacheMode) {
         return;
       }
 
-      // Get the mode code for this value
-      const newCode = MODE_VALUE_CODES[newModeKey];
+      await this.sendDeviceUpdate({ cmd: 'ptReal', value: MODE_VALUE_CODES[newModeKey] });
 
-      // Send the request to the platform sender function
-      await this.sendDeviceUpdate({
-        cmd: 'ptReal',
-        value: newCode,
-      });
-
-      // Cache the new state and log if appropriate
       this.cacheMode = newModeKey;
       this.accessory.log(`${platformLang.curMode} [${MODE_LABELS[this.cacheMode]}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      // Throw a 'no response' error and set a timeout to revert this after 2 seconds
-      setTimeout(() => {
-        this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheMode * 20);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.RotationSpeed),
+        this.cacheMode * 20,
+      );
     }
   }
 
   private async internalLockUpdate(value: number): Promise<void> {
     try {
       const newValue = value === 1 ? 'on' : 'off';
-
-      // Don't continue if the new value is the same as before
       if (this.cacheLock === newValue) {
         return;
       }
 
-      // Send the request to the platform sender function
-      await this.sendDeviceUpdate({
-        cmd: 'ptReal',
-        value: LOCK_CODES[newValue],
-      });
+      await this.sendDeviceUpdate({ cmd: 'ptReal', value: LOCK_CODES[newValue] });
 
-      // Cache the new state and log if appropriate
       this.cacheLock = newValue;
       this.accessory.log(`${platformLang.curLock} [${newValue}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      // Throw a 'no response' error and set a timeout to revert this after 2 seconds
-      setTimeout(() => {
-        this._service.updateCharacteristic(
-          this.hapChar.LockPhysicalControls,
-          this.cacheLock === 'on' ? 1 : 0,
-        );
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.LockPhysicalControls),
+        this.cacheLock === 'on' ? 1 : 0,
+      );
     }
   }
 
   private async internalDisplayLightUpdate(value: boolean): Promise<void> {
     try {
       const newValue = value ? 'on' : 'off';
-
-      // Don't continue if the new value is the same as before
       if (this.cacheDisplay === newValue) {
         return;
       }
@@ -274,149 +207,117 @@ export class PurifierH7123Device extends GoveeDeviceBase {
       // Generate the code to send (use cached code if available)
       let codeToSend: string;
       if (value) {
-        codeToSend = this.accessory.context.cacheDisplayCode
-          ? hexToBase64(statusToActionCode(this.accessory.context.cacheDisplayCode))
+        const cachedDisplayCode = this.accessory.context.cacheDisplayCode as string | undefined;
+        codeToSend = cachedDisplayCode
+          ? hexToBase64(statusToActionCode(cachedDisplayCode))
           : DISPLAY_CODES.on;
       } else {
         codeToSend = DISPLAY_CODES.off;
       }
 
-      // Send the request to the platform sender function
-      await this.sendDeviceUpdate({
-        cmd: 'ptReal',
-        value: codeToSend,
-      });
+      await this.sendDeviceUpdate({ cmd: 'ptReal', value: codeToSend });
 
-      // Cache the new state and log if appropriate
       this.cacheDisplay = newValue;
       this.accessory.log(`${platformLang.curDisplay} [${newValue}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      // Throw a 'no response' error and set a timeout to revert this after 2 seconds
-      setTimeout(() => {
-        if (this.displayLightChar) {
-          this.displayLightChar.updateValue(this.cacheDisplay === 'on');
-        }
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      if (this.displayLightChar) {
+        this.handleUpdateError(err, this.displayLightChar, this.cacheDisplay === 'on');
+      }
     }
   }
 
   externalUpdate(params: ExternalUpdateParams): void {
-    // Check for an ON/OFF change
     if (params.state && params.state !== this.cacheState) {
       this.cacheState = params.state;
       this._service.updateCharacteristic(this.hapChar.Active, this.cacheState === 'on' ? 1 : 0);
       this._service.updateCharacteristic(this.hapChar.CurrentAirPurifierState, this.cacheState === 'on' ? 2 : 0);
-
-      // Log the change
       this.accessory.log(`${platformLang.curState} [${this.cacheState}]`);
     }
 
-    // Check for some other scene/mode change
     if (params.commands) {
-      this.handleCommandUpdates(params.commands);
+      processCommands(
+        params.commands,
+        {
+          'aa05': (hexParts) => this.handleSpeedUpdate(hexParts),
+          '3a05': (hexParts) => this.handleSpeedUpdate(hexParts),
+          'aa10': (hexParts) => this.handleLockExternalUpdate(hexParts),
+          'aa16': (hexParts, hexString) => this.handleDisplayExternalUpdate(hexParts, hexString),
+          'aa19': (hexParts) => this.handleAirQualityUpdate(hexParts),
+          // Ignored commands
+          'aa11': () => {}, // timer
+          'aa13': () => {}, // scheduling
+          '3310': () => {}, // lock
+          '3311': () => {}, // timer
+          '3313': () => {}, // scheduling
+          '3316': () => {}, // display light
+        },
+        (command, hexString) => {
+          this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
+        },
+      );
     }
   }
 
-  private handleCommandUpdates(commands: string[]): void {
-    for (const command of commands) {
-      const hexString = base64ToHex(command);
-      const hexParts = hexToTwoItems(hexString);
+  private handleSpeedUpdate(hexParts: string[]): void {
+    const newSpeedCode = `${getTwoItemPosition(hexParts, 3)}${getTwoItemPosition(hexParts, 4)}`;
 
-      const deviceFunction = `${getTwoItemPosition(hexParts, 1)}${getTwoItemPosition(hexParts, 2)}`;
+    // Different behaviour for custom speed
+    if (newSpeedCode === '0202') {
+      this.accessory.log(`${platformLang.curMode} [custom]`);
+      return;
+    }
 
-      switch (deviceFunction) {
-      case 'aa05': // speed
-      case '3a05': { // speed
-        const newSpeedCode = `${getTwoItemPosition(hexParts, 3)}${getTwoItemPosition(hexParts, 4)}`;
+    const speedCodeMap: Record<string, number> = {
+      '0500': 1, // Sleep
+      '0101': 2, // Low
+      '0102': 3, // Medium
+      '0103': 4, // High
+      '0300': 5, // Auto
+    };
 
-        // Different behaviour for custom speed
-        if (newSpeedCode === '0202') {
-          this.accessory.log(`${platformLang.curMode} [custom]`);
-          return;
-        }
+    const newMode = speedCodeMap[newSpeedCode];
+    if (newMode && newMode !== this.cacheMode) {
+      this.cacheMode = newMode;
+      this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheMode * 20);
+      this.accessory.log(`${platformLang.curMode} [${MODE_LABELS[this.cacheMode]}]`);
+    }
+  }
 
-        let newMode: number | undefined;
+  private handleLockExternalUpdate(hexParts: string[]): void {
+    const newLock = getTwoItemPosition(hexParts, 3) === '01' ? 'on' : 'off';
+    if (newLock !== this.cacheLock) {
+      this.cacheLock = newLock;
+      this._service.updateCharacteristic(this.hapChar.LockPhysicalControls, this.cacheLock === 'on' ? 1 : 0);
+      this.accessory.log(`${platformLang.curLock} [${this.cacheLock}]`);
+    }
+  }
 
-        switch (newSpeedCode) {
-        case '0500':
-          newMode = 1; // Sleep
-          break;
-        case '0101':
-          newMode = 2; // Low
-          break;
-        case '0102':
-          newMode = 3; // Medium
-          break;
-        case '0103':
-          newMode = 4; // High
-          break;
-        case '0300':
-          newMode = 5; // Auto
-          break;
-        }
-
-        if (newMode && newMode !== this.cacheMode) {
-          this.cacheMode = newMode;
-          this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheMode * 20);
-          this.accessory.log(`${platformLang.curMode} [${MODE_LABELS[this.cacheMode]}]`);
-        }
-        break;
+  private handleDisplayExternalUpdate(hexParts: string[], hexString: string): void {
+    const newDisplay = getTwoItemPosition(hexParts, 3) === '01' ? 'on' : 'off';
+    if (newDisplay === 'on') {
+      this.accessory.context.cacheDisplayCode = hexString;
+    }
+    if (newDisplay !== this.cacheDisplay) {
+      this.cacheDisplay = newDisplay;
+      if (this.displayLightChar) {
+        this.displayLightChar.updateValue(this.cacheDisplay === 'on');
       }
-      case 'aa10': { // lock
-        const newLock = getTwoItemPosition(hexParts, 3) === '01' ? 'on' : 'off';
-        if (newLock !== this.cacheLock) {
-          this.cacheLock = newLock;
-          this._service.updateCharacteristic(this.hapChar.LockPhysicalControls, this.cacheLock === 'on' ? 1 : 0);
-          this.accessory.log(`${platformLang.curLock} [${this.cacheLock}]`);
-        }
-        break;
-      }
-      case 'aa16': { // display light
-        const newDisplay = getTwoItemPosition(hexParts, 3) === '01' ? 'on' : 'off';
-        if (newDisplay === 'on') {
-          this.accessory.context.cacheDisplayCode = hexString;
-        }
-        if (newDisplay !== this.cacheDisplay) {
-          this.cacheDisplay = newDisplay;
-          if (this.displayLightChar) {
-            this.displayLightChar.updateValue(this.cacheDisplay === 'on');
-          }
+      this.accessory.log(`${platformLang.curDisplay} [${this.cacheDisplay}]`);
+    }
+  }
 
-          // Log the change
-          this.accessory.log(`${platformLang.curDisplay} [${this.cacheDisplay}]`);
-        }
-        break;
-      }
-      case 'aa19': {
-        // Check air quality reading (i.e. 1=green, 2=blue, 3=yellow, 4=red)
-        // Cache will be in {1, 2, 3, 5} which relates to Govee {1, 2, 3, 4}
-        let newQual = Number.parseInt(getTwoItemPosition(hexParts, 5), 10);
-        if (newQual === 4) {
-          newQual = 5; // HomeKit uses 5 for "Poor"
-        }
+  private handleAirQualityUpdate(hexParts: string[]): void {
+    // Air quality reading (1=green, 2=blue, 3=yellow, 4=red)
+    // Cache will be in {1, 2, 3, 5} which relates to Govee {1, 2, 3, 4}
+    let newQual = Number.parseInt(getTwoItemPosition(hexParts, 5), 10);
+    if (newQual === 4) {
+      newQual = 5; // HomeKit uses 5 for "Poor"
+    }
 
-        if (newQual !== this.cacheAir) {
-          this.cacheAir = newQual;
-          this.airService.updateCharacteristic(this.hapChar.AirQuality, newQual);
-          this.accessory.log(`${platformLang.curAirQual} [${AIR_QUALITY_LABELS[Math.min(newQual, 4)]}]`);
-        }
-        break;
-      }
-      case 'aa11': // timer
-      case 'aa13': // scheduling
-      case '3310': // lock (same command for on and off)
-      case '3311': // timer
-      case '3313': // scheduling
-      case '3316': { // display light
-        break;
-      }
-      default:
-        this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
-        break;
-      }
+    if (newQual !== this.cacheAir) {
+      this.cacheAir = newQual;
+      this.airService.updateCharacteristic(this.hapChar.AirQuality, newQual);
+      this.accessory.log(`${platformLang.curAirQual} [${AIR_QUALITY_LABELS[Math.min(newQual, 4)]}]`);
     }
   }
 }
