@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, promises } from 'node:fs';
 import { join } from 'node:path';
 import process from 'node:process';
 
+import FakeGatoHistory from 'fakegato-history';
 import type {
   API,
   Characteristic,
@@ -84,7 +85,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
   // Custom characteristics
   public cusChar: Record<string, typeof Characteristic> = {};
   public eveChar: Record<string, typeof Characteristic> = {};
-  public eveService!: new (type: string, accessory: PlatformAccessory, opts: Record<string, unknown>) => unknown;
+  public eveService!: ReturnType<typeof FakeGatoHistory>;
 
   // Storage
   public storageData!: typeof storage;
@@ -209,6 +210,9 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       // Initialize custom characteristics
       this.cusChar = new CustomCharacteristics(this.api) as unknown as Record<string, typeof Characteristic>;
       this.eveChar = new EveCharacteristics(this.api) as unknown as Record<string, typeof Characteristic>;
+
+      // Initialize fakegato-history for Eve app support
+      this.eveService = FakeGatoHistory(this.api);
 
       // Initialize device handlers
       initializeDeviceHandlers();

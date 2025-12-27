@@ -1,3 +1,4 @@
+import type FakeGatoHistory from 'fakegato-history';
 import type {
   API,
   Characteristic,
@@ -402,7 +403,7 @@ export interface GoveePlatform extends DynamicPlatformPlugin {
   readonly config: GoveePluginConfig;
   readonly cusChar: CustomCharacteristics;
   readonly eveChar: EveCharacteristics;
-  readonly eveService: unknown;
+  readonly eveService: ReturnType<typeof FakeGatoHistory>;
   readonly deviceConf: Record<string, Partial<DeviceConfigEntry>>;
   readonly ignoredDevices: string[];
   readonly isBeta: boolean;
