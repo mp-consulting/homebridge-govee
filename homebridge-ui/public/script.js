@@ -655,10 +655,13 @@ function removeDevice(type, index) {
     const spinner = document.getElementById('clearCacheSpinner');
     const resultDiv = document.getElementById('clearCacheResult');
 
-    // Confirm action
-    const msg = 'Are you sure you want to clear the cache? ' +
-      'This will remove cached credentials and device data. Restart Homebridge after clearing.';
-    if (!confirm(msg)) {
+    // Confirm action using Homebridge modal (native confirm() doesn't work in iframe)
+    const confirmed = await homebridge.showConfirmModal(
+      'Clear Cache',
+      'Are you sure you want to clear the cache? This will remove cached credentials and device data. You will need to restart Homebridge after clearing.',
+    );
+
+    if (!confirmed) {
       return;
     }
 
