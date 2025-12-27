@@ -10,15 +10,14 @@ import {
   processCommands,
   statusToActionCode,
 } from '../utils/functions.js';
+import {
+  PURIFIER_H7122_SPEED_CODES,
+  LOCK_CODES,
+  DISPLAY_CODES,
+} from '../catalog/index.js';
 
-// Speed codes for H7122 model (5 modes: sleep, low, med, high, auto)
-const SPEED_VALUE_CODES: Record<number, string> = {
-  1: 'OgUFAAAAAAAAAAAAAAAAAAAAADo=', // sleep
-  2: 'OgUBAQAAAAAAAAAAAAAAAAAAAD8=', // low
-  3: 'OgUBAgAAAAAAAAAAAAAAAAAAADw=', // med
-  4: 'OgUBAwAAAAAAAAAAAAAAAAAAAD0=', // high
-  5: 'OgUDAAAAAAAAAAAAAAAAAAAAADw=', // auto
-};
+// Use catalog codes
+const SPEED_VALUE_CODES = PURIFIER_H7122_SPEED_CODES;
 
 const SPEED_VALUE_LABELS: Record<number, string> = {
   0: 'off',
@@ -27,18 +26,6 @@ const SPEED_VALUE_LABELS: Record<number, string> = {
   3: 'medium',
   4: 'high',
   5: 'auto',
-};
-
-// Lock codes
-const LOCK_CODES: Record<'on' | 'off', string> = {
-  on: 'MxABAAAAAAAAAAAAAAAAAAAAACI=',
-  off: 'MxAAAAAAAAAAAAAAAAAAAAAAACM=',
-};
-
-// Display codes
-const DISPLAY_CODES: Record<'on' | 'off', string> = {
-  on: 'MxYBAAAAAAAAAAAAAAAAAAAAACQ=',
-  off: 'MxYAAAAAAAAAAAAAAAAAAAAAACU=',
 };
 
 /**

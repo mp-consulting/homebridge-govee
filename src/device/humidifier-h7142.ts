@@ -14,20 +14,11 @@ import {
   speedPercentToValue,
   speedValueToPercent,
 } from '../utils/functions.js';
+import { HUMIDIFIER_H7142_SPEED_CODES, HUMIDIFIER_H7142_UV_ON } from '../catalog/index.js';
 
-// Speed codes for H7142 model (9 speeds)
-const SPEED_VALUE_CODES: Record<number, string> = {
-  1: 'MwUBAQAAAAAAAAAAAAAAAAAAADY=',
-  2: 'MwUBAgAAAAAAAAAAAAAAAAAAADU=',
-  3: 'MwUBAwAAAAAAAAAAAAAAAAAAADQ=',
-  4: 'MwUBBAAAAAAAAAAAAAAAAAAAADM=',
-  5: 'MwUBBQAAAAAAAAAAAAAAAAAAADI=',
-  6: 'MwUBBgAAAAAAAAAAAAAAAAAAADE=',
-  7: 'MwUBBwAAAAAAAAAAAAAAAAAAADA=',
-  8: 'MwUBCAAAAAAAAAAAAAAAAAAAAD8=',
-  9: 'MwUBCQAAAAAAAAAAAAAAAAAAAD4=',
-};
-
+// Use centralized speed codes from catalog
+const SPEED_VALUE_CODES = HUMIDIFIER_H7142_SPEED_CODES;
+const UV_ON_CODE = HUMIDIFIER_H7142_UV_ON;
 const MAX_SPEED = 9;
 
 /**
@@ -125,7 +116,7 @@ export class HumidifierH7142Device extends GoveeDeviceBase {
       // If turning on, also turn on the UV light
       if (value && this.cacheUV === 'off') {
         await sleep(200);
-        await this.sendDeviceUpdate({ cmd: 'ptReal', value: 'MxoBAAAAAAAAAAAAAAAAAAAAACg=' });
+        await this.sendDeviceUpdate({ cmd: 'ptReal', value: UV_ON_CODE });
       }
 
       if (this.cacheState !== newValue) {

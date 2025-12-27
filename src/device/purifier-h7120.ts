@@ -8,32 +8,16 @@ import {
   speedPercentToValue,
   speedValueToPercent,
 } from '../utils/functions.js';
+import {
+  PURIFIER_H7120_SPEED_CODES,
+  PURIFIER_H7120_NIGHT_LIGHT_CODES,
+  LOCK_CODES,
+  DISPLAY_CODES,
+} from '../catalog/index.js';
 
-// Speed codes for H7120/H7121 model (4 speeds at 25% increments)
-const SPEED_VALUE_CODES: Record<number, string> = {
-  1: 'MwUQAAAAAAAAAAAAAAAAAAAAACY=', // sleep
-  2: 'MwUBAAAAAAAAAAAAAAAAAAAAADc=', // low
-  3: 'MwUCAAAAAAAAAAAAAAAAAAAAADQ=', // medium
-  4: 'MwUDAAAAAAAAAAAAAAAAAAAAADU=', // high
-};
-
-// Night light codes
-const NIGHT_LIGHT_CODES: Record<'on' | 'off', string> = {
-  on: 'MxgBMgAAAAAAAAAAAAAAAAAAABg=',
-  off: 'MxgAMgAAAAAAAAAAAAAAAAAAABk=',
-};
-
-// Lock codes
-const LOCK_CODES: Record<'on' | 'off', string> = {
-  on: 'MxABAAAAAAAAAAAAAAAAAAAAACI=',
-  off: 'MxAAAAAAAAAAAAAAAAAAAAAAACM=',
-};
-
-// Display codes
-const DISPLAY_CODES: Record<'on' | 'off', string> = {
-  on: 'MxYBAAAAAAAAAAAAAAAAAAAAACQ=',
-  off: 'MxYAAAAAAAAAAAAAAAAAAAAAACU=',
-};
+// Use catalog codes
+const SPEED_VALUE_CODES = PURIFIER_H7120_SPEED_CODES;
+const NIGHT_LIGHT_CODES = PURIFIER_H7120_NIGHT_LIGHT_CODES;
 
 const MAX_SPEED = 4;
 

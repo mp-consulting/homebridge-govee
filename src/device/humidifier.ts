@@ -10,19 +10,10 @@ import {
   speedPercentToValue,
   speedValueToPercent,
 } from '../utils/functions.js';
+import { HUMIDIFIER_H7140_SPEED_CODES } from '../catalog/index.js';
 
-// Speed codes for H7140 model (8 speeds)
-const SPEED_VALUE_CODES: Record<number, string> = {
-  1: 'MwUBAQAAAAAAAAAAAAAAAAAAADY=',
-  2: 'MwUBAgAAAAAAAAAAAAAAAAAAADU=',
-  3: 'MwUBAwAAAAAAAAAAAAAAAAAAADQ=',
-  4: 'MwUBBAAAAAAAAAAAAAAAAAAAADM=',
-  5: 'MwUBBQAAAAAAAAAAAAAAAAAAADI=',
-  6: 'MwUBBgAAAAAAAAAAAAAAAAAAADE=',
-  7: 'MwUBBwAAAAAAAAAAAAAAAAAAADA=',
-  8: 'MwUBCAAAAAAAAAAAAAAAAAAAAD8=',
-};
-
+// Use centralized speed codes from catalog
+const SPEED_VALUE_CODES = HUMIDIFIER_H7140_SPEED_CODES;
 const MAX_SPEED = 8;
 
 /**

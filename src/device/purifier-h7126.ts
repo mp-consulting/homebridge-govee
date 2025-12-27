@@ -9,25 +9,14 @@ import {
   speedPercentToValue,
   speedValueToPercent,
 } from '../utils/functions.js';
+import {
+  PURIFIER_H7126_SPEED_CODES,
+  LOCK_CODES,
+  DISPLAY_CODES,
+} from '../catalog/index.js';
 
-// Speed codes for H7126 model (3 speeds)
-const SPEED_VALUE_CODES: Record<number, string> = {
-  1: 'MwUBAQAAAAAAAAAAAAAAAAAAADY=', // sleep
-  2: 'MwUBAgAAAAAAAAAAAAAAAAAAADU=', // low
-  3: 'MwUBAwAAAAAAAAAAAAAAAAAAADQ=', // high
-};
-
-// Lock codes
-const LOCK_CODES: Record<'on' | 'off', string> = {
-  on: 'MxABAAAAAAAAAAAAAAAAAAAAACI=',
-  off: 'MxAAAAAAAAAAAAAAAAAAAAAAACM=',
-};
-
-// Display codes
-const DISPLAY_CODES: Record<'on' | 'off', string> = {
-  on: 'MxYBAAAAAAAAAAAAAAAAAAAAACQ=',
-  off: 'MxYAAAAAAAAAAAAAAAAAAAAAACU=',
-};
+// Use catalog codes
+const SPEED_VALUE_CODES = PURIFIER_H7126_SPEED_CODES;
 
 const MAX_SPEED = 3;
 
