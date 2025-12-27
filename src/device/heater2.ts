@@ -22,6 +22,8 @@ import {
   HEATER2_SPEED_LABELS,
   HEATER2_TEMP_CODES_AUTO,
   HEATER2_TEMP_CODES_AUTO_TURN,
+  DEBOUNCE_BRIGHTNESS_MS,
+  DEBOUNCE_COLOR_MS,
 } from '../catalog/index.js';
 
 /**
@@ -400,7 +402,7 @@ export class Heater2Device extends GoveeDeviceBase {
       // Debounce
       const updateKey = generateRandomString(5);
       this.updateKeyBright = updateKey;
-      await sleep(350);
+      await sleep(DEBOUNCE_BRIGHTNESS_MS);
       if (updateKey !== this.updateKeyBright) {
         return;
       }
@@ -445,7 +447,7 @@ export class Heater2Device extends GoveeDeviceBase {
       // Debounce
       const updateKey = generateRandomString(5);
       this.updateKeyColour = updateKey;
-      await sleep(300);
+      await sleep(DEBOUNCE_COLOR_MS);
       if (updateKey !== this.updateKeyColour) {
         return;
       }

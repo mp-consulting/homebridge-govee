@@ -86,6 +86,11 @@ export {
   AIR_QUALITY_LABELS,
   PM25_THRESHOLDS,
   PURIFIER_SPEED_COMMAND_MAP,
+  // Debounce constants
+  DEBOUNCE_BRIGHTNESS_MS,
+  DEBOUNCE_COLOR_MS,
+  DEBOUNCE_COLOR_TEMP_MS,
+  KETTLE_MODE_DELAY_MS,
   // Helpers
   getAirQualityFromPM25,
   getAirQualityLabelFromPM25,

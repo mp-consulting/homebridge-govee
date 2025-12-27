@@ -4,7 +4,7 @@ import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '..
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
 import { getTwoItemPosition, processCommands, sleep } from '../utils/functions.js';
-import { KETTLE_MODE_CODES } from '../catalog/index.js';
+import { KETTLE_MODE_CODES, KETTLE_MODE_DELAY_MS } from '../catalog/index.js';
 
 /**
  * Kettle device handler.
@@ -178,7 +178,7 @@ export class KettleDevice extends GoveeDeviceBase {
 
       // Send the request to change the mode
       await this.sendDeviceUpdate({ cmd: 'ptReal', value: b64Code });
-      await sleep(1000);
+      await sleep(KETTLE_MODE_DELAY_MS);
 
       // Send the request to turn to boiling mode
       await this.sendDeviceUpdate({ cmd: 'ptReal', value: KETTLE_MODE_CODES.boil });

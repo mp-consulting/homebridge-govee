@@ -485,6 +485,30 @@ export function getAirQualityLabelFromPM25(pm25: number): string {
 }
 
 // ============================================================================
+// Debounce Constants
+// ============================================================================
+
+/**
+ * Debounce delay for brightness updates (milliseconds)
+ */
+export const DEBOUNCE_BRIGHTNESS_MS = 350;
+
+/**
+ * Debounce delay for color/hue updates (milliseconds)
+ */
+export const DEBOUNCE_COLOR_MS = 300;
+
+/**
+ * Debounce delay for color temperature updates (milliseconds)
+ */
+export const DEBOUNCE_COLOR_TEMP_MS = 300;
+
+/**
+ * Delay before sending kettle boil command (milliseconds)
+ */
+export const KETTLE_MODE_DELAY_MS = 1000;
+
+// ============================================================================
 // Type Exports
 // ============================================================================
 
@@ -530,6 +554,10 @@ export default {
   SPEED_LABELS_5,
   AIR_QUALITY_LABELS,
   PM25_THRESHOLDS,
+  DEBOUNCE_BRIGHTNESS_MS,
+  DEBOUNCE_COLOR_MS,
+  DEBOUNCE_COLOR_TEMP_MS,
+  KETTLE_MODE_DELAY_MS,
   getAirQualityFromPM25,
   getAirQualityLabelFromPM25,
 };
