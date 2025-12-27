@@ -1,6 +1,6 @@
 {
     "bridge": {
-        "name": "PluginTemplate",
+        "name": "PluginBridge",
         "username": "AA:BB:CC:DD:EE:FF",
         "port": 51826,
         "pin": "031-45-154"
