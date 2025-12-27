@@ -168,6 +168,150 @@
               "minimum": 1,
               "maximum": 100,
               "description": "Step size for brightness adjustments."
+            },
+            "scene": {
+              "title": "Scene 1",
+              "type": "object",
+              "properties": {
+                "sceneCode": { "title": "Scene Code", "type": "string" },
+                "bleCode": { "title": "BLE Code", "type": "string" },
+                "showAs": { "title": "Show As", "type": "string", "default": "default", "oneOf": [{ "title": "Eve Characteristic", "enum": ["default"] }, { "title": "Switch", "enum": ["switch"] }] }
+              }
+            },
+            "sceneTwo": {
+              "title": "Scene 2",
+              "type": "object",
+              "properties": {
+                "sceneCode": { "title": "Scene Code", "type": "string" },
+                "bleCode": { "title": "BLE Code", "type": "string" },
+                "showAs": { "title": "Show As", "type": "string", "default": "default", "oneOf": [{ "title": "Eve Characteristic", "enum": ["default"] }, { "title": "Switch", "enum": ["switch"] }] }
+              }
+            },
+            "sceneThree": {
+              "title": "Scene 3",
+              "type": "object",
+              "properties": {
+                "sceneCode": { "title": "Scene Code", "type": "string" },
+                "bleCode": { "title": "BLE Code", "type": "string" },
+                "showAs": { "title": "Show As", "type": "string", "default": "default", "oneOf": [{ "title": "Eve Characteristic", "enum": ["default"] }, { "title": "Switch", "enum": ["switch"] }] }
+              }
+            },
+            "sceneFour": {
+              "title": "Scene 4",
+              "type": "object",
+              "properties": {
+                "sceneCode": { "title": "Scene Code", "type": "string" },
+                "bleCode": { "title": "BLE Code", "type": "string" },
+                "showAs": { "title": "Show As", "type": "string", "default": "default", "oneOf": [{ "title": "Eve Characteristic", "enum": ["default"] }, { "title": "Switch", "enum": ["switch"] }] }
+              }
+            },
+            "musicMode": {
+              "title": "Music Mode 1",
+              "type": "object",
+              "properties": {
+                "sceneCode": { "title": "Scene Code", "type": "string" },
+                "bleCode": { "title": "BLE Code", "type": "string" },
+                "showAs": { "title": "Show As", "type": "string", "default": "default", "oneOf": [{ "title": "Eve Characteristic", "enum": ["default"] }, { "title": "Switch", "enum": ["switch"] }] }
+              }
+            },
+            "musicModeTwo": {
+              "title": "Music Mode 2",
+              "type": "object",
+              "properties": {
+                "sceneCode": { "title": "Scene Code", "type": "string" },
+                "bleCode": { "title": "BLE Code", "type": "string" },
+                "showAs": { "title": "Show As", "type": "string", "default": "default", "oneOf": [{ "title": "Eve Characteristic", "enum": ["default"] }, { "title": "Switch", "enum": ["switch"] }] }
+              }
+            },
+            "videoMode": {
+              "title": "Video Mode 1",
+              "type": "object",
+              "properties": {
+                "sceneCode": { "title": "Scene Code", "type": "string" },
+                "bleCode": { "title": "BLE Code", "type": "string" },
+                "showAs": { "title": "Show As", "type": "string", "default": "default", "oneOf": [{ "title": "Eve Characteristic", "enum": ["default"] }, { "title": "Switch", "enum": ["switch"] }] }
+              }
+            },
+            "videoModeTwo": {
+              "title": "Video Mode 2",
+              "type": "object",
+              "properties": {
+                "sceneCode": { "title": "Scene Code", "type": "string" },
+                "bleCode": { "title": "BLE Code", "type": "string" },
+                "showAs": { "title": "Show As", "type": "string", "default": "default", "oneOf": [{ "title": "Eve Characteristic", "enum": ["default"] }, { "title": "Switch", "enum": ["switch"] }] }
+              }
+            },
+            "diyMode": {
+              "title": "DIY Mode 1",
+              "type": "object",
+              "properties": {
+                "sceneCode": { "title": "Scene Code", "type": "string" },
+                "bleCode": { "title": "BLE Code", "type": "string" },
+                "showAs": { "title": "Show As", "type": "string", "default": "default", "oneOf": [{ "title": "Eve Characteristic", "enum": ["default"] }, { "title": "Switch", "enum": ["switch"] }] }
+              }
+            },
+            "diyModeTwo": {
+              "title": "DIY Mode 2",
+              "type": "object",
+              "properties": {
+                "sceneCode": { "title": "Scene Code", "type": "string" },
+                "bleCode": { "title": "BLE Code", "type": "string" },
+                "showAs": { "title": "Show As", "type": "string", "default": "default", "oneOf": [{ "title": "Eve Characteristic", "enum": ["default"] }, { "title": "Switch", "enum": ["switch"] }] }
+              }
+            },
+            "diyModeThree": {
+              "title": "DIY Mode 3",
+              "type": "object",
+              "properties": {
+                "sceneCode": { "title": "Scene Code", "type": "string" },
+                "bleCode": { "title": "BLE Code", "type": "string" },
+                "showAs": { "title": "Show As", "type": "string", "default": "default", "oneOf": [{ "title": "Eve Characteristic", "enum": ["default"] }, { "title": "Switch", "enum": ["switch"] }] }
+              }
+            },
+            "diyModeFour": {
+              "title": "DIY Mode 4",
+              "type": "object",
+              "properties": {
+                "sceneCode": { "title": "Scene Code", "type": "string" },
+                "bleCode": { "title": "BLE Code", "type": "string" },
+                "showAs": { "title": "Show As", "type": "string", "default": "default", "oneOf": [{ "title": "Eve Characteristic", "enum": ["default"] }, { "title": "Switch", "enum": ["switch"] }] }
+              }
+            },
+            "segmented": {
+              "title": "Segment 1",
+              "type": "object",
+              "properties": {
+                "sceneCode": { "title": "Segment Code", "type": "string" },
+                "bleCode": { "title": "BLE Code", "type": "string" },
+                "showAs": { "title": "Show As", "type": "string", "default": "default", "oneOf": [{ "title": "Eve Characteristic", "enum": ["default"] }, { "title": "Switch", "enum": ["switch"] }] }
+              }
+            },
+            "segmentedTwo": {
+              "title": "Segment 2",
+              "type": "object",
+              "properties": {
+                "sceneCode": { "title": "Segment Code", "type": "string" },
+                "bleCode": { "title": "BLE Code", "type": "string" },
+                "showAs": { "title": "Show As", "type": "string", "default": "default", "oneOf": [{ "title": "Eve Characteristic", "enum": ["default"] }, { "title": "Switch", "enum": ["switch"] }] }
+              }
+            },
+            "segmentedThree": {
+              "title": "Segment 3",
+              "type": "object",
+              "properties": {
+                "sceneCode": { "title": "Segment Code", "type": "string" },
+                "bleCode": { "title": "BLE Code", "type": "string" },
+                "showAs": { "title": "Show As", "type": "string", "default": "default", "oneOf": [{ "title": "Eve Characteristic", "enum": ["default"] }, { "title": "Switch", "enum": ["switch"] }] }
+              }
+            },
+            "segmentedFour": {
+              "title": "Segment 4",
+              "type": "object",
+              "properties": {
+                "sceneCode": { "title": "Segment Code", "type": "string" },
+                "bleCode": { "title": "BLE Code", "type": "string" },
+                "showAs": { "title": "Show As", "type": "string", "default": "default", "oneOf": [{ "title": "Eve Characteristic", "enum": ["default"] }, { "title": "Switch", "enum": ["switch"] }] }
+              }
             }
           }
         }
@@ -574,6 +718,50 @@
                 "lightDevices[].brightnessStep",
                 "lightDevices[].awsBrightnessNoScale",
                 "lightDevices[].awsColourMode"
+              ]
+            },
+            {
+              "type": "fieldset",
+              "title": "Scenes",
+              "expandable": true,
+              "items": [
+                "lightDevices[].scene",
+                "lightDevices[].sceneTwo",
+                "lightDevices[].sceneThree",
+                "lightDevices[].sceneFour"
+              ]
+            },
+            {
+              "type": "fieldset",
+              "title": "Music & Video Modes",
+              "expandable": true,
+              "items": [
+                "lightDevices[].musicMode",
+                "lightDevices[].musicModeTwo",
+                "lightDevices[].videoMode",
+                "lightDevices[].videoModeTwo"
+              ]
+            },
+            {
+              "type": "fieldset",
+              "title": "DIY Modes",
+              "expandable": true,
+              "items": [
+                "lightDevices[].diyMode",
+                "lightDevices[].diyModeTwo",
+                "lightDevices[].diyModeThree",
+                "lightDevices[].diyModeFour"
+              ]
+            },
+            {
+              "type": "fieldset",
+              "title": "Segmented Control",
+              "expandable": true,
+              "items": [
+                "lightDevices[].segmented",
+                "lightDevices[].segmentedTwo",
+                "lightDevices[].segmentedThree",
+                "lightDevices[].segmentedFour"
               ]
             }
           ]
