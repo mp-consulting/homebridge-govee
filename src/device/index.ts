@@ -36,6 +36,7 @@ export { CoolerSingleDevice } from './cooler-single.js';
 export { DehumidifierDevice } from './dehumidifier.js';
 export { DiffuserDevice } from './diffuser.js';
 export { PurifierDevice } from './purifier.js';
+export { PurifierFullDevice } from './purifier-full.js';
 export { IceMakerDevice } from './ice-maker.js';
 export { KettleDevice } from './kettle.js';
 export { SensorButtonDevice } from './sensor-button.js';
@@ -70,6 +71,7 @@ import { CoolerSingleDevice } from './cooler-single.js';
 import { DehumidifierDevice } from './dehumidifier.js';
 import { DiffuserDevice } from './diffuser.js';
 import { PurifierDevice } from './purifier.js';
+import { PurifierFullDevice } from './purifier-full.js';
 import { IceMakerDevice } from './ice-maker.js';
 import { KettleDevice } from './kettle.js';
 import { SensorButtonDevice } from './sensor-button.js';
@@ -118,6 +120,19 @@ export function initializeDeviceHandlers(): void {
   registerDeviceHandler('dehumidifier', DehumidifierDevice);
   registerDeviceHandler('diffuser', DiffuserDevice);
   registerDeviceHandler('purifier', PurifierDevice);
+
+  // Model-specific purifier handlers (with speed control)
+  registerModelHandler('H7121', PurifierFullDevice);
+  registerModelHandler('H7120', PurifierFullDevice);
+  registerModelHandler('H7122', PurifierFullDevice);
+  registerModelHandler('H7123', PurifierFullDevice);
+  registerModelHandler('H7124', PurifierFullDevice);
+  registerModelHandler('H7126', PurifierFullDevice);
+  registerModelHandler('H7127', PurifierFullDevice);
+  registerModelHandler('H7128', PurifierFullDevice);
+  registerModelHandler('H7129', PurifierFullDevice);
+  registerModelHandler('H712C', PurifierFullDevice);
+
   registerDeviceHandler('kettle', KettleDevice);
   registerDeviceHandler('iceMaker', IceMakerDevice);
   registerDeviceHandler('sensorButton', SensorButtonDevice);
