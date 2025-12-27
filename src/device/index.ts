@@ -33,6 +33,8 @@ export { CoolerSingleDevice } from './cooler-single.js';
 export { DehumidifierDevice } from './dehumidifier.js';
 export { DiffuserDevice } from './diffuser.js';
 export { PurifierDevice } from './purifier.js';
+export { IceMakerDevice } from './ice-maker.js';
+export { KettleDevice } from './kettle.js';
 
 // Initialize device handlers
 import { registerDeviceHandler, initializeModelMappings } from './registry.js';
@@ -55,6 +57,8 @@ import { CoolerSingleDevice } from './cooler-single.js';
 import { DehumidifierDevice } from './dehumidifier.js';
 import { DiffuserDevice } from './diffuser.js';
 import { PurifierDevice } from './purifier.js';
+import { IceMakerDevice } from './ice-maker.js';
+import { KettleDevice } from './kettle.js';
 
 /**
  * Register all device handlers with the registry.
@@ -84,10 +88,10 @@ export function initializeDeviceHandlers(): void {
   registerDeviceHandler('dehumidifier', DehumidifierDevice);
   registerDeviceHandler('diffuser', DiffuserDevice);
   registerDeviceHandler('purifier', PurifierDevice);
+  registerDeviceHandler('kettle', KettleDevice);
+  registerDeviceHandler('iceMaker', IceMakerDevice);
 
   // TODO: Add more device handlers as they are migrated
-  // registerDeviceHandler('kettle', KettleDevice);
-  // registerDeviceHandler('iceMaker', IceMakerDevice);
   // registerDeviceHandler('sensorContact', SensorContactDevice);
   // registerDeviceHandler('sensorPresence', SensorPresenceDevice);
   // registerDeviceHandler('sensorButton', SensorButtonDevice);
