@@ -185,10 +185,18 @@ export const PM25_THRESHOLDS = {
  * Get air quality value from PM2.5 reading
  */
 export function getAirQualityFromPM25(pm25: number): number {
-  if (pm25 <= PM25_THRESHOLDS.excellent) return 1;
-  if (pm25 <= PM25_THRESHOLDS.good) return 2;
-  if (pm25 <= PM25_THRESHOLDS.fair) return 3;
-  if (pm25 <= PM25_THRESHOLDS.inferior) return 4;
+  if (pm25 <= PM25_THRESHOLDS.excellent) {
+    return 1;
+  }
+  if (pm25 <= PM25_THRESHOLDS.good) {
+    return 2;
+  }
+  if (pm25 <= PM25_THRESHOLDS.fair) {
+    return 3;
+  }
+  if (pm25 <= PM25_THRESHOLDS.inferior) {
+    return 4;
+  }
   return 5;
 }
 

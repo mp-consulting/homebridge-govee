@@ -7,7 +7,6 @@
 
 import type { API, Characteristic, CharacteristicValue, Service } from 'homebridge';
 import type { GoveePlatformAccessoryWithControl, GoveePlatform } from '../types.js';
-import type { CharacteristicProps, ServiceConfig } from '../catalog/types.js';
 
 // HAP types
 type HapCharacteristic = API['hap']['Characteristic'];
