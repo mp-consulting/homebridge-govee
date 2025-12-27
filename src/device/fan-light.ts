@@ -1,8 +1,9 @@
-import type { Service, HAPStatus } from 'homebridge';
+import type { Service } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
 import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams, FanDeviceConfig } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
+import { hs2rgb, rgb2hs } from '../utils/colour.js';
 import {
   base64ToHex,
   generateCodeFromHexValues,
@@ -10,10 +11,8 @@ import {
   getTwoItemPosition,
   hexToDecimal,
   hexToTwoItems,
-  parseError,
+  processCommands,
   sleep,
-  hs2rgb,
-  rgb2hs,
 } from '../utils/functions.js';
 
 // Speed codes for 12-speed fans (H7105, H7107)
@@ -84,8 +83,7 @@ export class FanLightDevice extends GoveeDeviceBase {
     }
 
     // Add the fan service for the fan if it doesn't already exist
-    this._service = this.accessory.getService(this.hapServ.Fanv2)
-      || this.accessory.addService(this.hapServ.Fanv2);
+    this._service = this.getOrAddService(this.hapServ.Fanv2);
 
     // Add the set handler to the fan on/off characteristic
     this._service
@@ -114,14 +112,10 @@ export class FanLightDevice extends GoveeDeviceBase {
     // Setup light service
     if (this.hideLight) {
       // Remove the light service if it exists
-      const existingLight = this.accessory.getService(this.hapServ.Lightbulb);
-      if (existingLight) {
-        this.accessory.removeService(existingLight);
-      }
+      this.removeServiceIfExists('Lightbulb');
     } else {
       // Add the night light service if it doesn't already exist
-      this.lightService = this.accessory.getService(this.hapServ.Lightbulb)
-        || this.accessory.addService(this.hapServ.Lightbulb);
+      this.lightService = this.getOrAddService(this.hapServ.Lightbulb);
 
       // Add the set handler to the lightbulb on/off characteristic
       this.lightService.getCharacteristic(this.hapChar.On)
@@ -149,7 +143,6 @@ export class FanLightDevice extends GoveeDeviceBase {
   private async internalStateUpdate(value: number): Promise<void> {
     try {
       const newValue = value ? 'on' : 'off';
-
       if (this.cacheState === newValue) {
         return;
       }
@@ -159,16 +152,14 @@ export class FanLightDevice extends GoveeDeviceBase {
         value: value ? 'MwEBAAAAAAAAAAAAAAAAAAAAADM=' : 'MwEAAAAAAAAAAAAAAAAAAAAAADI=',
       });
 
-      if (this.cacheState !== newValue) {
-        this.cacheState = newValue;
-        this.accessory.log(`${platformLang.curState} [${newValue}]`);
-      }
+      this.cacheState = newValue;
+      this.accessory.log(`${platformLang.curState} [${newValue}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-      setTimeout(() => {
-        this._service.updateCharacteristic(this.hapChar.Active, this.cacheState === 'on' ? 1 : 0);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.Active),
+        this.cacheState === 'on' ? 1 : 0,
+      );
     }
   }
 
@@ -178,71 +169,58 @@ export class FanLightDevice extends GoveeDeviceBase {
         return;
       }
 
-      await this.sendDeviceUpdate({
-        cmd: 'ptReal',
-        value: this.speedCodes[value],
-      });
+      await this.sendDeviceUpdate({ cmd: 'ptReal', value: this.speedCodes[value] });
 
-      if (this.cacheSpeed !== value) {
-        this.cacheSpeed = value;
-        this.accessory.log(`${platformLang.curSpeed} [${value}]`);
-      }
+      this.cacheSpeed = value;
+      this.accessory.log(`${platformLang.curSpeed} [${value}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-      setTimeout(() => {
-        this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.RotationSpeed),
+        this.cacheSpeed,
+      );
     }
   }
 
   private async internalSwingUpdate(value: number): Promise<void> {
     try {
       const newValue = value ? 'on' : 'off';
-
       if (this.cacheSwing === newValue) {
         return;
       }
 
       // Swing mode update not fully implemented for this model
       this.accessory.logWarn('Swing mode control not yet implemented for this model');
-
       this.cacheSwing = newValue;
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-      setTimeout(() => {
-        this._service.updateCharacteristic(this.hapChar.SwingMode, this.cacheSwing === 'on' ? 1 : 0);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.SwingMode),
+        this.cacheSwing === 'on' ? 1 : 0,
+      );
     }
   }
 
   private async internalLightStateUpdate(value: boolean): Promise<void> {
     try {
       const newValue = value ? 'on' : 'off';
-
       if (this.cacheLightState === newValue) {
         return;
       }
 
-      // Generate the hex values for the code
       const hexValues = [0x3A, 0x1B, 0x01, 0x01, value ? 0x01 : 0x00];
+      await this.sendDeviceUpdate({ cmd: 'multiSync', value: generateCodeFromHexValues(hexValues) });
 
-      await this.sendDeviceUpdate({
-        cmd: 'multiSync',
-        value: generateCodeFromHexValues(hexValues),
-      });
-
-      if (this.cacheLightState !== newValue) {
-        this.cacheLightState = newValue;
-        this.accessory.log(`${platformLang.curLight} [${newValue}]`);
-      }
+      this.cacheLightState = newValue;
+      this.accessory.log(`${platformLang.curLight} [${newValue}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-      setTimeout(() => {
-        this.lightService?.updateCharacteristic(this.hapChar.On, this.cacheLightState === 'on');
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      if (this.lightService) {
+        this.handleUpdateError(
+          err,
+          this.lightService.getCharacteristic(this.hapChar.On),
+          this.cacheLightState === 'on',
+        );
+      }
     }
   }
 
@@ -260,13 +238,8 @@ export class FanLightDevice extends GoveeDeviceBase {
         return;
       }
 
-      // Generate the hex values for the code
       const hexValues = [0x3A, 0x1B, 0x01, 0x02, value];
-
-      await this.sendDeviceUpdate({
-        cmd: 'multiSync',
-        value: generateCodeFromHexValues(hexValues),
-      });
+      await this.sendDeviceUpdate({ cmd: 'multiSync', value: generateCodeFromHexValues(hexValues) });
 
       // Govee considers 0% brightness to be off
       if (value === 0) {
@@ -281,16 +254,16 @@ export class FanLightDevice extends GoveeDeviceBase {
         return;
       }
 
-      if (this.cacheBright !== value) {
-        this.cacheBright = value;
-        this.accessory.log(`${platformLang.curBright} [${value}%]`);
-      }
+      this.cacheBright = value;
+      this.accessory.log(`${platformLang.curBright} [${value}%]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-      setTimeout(() => {
-        this.lightService?.updateCharacteristic(this.hapChar.Brightness, this.cacheBright);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      if (this.lightService) {
+        this.handleUpdateError(
+          err,
+          this.lightService.getCharacteristic(this.hapChar.Brightness),
+          this.cacheBright,
+        );
+      }
     }
   }
 
@@ -308,115 +281,104 @@ export class FanLightDevice extends GoveeDeviceBase {
         return;
       }
 
-      // Calculate RGB values
       const saturation = this.lightService?.getCharacteristic(this.hapChar.Saturation).value as number;
       const newRGB = hs2rgb(value, saturation);
-
-      // Generate the hex values for the code
       const hexValues = [0x3A, 0x1B, 0x05, 0x0D, ...newRGB];
 
-      await this.sendDeviceUpdate({
-        cmd: 'multiSync',
-        value: generateCodeFromHexValues(hexValues),
-      });
+      await this.sendDeviceUpdate({ cmd: 'multiSync', value: generateCodeFromHexValues(hexValues) });
 
-      if (this.cacheHue !== value) {
-        this.cacheHue = value;
-        this.accessory.log(`${platformLang.curColour} [rgb ${newRGB.join(' ')}]`);
-      }
+      this.cacheHue = value;
+      this.cacheSat = saturation;
+      this.accessory.log(`${platformLang.curColour} [rgb ${newRGB.join(' ')}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-      setTimeout(() => {
-        this.lightService?.updateCharacteristic(this.hapChar.Hue, this.cacheHue);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      if (this.lightService) {
+        this.handleUpdateError(
+          err,
+          this.lightService.getCharacteristic(this.hapChar.Hue),
+          this.cacheHue,
+        );
+      }
     }
   }
 
   externalUpdate(params: ExternalUpdateParams): void {
-    // Update the active characteristic
     if (params.state && params.state !== this.cacheState) {
       this.cacheState = params.state;
       this._service.updateCharacteristic(this.hapChar.Active, this.cacheState === 'on' ? 1 : 0);
       this.accessory.log(`${platformLang.curState} [${this.cacheState}]`);
     }
 
-    // Check for some other scene/mode change
     if (params.commands) {
-      this.handleCommandUpdates(params.commands);
+      // Pre-process for sensor attached check
+      for (const command of params.commands) {
+        const hexString = base64ToHex(command);
+        const hexParts = hexToTwoItems(hexString);
+        if (getTwoItemPosition(hexParts, 1) === 'aa' && getTwoItemPosition(hexParts, 2) === '08') {
+          const dev = hexString.substring(4, hexString.length - 24);
+          this.accessory.context.sensorAttached = dev !== '000000000000';
+        }
+      }
+
+      processCommands(
+        params.commands,
+        {
+          '0501': (hexParts) => this.handleSpeedUpdate(hexParts),
+          '1b01': (hexParts) => this.handleNightLightUpdate(hexParts),
+          '1b05': (hexParts) => this.handleNightLightColourUpdate(hexParts),
+        },
+        (command, hexString) => {
+          this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
+        },
+      );
     }
   }
 
-  private handleCommandUpdates(commands: string[]): void {
-    for (const command of commands) {
-      const hexString = base64ToHex(command);
-      const hexParts = hexToTwoItems(hexString);
+  private handleSpeedUpdate(hexParts: string[]): void {
+    const newSpeed = getTwoItemPosition(hexParts, 4);
+    const newSpeedInt = Number.parseInt(newSpeed, 16);
+    if (this.cacheSpeed !== newSpeedInt) {
+      this.cacheSpeed = newSpeedInt;
+      this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
+      this.accessory.log(`${platformLang.curSpeed} [${this.cacheSpeed}]`);
+    }
+  }
 
-      // Return now if not a device query update code
-      if (getTwoItemPosition(hexParts, 1) !== 'aa') {
-        continue;
-      }
+  private handleNightLightUpdate(hexParts: string[]): void {
+    if (this.hideLight || !this.lightService) {
+      return;
+    }
 
-      if (getTwoItemPosition(hexParts, 2) === '08') {
-        // Sensor Attached?
-        const dev = hexString.substring(4, hexString.length - 24);
-        this.accessory.context.sensorAttached = dev !== '000000000000';
-        continue;
-      }
+    const newLightState = getTwoItemPosition(hexParts, 4) === '01' ? 'on' : 'off';
+    if (this.cacheLightState !== newLightState) {
+      this.cacheLightState = newLightState;
+      this.lightService.updateCharacteristic(this.hapChar.On, this.cacheLightState === 'on');
+      this.accessory.log(`${platformLang.curLight} [${this.cacheLightState}]`);
+    }
 
-      const deviceFunction = `${getTwoItemPosition(hexParts, 2)}${getTwoItemPosition(hexParts, 3)}`;
+    const newBrightness = hexToDecimal(getTwoItemPosition(hexParts, 5));
+    if (this.cacheBright !== newBrightness) {
+      this.cacheBright = newBrightness;
+      this.lightService.updateCharacteristic(this.hapChar.Brightness, this.cacheBright);
+      this.accessory.log(`${platformLang.curBright} [${this.cacheBright}%]`);
+    }
+  }
 
-      switch (deviceFunction) {
-      case '0501': {
-        // Fan speed
-        const newSpeed = getTwoItemPosition(hexParts, 4);
-        const newSpeedInt = Number.parseInt(newSpeed, 16);
-        if (this.cacheSpeed !== newSpeedInt) {
-          this.cacheSpeed = newSpeedInt;
-          this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
-          this.accessory.log(`${platformLang.curSpeed} [${this.cacheSpeed}]`);
-        }
-        break;
-      }
-      case '1b01': {
-        // Night light on/off and brightness
-        if (!this.hideLight && this.lightService) {
-          const newLightState = getTwoItemPosition(hexParts, 4) === '01' ? 'on' : 'off';
-          if (this.cacheLightState !== newLightState) {
-            this.cacheLightState = newLightState;
-            this.lightService.updateCharacteristic(this.hapChar.On, this.cacheLightState === 'on');
-            this.accessory.log(`${platformLang.curLight} [${this.cacheLightState}]`);
-          }
-          const newBrightness = hexToDecimal(getTwoItemPosition(hexParts, 5));
-          if (this.cacheBright !== newBrightness) {
-            this.cacheBright = newBrightness;
-            this.lightService.updateCharacteristic(this.hapChar.Brightness, this.cacheBright);
-            this.accessory.log(`${platformLang.curBright} [${this.cacheBright}%]`);
-          }
-        }
-        break;
-      }
-      case '1b05': {
-        // Night light colour
-        if (!this.hideLight && this.lightService) {
-          const newR = hexToDecimal(getTwoItemPosition(hexParts, 5));
-          const newG = hexToDecimal(getTwoItemPosition(hexParts, 6));
-          const newB = hexToDecimal(getTwoItemPosition(hexParts, 7));
-          const hs = rgb2hs(newR, newG, newB);
+  private handleNightLightColourUpdate(hexParts: string[]): void {
+    if (this.hideLight || !this.lightService) {
+      return;
+    }
 
-          if (hs[0] !== this.cacheHue) {
-            this.lightService.updateCharacteristic(this.hapChar.Hue, hs[0]);
-            this.lightService.updateCharacteristic(this.hapChar.Saturation, hs[1]);
-            this.cacheHue = hs[0];
-            this.accessory.log(`${platformLang.curColour} [rgb ${newR} ${newG} ${newB}]`);
-          }
-        }
-        break;
-      }
-      default:
-        this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
-        break;
-      }
+    const newR = hexToDecimal(getTwoItemPosition(hexParts, 5));
+    const newG = hexToDecimal(getTwoItemPosition(hexParts, 6));
+    const newB = hexToDecimal(getTwoItemPosition(hexParts, 7));
+    const hs = rgb2hs(newR, newG, newB);
+
+    if (hs[0] !== this.cacheHue) {
+      this.cacheHue = hs[0];
+      this.cacheSat = hs[1];
+      this.lightService.updateCharacteristic(this.hapChar.Hue, this.cacheHue);
+      this.lightService.updateCharacteristic(this.hapChar.Saturation, this.cacheSat);
+      this.accessory.log(`${platformLang.curColour} [rgb ${newR} ${newG} ${newB}]`);
     }
   }
 }
