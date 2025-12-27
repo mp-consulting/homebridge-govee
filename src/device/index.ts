@@ -39,6 +39,10 @@ export { SensorButtonDevice } from './sensor-button.js';
 export { SensorContactDevice } from './sensor-contact.js';
 export { SensorPresenceDevice } from './sensor-presence.js';
 export { SensorMonitorDevice } from './sensor-monitor.js';
+export { TapDevice } from './tap.js';
+export { ValveDevice } from './valve.js';
+export { TVDevice } from './tv.js';
+export { LightSwitchDevice } from './light-switch.js';
 
 // Initialize device handlers
 import { registerDeviceHandler, initializeModelMappings } from './registry.js';
@@ -67,6 +71,10 @@ import { SensorButtonDevice } from './sensor-button.js';
 import { SensorContactDevice } from './sensor-contact.js';
 import { SensorPresenceDevice } from './sensor-presence.js';
 import { SensorMonitorDevice } from './sensor-monitor.js';
+import { TapDevice } from './tap.js';
+import { ValveDevice } from './valve.js';
+import { TVDevice } from './tv.js';
+import { LightSwitchDevice } from './light-switch.js';
 
 /**
  * Register all device handlers with the registry.
@@ -102,10 +110,8 @@ export function initializeDeviceHandlers(): void {
   registerDeviceHandler('sensorContact', SensorContactDevice);
   registerDeviceHandler('sensorPresence', SensorPresenceDevice);
   registerDeviceHandler('sensorMonitor', SensorMonitorDevice);
-
-  // TODO: Add more device handlers as they are migrated
-  // registerDeviceHandler('tap', TapDevice);
-  // registerDeviceHandler('valve', ValveDevice);
-  // registerDeviceHandler('tv', TVDevice);
-  // registerDeviceHandler('template', TemplateDevice);
+  registerDeviceHandler('tap', TapDevice);
+  registerDeviceHandler('valve', ValveDevice);
+  registerDeviceHandler('tv', TVDevice);
+  registerDeviceHandler('lightSwitch', LightSwitchDevice);
 }

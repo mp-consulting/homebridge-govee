@@ -222,6 +222,7 @@ export interface GoveeAccessoryContext {
   cacheTarget?: number;
   cacheType?: 'heater' | 'cooler';
   adaptiveLighting?: boolean;
+  valveType?: number;
 }
 
 export type GoveePlatformAccessory = PlatformAccessory<GoveeAccessoryContext>;
