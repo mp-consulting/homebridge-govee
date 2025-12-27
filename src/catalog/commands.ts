@@ -1,0 +1,231 @@
+/**
+ * Device Command Codes Catalog
+ *
+ * Centralized repository of all command codes extracted from device handlers.
+ * This allows multiple handlers to share the same codes and makes it easy
+ * to add new device support without duplicating code.
+ */
+
+// ============================================================================
+// Common Codes (shared across multiple device types)
+// ============================================================================
+
+/**
+ * Lock control codes (shared by most purifiers)
+ */
+export const LOCK_CODES = {
+  on: 'MxABAAAAAAAAAAAAAAAAAAAAACI=',
+  off: 'MxAAAAAAAAAAAAAAAAAAAAAAACM=',
+} as const;
+
+/**
+ * Display light codes (shared by most purifiers)
+ */
+export const DISPLAY_CODES = {
+  on: 'MxYBAAAAAAAAAAAAAAAAAAAAACQ=',
+  off: 'MxYAAAAAAAAAAAAAAAAAAAAAACU=',
+} as const;
+
+// ============================================================================
+// Humidifier Speed Codes
+// ============================================================================
+
+/**
+ * Speed codes for H7140 humidifier (8 speeds)
+ */
+export const HUMIDIFIER_H7140_SPEED_CODES: Record<number, string> = {
+  1: 'MwUBAQAAAAAAAAAAAAAAAAAAADY=',
+  2: 'MwUBAgAAAAAAAAAAAAAAAAAAADU=',
+  3: 'MwUBAwAAAAAAAAAAAAAAAAAAADQ=',
+  4: 'MwUBBAAAAAAAAAAAAAAAAAAAADM=',
+  5: 'MwUBBQAAAAAAAAAAAAAAAAAAADI=',
+  6: 'MwUBBgAAAAAAAAAAAAAAAAAAADE=',
+  7: 'MwUBBwAAAAAAAAAAAAAAAAAAADA=',
+  8: 'MwUBCAAAAAAAAAAAAAAAAAAAAD8=',
+};
+
+/**
+ * Speed codes for H7142 humidifier (9 speeds)
+ */
+export const HUMIDIFIER_H7142_SPEED_CODES: Record<number, string> = {
+  1: 'MwUBAQAAAAAAAAAAAAAAAAAAADY=',
+  2: 'MwUBAgAAAAAAAAAAAAAAAAAAADU=',
+  3: 'MwUBAwAAAAAAAAAAAAAAAAAAADQ=',
+  4: 'MwUBBAAAAAAAAAAAAAAAAAAAADM=',
+  5: 'MwUBBQAAAAAAAAAAAAAAAAAAADI=',
+  6: 'MwUBBgAAAAAAAAAAAAAAAAAAADE=',
+  7: 'MwUBBwAAAAAAAAAAAAAAAAAAADA=',
+  8: 'MwUBCAAAAAAAAAAAAAAAAAAAAD8=',
+  9: 'MwUBCQAAAAAAAAAAAAAAAAAAAD4=',
+};
+
+/**
+ * UV light code for H7142 humidifier
+ */
+export const HUMIDIFIER_H7142_UV_ON = 'MxoBAAAAAAAAAAAAAAAAAAAAACg=';
+
+// ============================================================================
+// Purifier Speed Codes
+// ============================================================================
+
+/**
+ * Speed codes for H7120/H7121 purifier (4 speeds at 25% increments)
+ * 1=sleep, 2=low, 3=medium, 4=high
+ */
+export const PURIFIER_H7120_SPEED_CODES: Record<number, string> = {
+  1: 'MwUQAAAAAAAAAAAAAAAAAAAAACY=', // sleep
+  2: 'MwUBAAAAAAAAAAAAAAAAAAAAADc=', // low
+  3: 'MwUCAAAAAAAAAAAAAAAAAAAAADQ=', // medium
+  4: 'MwUDAAAAAAAAAAAAAAAAAAAAADU=', // high
+};
+
+/**
+ * Night light codes for H7120/H7121 purifier
+ */
+export const PURIFIER_H7120_NIGHT_LIGHT_CODES = {
+  on: 'MxgBMgAAAAAAAAAAAAAAAAAAABg=',
+  off: 'MxgAMgAAAAAAAAAAAAAAAAAAABk=',
+} as const;
+
+/**
+ * Speed codes for H7122 purifier (5 modes at 20% increments)
+ * 1=sleep, 2=low, 3=med, 4=high, 5=auto
+ */
+export const PURIFIER_H7122_SPEED_CODES: Record<number, string> = {
+  1: 'OgUFAAAAAAAAAAAAAAAAAAAAADo=', // sleep
+  2: 'OgUBAQAAAAAAAAAAAAAAAAAAAD8=', // low
+  3: 'OgUBAgAAAAAAAAAAAAAAAAAAADw=', // med
+  4: 'OgUBAwAAAAAAAAAAAAAAAAAAAD0=', // high
+  5: 'OgUDAAAAAAAAAAAAAAAAAAAAADw=', // auto
+};
+
+/**
+ * Speed codes for H7123/H7124 purifier (5 modes at 20% increments)
+ * Same as H7122
+ */
+export const PURIFIER_H7123_SPEED_CODES = PURIFIER_H7122_SPEED_CODES;
+
+/**
+ * Speed codes for H7126 purifier (3 speeds at 33% increments)
+ * 1=sleep, 2=low, 3=high
+ */
+export const PURIFIER_H7126_SPEED_CODES: Record<number, string> = {
+  1: 'MwUBAQAAAAAAAAAAAAAAAAAAADY=', // sleep
+  2: 'MwUBAgAAAAAAAAAAAAAAAAAAADU=', // low
+  3: 'MwUBAwAAAAAAAAAAAAAAAAAAADQ=', // high
+};
+
+/**
+ * Speed codes for H7127/H7128/H7129/H712C purifier (3 speeds at 33% increments)
+ * Same as H7126
+ */
+export const PURIFIER_H7127_SPEED_CODES = PURIFIER_H7126_SPEED_CODES;
+
+// ============================================================================
+// Speed Mode Labels
+// ============================================================================
+
+/**
+ * Speed mode labels for 4-speed purifiers
+ */
+export const SPEED_LABELS_4 = ['off', 'sleep', 'low', 'medium', 'high'] as const;
+
+/**
+ * Speed mode labels for 5-speed purifiers
+ */
+export const SPEED_LABELS_5 = ['off', 'sleep', 'low', 'medium', 'high', 'auto'] as const;
+
+/**
+ * Speed mode labels for 3-speed purifiers
+ */
+export const SPEED_LABELS_3 = ['off', 'sleep', 'low', 'high'] as const;
+
+// ============================================================================
+// External Command Prefixes
+// ============================================================================
+
+/**
+ * External command prefixes for purifier speed updates
+ */
+export const PURIFIER_SPEED_COMMAND_MAP: Record<string, number> = {
+  '0500': 1, // Sleep
+  '0101': 2, // Low
+  '0102': 3, // Medium
+  '0103': 4, // High
+  '0300': 5, // Auto
+};
+
+// ============================================================================
+// Air Quality Mapping
+// ============================================================================
+
+/**
+ * Air quality labels based on HomeKit values
+ */
+export const AIR_QUALITY_LABELS: Record<number, string> = {
+  1: 'excellent',
+  2: 'good',
+  3: 'fair',
+  4: 'inferior',
+  5: 'poor',
+};
+
+/**
+ * PM2.5 thresholds for air quality determination (µg/m³)
+ * Based on Govee manual guidelines
+ */
+export const PM25_THRESHOLDS = {
+  excellent: 12,
+  good: 35,
+  fair: 75,
+  inferior: 115,
+} as const;
+
+/**
+ * Get air quality value from PM2.5 reading
+ */
+export function getAirQualityFromPM25(pm25: number): number {
+  if (pm25 <= PM25_THRESHOLDS.excellent) return 1;
+  if (pm25 <= PM25_THRESHOLDS.good) return 2;
+  if (pm25 <= PM25_THRESHOLDS.fair) return 3;
+  if (pm25 <= PM25_THRESHOLDS.inferior) return 4;
+  return 5;
+}
+
+/**
+ * Get air quality label from PM2.5 reading
+ */
+export function getAirQualityLabelFromPM25(pm25: number): string {
+  const value = getAirQualityFromPM25(pm25);
+  return AIR_QUALITY_LABELS[value] || 'unknown';
+}
+
+// ============================================================================
+// Type Exports
+// ============================================================================
+
+export type LockCodes = typeof LOCK_CODES;
+export type DisplayCodes = typeof DISPLAY_CODES;
+export type SpeedCodes = Record<number, string>;
+export type OnOffCodes = { on: string; off: string };
+
+export default {
+  LOCK_CODES,
+  DISPLAY_CODES,
+  HUMIDIFIER_H7140_SPEED_CODES,
+  HUMIDIFIER_H7142_SPEED_CODES,
+  HUMIDIFIER_H7142_UV_ON,
+  PURIFIER_H7120_SPEED_CODES,
+  PURIFIER_H7120_NIGHT_LIGHT_CODES,
+  PURIFIER_H7122_SPEED_CODES,
+  PURIFIER_H7123_SPEED_CODES,
+  PURIFIER_H7126_SPEED_CODES,
+  PURIFIER_H7127_SPEED_CODES,
+  SPEED_LABELS_3,
+  SPEED_LABELS_4,
+  SPEED_LABELS_5,
+  AIR_QUALITY_LABELS,
+  PM25_THRESHOLDS,
+  getAirQualityFromPM25,
+  getAirQualityLabelFromPM25,
+};
