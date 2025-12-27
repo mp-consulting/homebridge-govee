@@ -555,50 +555,127 @@
         {
           "key": "lightDevices",
           "type": "array",
+          "title": "Light Devices",
           "expandable": true,
-          "items": ["lightDevices[].deviceId", "lightDevices[].label", "lightDevices[].ignoreDevice", "lightDevices[].showAs"]
+          "expanded": false,
+          "items": [
+            "lightDevices[].deviceId",
+            "lightDevices[].label",
+            "lightDevices[].ignoreDevice",
+            "lightDevices[].showAs",
+            {
+              "type": "fieldset",
+              "title": "Advanced Settings",
+              "expandable": true,
+              "items": [
+                "lightDevices[].customAddress",
+                "lightDevices[].customIPAddress",
+                "lightDevices[].adaptiveLightingShift",
+                "lightDevices[].brightnessStep",
+                "lightDevices[].awsBrightnessNoScale",
+                "lightDevices[].awsColourMode"
+              ]
+            }
+          ]
         },
         {
           "key": "switchDevices",
           "type": "array",
+          "title": "Switch/Outlet Devices",
           "expandable": true,
-          "items": ["switchDevices[].deviceId", "switchDevices[].label", "switchDevices[].ignoreDevice", "switchDevices[].showAs"]
+          "expanded": false,
+          "items": [
+            "switchDevices[].deviceId",
+            "switchDevices[].label",
+            "switchDevices[].ignoreDevice",
+            "switchDevices[].showAs",
+            {
+              "key": "switchDevices[].temperatureSource",
+              "condition": {
+                "functionBody": "return ['heater', 'cooler'].includes(model.switchDevices[arrayIndex].showAs)"
+              }
+            }
+          ]
         },
         {
           "key": "fanDevices",
           "type": "array",
+          "title": "Fan Devices",
           "expandable": true,
+          "expanded": false,
           "items": ["fanDevices[].deviceId", "fanDevices[].label", "fanDevices[].ignoreDevice", "fanDevices[].hideLight"]
         },
         {
           "key": "heaterDevices",
           "type": "array",
+          "title": "Heater Devices",
           "expandable": true,
+          "expanded": false,
           "items": ["heaterDevices[].deviceId", "heaterDevices[].label", "heaterDevices[].ignoreDevice", "heaterDevices[].tempReporting"]
         },
         {
           "key": "thermoDevices",
           "type": "array",
+          "title": "Temperature/Humidity Sensors",
           "expandable": true,
-          "items": ["thermoDevices[].deviceId", "thermoDevices[].label", "thermoDevices[].ignoreDevice", "thermoDevices[].lowBattThreshold"]
+          "expanded": false,
+          "items": ["thermoDevices[].deviceId", "thermoDevices[].label", "thermoDevices[].ignoreDevice", "thermoDevices[].lowBattThreshold", "thermoDevices[].showExtraSwitch"]
         },
         {
           "key": "leakDevices",
           "type": "array",
+          "title": "Leak Sensors",
           "expandable": true,
+          "expanded": false,
           "items": ["leakDevices[].deviceId", "leakDevices[].label", "leakDevices[].ignoreDevice", "leakDevices[].lowBattThreshold"]
         },
         {
           "key": "humidifierDevices",
           "type": "array",
+          "title": "Humidifier Devices",
           "expandable": true,
+          "expanded": false,
           "items": ["humidifierDevices[].deviceId", "humidifierDevices[].label", "humidifierDevices[].ignoreDevice"]
+        },
+        {
+          "key": "dehumidifierDevices",
+          "type": "array",
+          "title": "Dehumidifier Devices",
+          "expandable": true,
+          "expanded": false,
+          "items": ["dehumidifierDevices[].deviceId", "dehumidifierDevices[].label", "dehumidifierDevices[].ignoreDevice"]
         },
         {
           "key": "purifierDevices",
           "type": "array",
+          "title": "Air Purifier Devices",
           "expandable": true,
+          "expanded": false,
           "items": ["purifierDevices[].deviceId", "purifierDevices[].label", "purifierDevices[].ignoreDevice"]
+        },
+        {
+          "key": "diffuserDevices",
+          "type": "array",
+          "title": "Diffuser Devices",
+          "expandable": true,
+          "expanded": false,
+          "items": ["diffuserDevices[].deviceId", "diffuserDevices[].label", "diffuserDevices[].ignoreDevice"]
+        },
+        {
+          "key": "kettleDevices",
+          "type": "array",
+          "title": "Kettle Devices",
+          "expandable": true,
+          "expanded": false,
+          "items": ["kettleDevices[].deviceId", "kettleDevices[].label", "kettleDevices[].ignoreDevice"]
+        },
+        {
+          "key": "iceMakerDevices",
+          "type": "array",
+          "title": "Ice Maker Devices",
+          "expandable": true,
+          "expanded": false,
+          "items": ["iceMakerDevices[].deviceId", "iceMakerDevices[].label", "iceMakerDevices[].ignoreDevice"]
         }
       ]
     }
