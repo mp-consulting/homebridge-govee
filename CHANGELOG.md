@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.2] - 2025-12-27
+
+### Improved
+
+- **BLE Error Message**: Improved the Bluetooth error message when running on systems without Bluetooth hardware (e.g., Synology NAS). Now displays a clear, user-friendly message instead of a technical error.
+
 ## [1.0.1] - 2025-12-27
 
 ### Changed

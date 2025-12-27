@@ -434,7 +434,12 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       this.bleClient = new BLEClient(this);
       this.log.info('[BLE] %s.', platformLang.available);
     } catch (err) {
-      this.log.warn('[BLE] %s %s.', platformLang.disableClient, parseError(err));
+      const errorMsg = parseError(err);
+      if (errorMsg.includes('Address family not supported')) {
+        this.log.warn('[BLE] disabled - Bluetooth not available on this system (no hardware or driver support).');
+      } else {
+        this.log.warn('[BLE] %s %s.', platformLang.disableClient, errorMsg);
+      }
       this.bleClient = false;
     }
   }
