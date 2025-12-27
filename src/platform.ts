@@ -285,14 +285,20 @@ export class GoveePlatform implements DynamicPlatformPlugin {
 
   private async setupHTTPAndAWSClients(persistPath: string): Promise<void> {
     try {
+      this.log.debug('[HTTP] Setting up HTTP and AWS clients...');
+
       if (!this.config.username || !this.config.password) {
+        this.log.debug('[HTTP] No username or password configured');
         throw new Error(platformLang.noCreds);
       }
+
+      this.log.debug('[HTTP] Username: %s', this.config.username);
 
       const iotFile = join(persistPath, 'govee.pfx');
       this.httpClient = new HTTPClient(this);
 
       try {
+        this.log.debug('[HTTP] Checking for cached credentials...');
         const storedData = await this.storageData.getItem('Govee_All_Devices_temp');
         const splitData = storedData?.split(':::');
         if (!Array.isArray(splitData) || splitData.length !== 7) {
@@ -304,8 +310,11 @@ export class GoveePlatform implements DynamicPlatformPlugin {
         await promises.access(iotFile, 0);
 
         [this.accountTopic, this.accountToken, , this.accountId, this.iotEndpoint, this.iotPass, this.accountTokenTTR] = splitData;
+        // Set the token on the HTTP client from cache
+        this.httpClient.setToken(this.accountToken!, this.accountTokenTTR);
         this.log.debug('[HTTP] %s.', platformLang.accTokenFromCache);
-      } catch {
+      } catch (cacheErr) {
+        this.log.debug('[HTTP] Cache not available (%s), performing fresh login...', parseError(cacheErr));
         const data = await this.httpClient.login();
         this.accountId = data.accountId;
         this.accountTopic = data.topic;

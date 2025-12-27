@@ -47,8 +47,20 @@ export default class HTTPClient {
     this.clientId = `hb${clientSuffix}`;
   }
 
+  /**
+   * Set the token from cached credentials
+   */
+  setToken(token: string, tokenTTR?: string): void {
+    this.token = token;
+    if (tokenTTR) {
+      this.tokenTTR = tokenTTR;
+    }
+  }
+
   async login(): Promise<HTTPLoginResult> {
     try {
+      this.log.debug('[HTTP] Attempting login for user: %s', this.username);
+
       const res = await axios({
         url: 'https://app2.govee.com/account/rest/account/v1/login',
         method: 'post',
@@ -60,15 +72,20 @@ export default class HTTPClient {
         timeout: 30000,
       });
 
+      this.log.debug('[HTTP] Login response status: %s', res.status);
+
       if (!res.data) {
+        this.log.debug('[HTTP] Login response has no data');
         throw new Error(platformLang.noToken);
       }
 
       if (!res.data.client || !res.data.client.token) {
+        this.log.debug('[HTTP] Login response missing client/token. Message: %s', res.data.message || 'none');
         if (res.data.message && res.data.message.replace(/\s+/g, '') === 'Incorrectpassword') {
           if (this.base64Tried) {
             throw new Error(res.data.message || platformLang.noToken);
           } else {
+            this.log.debug('[HTTP] Trying base64 decoded password');
             this.base64Tried = true;
             this.password = Buffer.from(this.password, 'base64')
               .toString('utf8')
@@ -79,6 +96,8 @@ export default class HTTPClient {
         }
         throw new Error(res.data.message || platformLang.noToken);
       }
+
+      this.log.debug('[HTTP] Primary login successful, fetching TTR token...');
 
       const ttrRes = await axios({
         url: 'https://community-api.govee.com/os/v1/login',
@@ -93,7 +112,9 @@ export default class HTTPClient {
       this.token = res.data.client.token;
       this.tokenTTR = ttrRes.data.data.token;
 
-      this.log.debug('[HTTP] %s.', platformLang.loginSuccess);
+      this.log.debug('[HTTP] %s. AccountId: %s', platformLang.loginSuccess, res.data.client.accountId);
+
+      this.log.debug('[HTTP] Fetching IoT credentials...');
 
       const iotRes = await axios({
         url: 'https://app2.govee.com/app/v1/account/iot/key',
@@ -108,6 +129,8 @@ export default class HTTPClient {
           'User-Agent': this.userAgent,
         },
       });
+
+      this.log.debug('[HTTP] IoT credentials received. Endpoint: %s', iotRes.data.data.endpoint);
 
       return {
         accountId: res.data.client.accountId,
@@ -153,8 +176,11 @@ export default class HTTPClient {
   async getDevices(isSync = true): Promise<GoveeHTTPDeviceInfo[]> {
     try {
       if (!this.token) {
+        this.log.debug('[HTTP] getDevices called but no token exists');
         throw new Error(platformLang.noTokenExists);
       }
+
+      this.log.debug('[HTTP] Fetching device list...');
 
       const res = await axios({
         url: 'https://app2.govee.com/device/rest/devices/v1/list',
@@ -171,8 +197,20 @@ export default class HTTPClient {
         timeout: 30000,
       });
 
+      this.log.debug('[HTTP] Device list response status: %s', res.status);
+
       if (!res.data || !res.data.devices) {
+        this.log.debug('[HTTP] Device list response has no devices array. Response: %s', JSON.stringify(res.data).substring(0, 200));
         throw new Error(platformLang.noDevices);
+      }
+
+      const deviceCount = res.data.devices.length;
+      this.log.debug('[HTTP] Found %d devices', deviceCount);
+
+      if (deviceCount > 0) {
+        res.data.devices.forEach((device: GoveeHTTPDeviceInfo, index: number) => {
+          this.log.debug('[HTTP] Device %d: %s (%s) - %s', index + 1, device.deviceName, device.sku, device.device);
+        });
       }
 
       return res.data.devices || [];
