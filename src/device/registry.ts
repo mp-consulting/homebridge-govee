@@ -45,6 +45,9 @@ export type DeviceCategory =
 // Registry of device handlers by category
 const deviceHandlers = new Map<DeviceCategory, DeviceHandlerClass>();
 
+// Model-specific handlers (take priority over category handlers)
+const modelHandlers = new Map<string, DeviceHandlerClass>();
+
 // Model to category mapping (populated from constants)
 const modelCategoryMap = new Map<string, DeviceCategory>();
 
@@ -71,6 +74,16 @@ export function registerModelsForCategory(
 }
 
 /**
+ * Register a device handler for a specific model (takes priority over category)
+ */
+export function registerModelHandler(
+  model: string,
+  handler: DeviceHandlerClass,
+): void {
+  modelHandlers.set(model.toUpperCase(), handler);
+}
+
+/**
  * Get the device category for a model number
  */
 export function getCategoryForModel(model: string): DeviceCategory | undefined {
@@ -85,9 +98,19 @@ export function getDeviceHandler(category: DeviceCategory): DeviceHandlerClass |
 }
 
 /**
- * Get the device handler class for a model number
+ * Get the device handler class for a model number.
+ * Model-specific handlers take priority over category handlers.
  */
 export function getDeviceHandlerForModel(model: string): DeviceHandlerClass | undefined {
+  const modelUpper = model.toUpperCase();
+
+  // Check for model-specific handler first
+  const modelHandler = modelHandlers.get(modelUpper);
+  if (modelHandler) {
+    return modelHandler;
+  }
+
+  // Fall back to category handler
   const category = getCategoryForModel(model);
   if (category) {
     return getDeviceHandler(category);
@@ -179,6 +202,7 @@ export function isModelSupported(model: string): boolean {
 export default {
   registerDeviceHandler,
   registerModelsForCategory,
+  registerModelHandler,
   getCategoryForModel,
   getDeviceHandler,
   getDeviceHandlerForModel,

@@ -3,6 +3,7 @@ export { GoveeDeviceBase } from './base.js';
 export {
   registerDeviceHandler,
   registerModelsForCategory,
+  registerModelHandler,
   getCategoryForModel,
   getDeviceHandler,
   getDeviceHandlerForModel,
@@ -24,6 +25,7 @@ export { SwitchTripleDevice } from './switch-triple.js';
 export { SensorThermoDevice } from './sensor-thermo.js';
 export { SensorLeakDevice } from './sensor-leak.js';
 export { FanDevice } from './fan.js';
+export { FanLightDevice } from './fan-light.js';
 export { HumidifierDevice } from './humidifier.js';
 export { HeaterSingleDevice } from './heater-single.js';
 export { Heater1aDevice } from './heater1a.js';
@@ -45,7 +47,7 @@ export { TVDevice } from './tv.js';
 export { LightSwitchDevice } from './light-switch.js';
 
 // Initialize device handlers
-import { registerDeviceHandler, initializeModelMappings } from './registry.js';
+import { registerDeviceHandler, registerModelHandler, initializeModelMappings } from './registry.js';
 import { LightDevice } from './light.js';
 import { OutletSingleDevice } from './outlet-single.js';
 import { OutletDoubleDevice } from './outlet-double.js';
@@ -56,6 +58,7 @@ import { SwitchTripleDevice } from './switch-triple.js';
 import { SensorThermoDevice } from './sensor-thermo.js';
 import { SensorLeakDevice } from './sensor-leak.js';
 import { FanDevice } from './fan.js';
+import { FanLightDevice } from './fan-light.js';
 import { HumidifierDevice } from './humidifier.js';
 import { HeaterSingleDevice } from './heater-single.js';
 import { Heater1aDevice } from './heater1a.js';
@@ -95,6 +98,11 @@ export function initializeDeviceHandlers(): void {
   registerDeviceHandler('sensorThermo', SensorThermoDevice);
   registerDeviceHandler('sensorLeak', SensorLeakDevice);
   registerDeviceHandler('fan', FanDevice);
+
+  // Model-specific fan handlers (12-speed fans with light)
+  registerModelHandler('H7105', FanLightDevice);
+  registerModelHandler('H7107', FanLightDevice);
+
   registerDeviceHandler('humidifier', HumidifierDevice);
   registerDeviceHandler('heater', HeaterSingleDevice);
   registerDeviceHandler('heater1a', Heater1aDevice);

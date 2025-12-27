@@ -123,3 +123,6 @@ export function statusToActionCode(statusCode: string): string {
   const generatedCode = generateCodeFromHexValues(hexValues.map(v => Number.parseInt(v, 16)));
   return Buffer.from(generatedCode as string, 'base64').toString('hex');
 }
+
+// Re-export colour functions for convenience
+export { hs2rgb, rgb2hs } from './colour.js';
