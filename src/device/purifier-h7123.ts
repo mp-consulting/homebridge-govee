@@ -10,13 +10,15 @@ import {
   statusToActionCode,
 } from '../utils/functions.js';
 import {
-  PURIFIER_H7122_SPEED_CODES,
+  PURIFIER_H7123_SPEED_CODES,
+  PURIFIER_SPEED_COMMAND_MAP,
   LOCK_CODES,
   DISPLAY_CODES,
+  AIR_QUALITY_LABELS,
 } from '../catalog/index.js';
 
-// Use catalog codes (H7123 uses same codes as H7122)
-const MODE_VALUE_CODES = PURIFIER_H7122_SPEED_CODES;
+// Use catalog codes
+const MODE_VALUE_CODES = PURIFIER_H7123_SPEED_CODES;
 
 const MODE_LABELS: Record<number, string> = {
   0: 'off',
@@ -27,12 +29,12 @@ const MODE_LABELS: Record<number, string> = {
   5: 'auto',
 };
 
-const AIR_QUALITY_LABELS: Record<number, string> = {
-  1: 'excellent',
-  2: 'good',
-  3: 'moderate',
-  4: 'poor',
-};
+// Speed mode increment for rotation speed
+const SPEED_STEP = 20;
+// Custom speed code that indicates non-standard mode
+const CUSTOM_SPEED_CODE = '0202';
+// HomeKit poor air quality value
+const HOMEKIT_POOR_AIR_QUALITY = 5;
 
 /**
  * Purifier device handler for H7123/H7124 models.
@@ -86,9 +88,9 @@ export class PurifierH7123Device extends GoveeDeviceBase {
     // Rotation speed (5 modes at 20% increments)
     this._service
       .getCharacteristic(this.hapChar.RotationSpeed)
-      .setProps({ minStep: 20, validValues: [0, 20, 40, 60, 80, 100] })
+      .setProps({ minStep: SPEED_STEP, validValues: [0, 20, 40, 60, 80, 100] })
       .onSet(async (value) => this.internalModeUpdate(value as number));
-    this.cacheMode = Math.floor((this._service.getCharacteristic(this.hapChar.RotationSpeed).value as number || 20) / 20);
+    this.cacheMode = Math.floor((this._service.getCharacteristic(this.hapChar.RotationSpeed).value as number || SPEED_STEP) / SPEED_STEP);
 
     // Lock controls
     this._service.getCharacteristic(this.hapChar.LockPhysicalControls).onSet(async (value) => {
@@ -145,7 +147,7 @@ export class PurifierH7123Device extends GoveeDeviceBase {
         return;
       }
 
-      const newModeKey = Math.floor(value / 20);
+      const newModeKey = Math.floor(value / SPEED_STEP);
       if (!newModeKey || newModeKey === this.cacheMode) {
         return;
       }
@@ -158,7 +160,7 @@ export class PurifierH7123Device extends GoveeDeviceBase {
       this.handleUpdateError(
         err,
         this._service.getCharacteristic(this.hapChar.RotationSpeed),
-        this.cacheMode * 20,
+        this.cacheMode * SPEED_STEP,
       );
     }
   }
@@ -248,23 +250,15 @@ export class PurifierH7123Device extends GoveeDeviceBase {
     const newSpeedCode = `${getTwoItemPosition(hexParts, 3)}${getTwoItemPosition(hexParts, 4)}`;
 
     // Different behaviour for custom speed
-    if (newSpeedCode === '0202') {
+    if (newSpeedCode === CUSTOM_SPEED_CODE) {
       this.accessory.log(`${platformLang.curMode} [custom]`);
       return;
     }
 
-    const speedCodeMap: Record<string, number> = {
-      '0500': 1, // Sleep
-      '0101': 2, // Low
-      '0102': 3, // Medium
-      '0103': 4, // High
-      '0300': 5, // Auto
-    };
-
-    const newMode = speedCodeMap[newSpeedCode];
+    const newMode = PURIFIER_SPEED_COMMAND_MAP[newSpeedCode];
     if (newMode && newMode !== this.cacheMode) {
       this.cacheMode = newMode;
-      this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheMode * 20);
+      this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheMode * SPEED_STEP);
       this.accessory.log(`${platformLang.curMode} [${MODE_LABELS[this.cacheMode]}]`);
     }
   }
@@ -296,14 +290,15 @@ export class PurifierH7123Device extends GoveeDeviceBase {
     // Air quality reading (1=green, 2=blue, 3=yellow, 4=red)
     // Cache will be in {1, 2, 3, 5} which relates to Govee {1, 2, 3, 4}
     let newQual = Number.parseInt(getTwoItemPosition(hexParts, 5), 10);
-    if (newQual === 4) {
-      newQual = 5; // HomeKit uses 5 for "Poor"
+    const goveeMaxQuality = 4;
+    if (newQual === goveeMaxQuality) {
+      newQual = HOMEKIT_POOR_AIR_QUALITY; // HomeKit uses 5 for "Poor"
     }
 
     if (newQual !== this.cacheAir) {
       this.cacheAir = newQual;
       this.airService.updateCharacteristic(this.hapChar.AirQuality, newQual);
-      this.accessory.log(`${platformLang.curAirQual} [${AIR_QUALITY_LABELS[Math.min(newQual, 4)]}]`);
+      this.accessory.log(`${platformLang.curAirQual} [${AIR_QUALITY_LABELS[Math.min(newQual, goveeMaxQuality)]}]`);
     }
   }
 }

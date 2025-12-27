@@ -12,8 +12,11 @@ import {
 } from '../utils/functions.js';
 import {
   PURIFIER_H7122_SPEED_CODES,
+  PURIFIER_SPEED_COMMAND_MAP,
   LOCK_CODES,
   DISPLAY_CODES,
+  getAirQualityFromPM25,
+  getAirQualityLabelFromPM25,
 } from '../catalog/index.js';
 
 // Use catalog codes
@@ -27,6 +30,11 @@ const SPEED_VALUE_LABELS: Record<number, string> = {
   4: 'high',
   5: 'auto',
 };
+
+// Speed mode increment for rotation speed
+const SPEED_STEP = 20;
+// Custom speed code that indicates non-standard mode
+const CUSTOM_SPEED_CODE = '0202';
 
 /**
  * Purifier device handler for H7122 model.
@@ -80,9 +88,9 @@ export class PurifierH7122Device extends GoveeDeviceBase {
     // Rotation speed (5 modes at 20% increments)
     this._service
       .getCharacteristic(this.hapChar.RotationSpeed)
-      .setProps({ minStep: 20, validValues: [0, 20, 40, 60, 80, 100] })
+      .setProps({ minStep: SPEED_STEP, validValues: [0, 20, 40, 60, 80, 100] })
       .onSet(async (value) => this.internalSpeedUpdate(value as number));
-    this.cacheMode = (this._service.getCharacteristic(this.hapChar.RotationSpeed).value as number) / 20 || 1;
+    this.cacheMode = (this._service.getCharacteristic(this.hapChar.RotationSpeed).value as number) / SPEED_STEP || 1;
 
     // Lock controls
     this._service.getCharacteristic(this.hapChar.LockPhysicalControls).onSet(async (value) => {
@@ -133,7 +141,7 @@ export class PurifierH7122Device extends GoveeDeviceBase {
       }
 
       // Get the mode key {1, 2, 3, 4, 5}
-      const newValueKey = value / 20;
+      const newValueKey = value / SPEED_STEP;
       if (!newValueKey || newValueKey === this.cacheMode) {
         return;
       }
@@ -146,7 +154,7 @@ export class PurifierH7122Device extends GoveeDeviceBase {
       this.handleUpdateError(
         err,
         this._service.getCharacteristic(this.hapChar.RotationSpeed),
-        this.cacheMode * 20,
+        this.cacheMode * SPEED_STEP,
       );
     }
   }
@@ -236,23 +244,15 @@ export class PurifierH7122Device extends GoveeDeviceBase {
     const newSpeedCode = `${getTwoItemPosition(hexParts, 3)}${getTwoItemPosition(hexParts, 4)}`;
 
     // Different behaviour for custom speed
-    if (newSpeedCode === '0202') {
+    if (newSpeedCode === CUSTOM_SPEED_CODE) {
       this.accessory.log(`${platformLang.curMode} [custom]`);
       return;
     }
 
-    const speedCodeMap: Record<string, number> = {
-      '0500': 1, // Sleep
-      '0101': 2, // Low
-      '0102': 3, // Medium
-      '0103': 4, // High
-      '0300': 5, // Auto
-    };
-
-    const newMode = speedCodeMap[newSpeedCode];
+    const newMode = PURIFIER_SPEED_COMMAND_MAP[newSpeedCode];
     if (newMode && newMode !== this.cacheMode) {
       this.cacheMode = newMode;
-      this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheMode * 20);
+      this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheMode * SPEED_STEP);
       this.accessory.log(`${platformLang.curMode} [${SPEED_VALUE_LABELS[this.cacheMode]}]`);
     }
   }
@@ -291,27 +291,9 @@ export class PurifierH7122Device extends GoveeDeviceBase {
     this.airService.updateCharacteristic(this.hapChar.PM2_5Density, this.cacheAir);
     this.accessory.log(`${platformLang.curPM25} [${qualDec}µg/m³]`);
 
-    // Update air quality based on PM2.5 ranges (Govee manual)
-    // 0-12µg/m³ = excellent, 12-35 = good, 35-75 = fair, 75-115 = inferior, 115+ = poor
-    let newAirQual: string;
-    let airQualValue: number;
-
-    if (this.cacheAir <= 12) {
-      newAirQual = 'excellent';
-      airQualValue = 1;
-    } else if (this.cacheAir <= 35) {
-      newAirQual = 'good';
-      airQualValue = 2;
-    } else if (this.cacheAir <= 75) {
-      newAirQual = 'fair';
-      airQualValue = 3;
-    } else if (this.cacheAir <= 115) {
-      newAirQual = 'inferior';
-      airQualValue = 4;
-    } else {
-      newAirQual = 'poor';
-      airQualValue = 5;
-    }
+    // Update air quality based on PM2.5 ranges using catalog functions
+    const airQualValue = getAirQualityFromPM25(this.cacheAir);
+    const newAirQual = getAirQualityLabelFromPM25(this.cacheAir);
 
     if (this.cacheAirQual !== newAirQual) {
       this.cacheAirQual = newAirQual;
