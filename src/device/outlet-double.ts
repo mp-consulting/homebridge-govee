@@ -1,9 +1,8 @@
-import type { Service, HAPStatus } from 'homebridge';
+import type { Service } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
 import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
-import { parseError } from '../utils/functions.js';
 
 // Command values for dual outlet control
 // 51 turns BOTH ON
@@ -119,13 +118,11 @@ export class OutletDoubleDevice extends GoveeDeviceBase {
         this.accessory.log(`[${serviceName}] ${platformLang.curState} [${newValue}]`);
       }
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      // Throw a 'no response' error and set a timeout to revert this after 2 seconds
-      setTimeout(() => {
-        service.updateCharacteristic(this.hapChar.On, service.cacheState === 'on');
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        service.getCharacteristic(this.hapChar.On),
+        service.cacheState === 'on',
+      );
     }
   }
 

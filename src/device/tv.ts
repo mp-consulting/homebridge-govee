@@ -1,9 +1,9 @@
-import type { Service, HAPStatus } from 'homebridge';
+import type { Service } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
 import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
-import { generateRandomString, parseError } from '../utils/functions.js';
+import { generateRandomString } from '../utils/functions.js';
 
 /**
  * TV device handler.
@@ -63,12 +63,11 @@ export class TVDevice extends GoveeDeviceBase {
       this.cacheState = newValue;
       this.accessory.log(`${platformLang.curState} [${this.cacheState}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      setTimeout(() => {
-        this._service.updateCharacteristic(this.hapChar.Active, this.cacheState === 'on' ? 1 : 0);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.Active),
+        this.cacheState === 'on' ? 1 : 0,
+      );
     }
   }
 
