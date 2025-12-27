@@ -1,9 +1,8 @@
-import type { Service, HAPStatus } from 'homebridge';
+import type { Service } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
 import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
-import { parseError } from '../utils/functions.js';
 
 /**
  * Light Switch device handler.
@@ -60,12 +59,11 @@ export class LightSwitchDevice extends GoveeDeviceBase {
       this.cacheState = newValue;
       this.accessory.log(`${platformLang.curState} [${this.cacheState}]`);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      setTimeout(() => {
-        this._service.updateCharacteristic(this.hapChar.On, this.cacheState === 'on');
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.On),
+        this.cacheState === 'on',
+      );
     }
   }
 

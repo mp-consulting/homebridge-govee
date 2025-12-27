@@ -1,5 +1,4 @@
-import type { Service, HAPStatus } from 'homebridge';
-import type { AdaptiveLightingController } from 'homebridge';
+import type { Service, AdaptiveLightingController } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
 import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams, LightDeviceConfig } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
@@ -574,20 +573,19 @@ export class LightDevice extends GoveeDeviceBase {
         });
       }, 1000);
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      // Throw a 'no response' error and set a timeout to revert this after 2 seconds
-      setTimeout(() => {
-        if (isService) {
-          const sceneService = this.accessory.getService(charName);
-          if (sceneService) {
-            sceneService.updateCharacteristic(this.hapChar.On, false);
-          }
-        } else if (this.cusChar[charName]) {
-          this._service.updateCharacteristic(this.cusChar[charName], false);
+      // For scene updates, we need custom revert logic based on whether it's a service or characteristic
+      if (isService) {
+        const sceneService = this.accessory.getService(charName);
+        if (sceneService) {
+          this.handleUpdateError(err, sceneService.getCharacteristic(this.hapChar.On), false);
+        } else {
+          this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
         }
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      } else if (this.cusChar[charName]) {
+        this.handleUpdateError(err, this._service.getCharacteristic(this.cusChar[charName]), false);
+      } else {
+        this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
+      }
     }
   }
 
