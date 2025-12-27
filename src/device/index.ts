@@ -35,6 +35,10 @@ export { DiffuserDevice } from './diffuser.js';
 export { PurifierDevice } from './purifier.js';
 export { IceMakerDevice } from './ice-maker.js';
 export { KettleDevice } from './kettle.js';
+export { SensorButtonDevice } from './sensor-button.js';
+export { SensorContactDevice } from './sensor-contact.js';
+export { SensorPresenceDevice } from './sensor-presence.js';
+export { SensorMonitorDevice } from './sensor-monitor.js';
 
 // Initialize device handlers
 import { registerDeviceHandler, initializeModelMappings } from './registry.js';
@@ -59,6 +63,10 @@ import { DiffuserDevice } from './diffuser.js';
 import { PurifierDevice } from './purifier.js';
 import { IceMakerDevice } from './ice-maker.js';
 import { KettleDevice } from './kettle.js';
+import { SensorButtonDevice } from './sensor-button.js';
+import { SensorContactDevice } from './sensor-contact.js';
+import { SensorPresenceDevice } from './sensor-presence.js';
+import { SensorMonitorDevice } from './sensor-monitor.js';
 
 /**
  * Register all device handlers with the registry.
@@ -90,12 +98,12 @@ export function initializeDeviceHandlers(): void {
   registerDeviceHandler('purifier', PurifierDevice);
   registerDeviceHandler('kettle', KettleDevice);
   registerDeviceHandler('iceMaker', IceMakerDevice);
+  registerDeviceHandler('sensorButton', SensorButtonDevice);
+  registerDeviceHandler('sensorContact', SensorContactDevice);
+  registerDeviceHandler('sensorPresence', SensorPresenceDevice);
+  registerDeviceHandler('sensorMonitor', SensorMonitorDevice);
 
   // TODO: Add more device handlers as they are migrated
-  // registerDeviceHandler('sensorContact', SensorContactDevice);
-  // registerDeviceHandler('sensorPresence', SensorPresenceDevice);
-  // registerDeviceHandler('sensorButton', SensorButtonDevice);
-  // registerDeviceHandler('sensorMonitor', SensorMonitorDevice);
   // registerDeviceHandler('tap', TapDevice);
   // registerDeviceHandler('valve', ValveDevice);
   // registerDeviceHandler('tv', TVDevice);
