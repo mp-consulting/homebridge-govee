@@ -1,4 +1,4 @@
-import type { Service, HAPStatus } from 'homebridge';
+import type { Service } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
 import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
@@ -55,8 +55,7 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
     }
 
     // Add the heater service if it doesn't already exist
-    this._service = this.accessory.getService(this.hapServ.HeaterCooler)
-      || this.accessory.addService(this.hapServ.HeaterCooler);
+    this._service = this.getOrAddService(this.hapServ.HeaterCooler);
 
     // Set custom properties of the current temperature characteristic
     this._service.getCharacteristic(this.hapChar.CurrentTemperature).setProps({
@@ -172,19 +171,16 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
         value === 1 ? newOnState : 0,
       );
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      // Throw a 'no response' error and set a timeout to revert this after 2 seconds
-      setTimeout(() => {
-        this._service.updateCharacteristic(this.hapChar.Active, this.cacheState === 'on' ? 1 : 0);
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.Active),
+        this.cacheState === 'on' ? 1 : 0,
+      );
     }
   }
 
   private async internalTargetTempUpdate(value: number): Promise<void> {
     try {
-      // Don't continue if the new value is the same as before
       if (value === this.accessory.context.cacheTarget) {
         return;
       }
@@ -205,7 +201,6 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
         newHeat = 'off';
       }
 
-      // Don't continue if no change needed to device state
       if (newHeat === this.cacheHeat) {
         return;
       }
@@ -219,13 +214,8 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
         }
       }, 60000);
 
-      // Send the request to the platform sender function
-      await this.sendDeviceUpdate({
-        cmd: 'stateOutlet',
-        value: newValue,
-      });
+      await this.sendDeviceUpdate({ cmd: 'stateOutlet', value: newValue });
 
-      // Cache and log
       this.cacheHeat = newHeat;
       this.accessory.log(`${platformLang.curHeat} [${this.cacheHeat}]`);
       this._service.updateCharacteristic(
@@ -233,16 +223,11 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
         this.cacheHeat === 'on' ? 2 : 1,
       );
     } catch (err) {
-      this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
-
-      // Throw a 'no response' error and set a timeout to revert this after 2 seconds
-      setTimeout(() => {
-        this._service.updateCharacteristic(
-          this.hapChar.HeatingThresholdTemperature,
-          this.accessory.context.cacheTarget ?? 20,
-        );
-      }, 2000);
-      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
+      this.handleUpdateError(
+        err,
+        this._service.getCharacteristic(this.hapChar.HeatingThresholdTemperature),
+        this.accessory.context.cacheTarget ?? 20,
+      );
     }
   }
 
