@@ -21,8 +21,8 @@
         },
         {
             "name": "Govee",
-            "username": "mickael.palma@mac.com",
-            "password": "votdoX-vemhuh-8cakna",
+            "username": "your-govee-email@example.com",
+            "password": "your-govee-password",
             "platform": "Govee"
         }
     ],
