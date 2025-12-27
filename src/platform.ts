@@ -50,6 +50,48 @@ import {
 const PLUGIN_NAME = '@mp-consulting/homebridge-govee';
 export const PLATFORM_NAME = 'Govee';
 
+// Device type configuration keys
+type DeviceTypeKey = 'lightDevices' | 'switchDevices' | 'thermoDevices' | 'leakDevices' |
+  'fanDevices' | 'heaterDevices' | 'humidifierDevices' | 'dehumidifierDevices' |
+  'purifierDevices' | 'diffuserDevices' | 'kettleDevices' | 'iceMakerDevices';
+
+/**
+ * Determine the device type configuration key from a model SKU
+ */
+function getDeviceTypeFromModel(model: string): DeviceTypeKey {
+  if (!model) return 'lightDevices';
+
+  const sku = model.toUpperCase();
+  const models = platformConsts.models;
+
+  // Check specific categories first
+  if (models.switchSingle.includes(sku) ||
+      models.switchDouble.includes(sku) ||
+      models.switchTriple.includes(sku)) {
+    return 'switchDevices';
+  }
+  if (models.sensorLeak.includes(sku)) return 'leakDevices';
+  if (models.sensorThermo.includes(sku) ||
+      models.sensorThermo4.includes(sku) ||
+      models.sensorMonitor.includes(sku) ||
+      models.sensorButton.includes(sku) ||
+      models.sensorContact.includes(sku) ||
+      models.sensorPresence.includes(sku)) {
+    return 'thermoDevices';
+  }
+  if (models.fan.includes(sku)) return 'fanDevices';
+  if (models.heater1.includes(sku) || models.heater2.includes(sku)) return 'heaterDevices';
+  if (models.humidifier.includes(sku)) return 'humidifierDevices';
+  if (models.dehumidifier.includes(sku)) return 'dehumidifierDevices';
+  if (models.purifier.includes(sku)) return 'purifierDevices';
+  if (models.diffuser.includes(sku)) return 'diffuserDevices';
+  if (models.iceMaker.includes(sku)) return 'iceMakerDevices';
+  if (models.kettle.includes(sku)) return 'kettleDevices';
+
+  // Default to light for RGB models and unknown
+  return 'lightDevices';
+}
+
 // Global state
 const devicesInHB = new Map<string, GoveePlatformAccessoryWithControl>();
 const awsDevices: string[] = [];
@@ -218,7 +260,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       initializeDeviceHandlers();
 
       // Set up storage
-      const cachePath = join(this.api.user.storagePath(), '/bwp91_cache');
+      const cachePath = join(this.api.user.storagePath(), '/govee_cache');
       const persistPath = join(this.api.user.storagePath(), '/persist');
 
       if (!existsSync(cachePath)) {
@@ -377,9 +419,65 @@ export class GoveePlatform implements DynamicPlatformPlugin {
     }
   }
 
+  /**
+   * Store discovered devices in storage for UI auto-population
+   */
+  private async storeDiscoveredDevices(): Promise<void> {
+    if (!this.storageClientData) {
+      this.log.debug('[Storage] Storage not available, skipping device storage');
+      return;
+    }
+
+    try {
+      // Combine HTTP and LAN devices
+      const allDevices: Array<{
+        deviceId: string;
+        deviceName: string;
+        model: string;
+        deviceType: DeviceTypeKey;
+      }> = [];
+
+      // Process HTTP devices
+      for (const httpDevice of httpDevices) {
+        let deviceId = httpDevice.device as string;
+        if (!deviceId.includes(':')) {
+          deviceId = deviceId.replace(/([a-z0-9]{2})(?=[a-z0-9])/gi, '$&:').toUpperCase();
+        }
+        const model = httpDevice.sku as string;
+        const deviceName = httpDevice.deviceName as string;
+        const deviceType = getDeviceTypeFromModel(model);
+
+        allDevices.push({ deviceId, deviceName, model, deviceType });
+      }
+
+      // Process LAN-only devices
+      for (const lanDevice of lanDevices) {
+        const deviceId = lanDevice.device as string;
+        // Skip if already added from HTTP
+        if (allDevices.some(d => d.deviceId === deviceId)) {
+          continue;
+        }
+        const model = (lanDevice.sku as string) || 'HXXXX';
+        const deviceName = this.deviceConf[deviceId]?.label as string || deviceId.replaceAll(':', '');
+        const deviceType = getDeviceTypeFromModel(model);
+
+        allDevices.push({ deviceId, deviceName, model, deviceType });
+      }
+
+      // Store for UI to read
+      await this.storageData.setItem('Govee_Discovered_Devices', JSON.stringify(allDevices));
+      this.log.debug('[Storage] Stored %d discovered devices for UI', allDevices.length);
+    } catch (err) {
+      this.log.warn('[Storage] Failed to store discovered devices: %s', parseError(err));
+    }
+  }
+
   private async initializeDevices(): Promise<void> {
     let lanDevicesInitialised = false;
     let httpDevicesInitialised = false;
+
+    // Store discovered devices for UI auto-population
+    await this.storeDiscoveredDevices();
 
     for (const httpDevice of httpDevices) {
       let deviceId = httpDevice.device as string;
@@ -487,6 +585,8 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       const deviceName = device.deviceName as string;
       const uuid = this.api.hap.uuid.generate(deviceId);
 
+      this.log.debug('[Init] Device %s, UUID: %s, cached: %s', deviceName, uuid, devicesInHB.has(uuid));
+
       let accessory = devicesInHB.get(uuid);
       if (!accessory) {
         accessory = this.addAccessory({ device: deviceId, deviceName, model });
@@ -579,6 +679,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       acc.logDebug = () => {};
       acc.logDebugWarn = () => {};
     }
+    this.log.debug('[Restored] %s (UUID: %s)', acc.displayName, accessory.UUID);
     devicesInHB.set(accessory.UUID, acc);
   }
 

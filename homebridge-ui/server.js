@@ -1,8 +1,12 @@
+import { join } from 'node:path';
 import { HomebridgePluginUiServer, RequestError } from '@homebridge/plugin-ui-utils';
+import storage from 'node-persist';
 
 import { goveeGetDevices, goveeLogin } from '../dist/utils/govee-api.js';
 
 class GoveeUiServer extends HomebridgePluginUiServer {
+  storageData = null;
+
   constructor() {
     super();
 
@@ -12,7 +16,23 @@ class GoveeUiServer extends HomebridgePluginUiServer {
     // Handle login test request
     this.onRequest('/test-login', this.testLogin.bind(this));
 
+    // Handle get cached devices request
+    this.onRequest('/get-cached-devices', this.getCachedDevices.bind(this));
+
+    // Initialize storage
+    this.initStorage();
+
     this.ready();
+  }
+
+  async initStorage() {
+    try {
+      const cachePath = join(this.homebridgeStoragePath, 'govee_cache');
+      this.storageData = storage.create({ dir: cachePath, forgiveParseErrors: true });
+      await this.storageData.init();
+    } catch (err) {
+      console.error('Failed to initialize storage:', err);
+    }
   }
 
   async discoverDevices(payload) {
@@ -58,6 +78,29 @@ class GoveeUiServer extends HomebridgePluginUiServer {
         success: false,
         message: message,
       };
+    }
+  }
+
+  async getCachedDevices() {
+    try {
+      if (!this.storageData) {
+        await this.initStorage();
+      }
+
+      if (!this.storageData) {
+        return { devices: [] };
+      }
+
+      const storedData = await this.storageData.getItem('Govee_Discovered_Devices');
+      if (!storedData) {
+        return { devices: [] };
+      }
+
+      const devices = JSON.parse(storedData);
+      return { devices: devices || [] };
+    } catch (err) {
+      console.error('Failed to get cached devices:', err);
+      return { devices: [] };
     }
   }
 }
