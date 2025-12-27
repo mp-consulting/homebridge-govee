@@ -57,8 +57,9 @@ export abstract class GoveeDeviceBase {
 
   /**
    * Get the primary service for this device.
+   * Returns undefined for diagnostic/template devices that don't expose HomeKit services.
    */
-  abstract get service(): Service;
+  abstract get service(): Service | undefined;
 
   /**
    * Log device initialization options

@@ -48,6 +48,8 @@ export { TapDevice } from './tap.js';
 export { ValveDevice } from './valve.js';
 export { TVDevice } from './tv.js';
 export { LightSwitchDevice } from './light-switch.js';
+export { SensorThermo4Device } from './sensor-thermo4.js';
+export { TemplateDevice } from './template.js';
 
 // Initialize device handlers
 import { registerDeviceHandler, registerModelHandler, initializeModelMappings } from './registry.js';
@@ -84,6 +86,8 @@ import { TapDevice } from './tap.js';
 import { ValveDevice } from './valve.js';
 import { TVDevice } from './tv.js';
 import { LightSwitchDevice } from './light-switch.js';
+import { SensorThermo4Device } from './sensor-thermo4.js';
+import { TemplateDevice } from './template.js';
 
 /**
  * Register all device handlers with the registry.
@@ -146,4 +150,6 @@ export function initializeDeviceHandlers(): void {
   registerDeviceHandler('valve', ValveDevice);
   registerDeviceHandler('tv', TVDevice);
   registerDeviceHandler('lightSwitch', LightSwitchDevice);
+  registerDeviceHandler('sensorThermo4', SensorThermo4Device);
+  registerDeviceHandler('template', TemplateDevice);
 }

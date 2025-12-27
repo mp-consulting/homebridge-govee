@@ -32,6 +32,7 @@ export type DeviceCategory =
   | 'kettle'
   | 'iceMaker'
   | 'sensorThermo'
+  | 'sensorThermo4'
   | 'sensorThermoSwitch'
   | 'sensorLeak'
   | 'sensorContact'
@@ -190,7 +191,7 @@ export function initializeModelMappings(): void {
 
   // Sensors
   registerModelsForCategory('sensorThermo', platformConsts.models.sensorThermo);
-  registerModelsForCategory('sensorThermo', platformConsts.models.sensorThermo4);
+  registerModelsForCategory('sensorThermo4', platformConsts.models.sensorThermo4);
   registerModelsForCategory('sensorLeak', platformConsts.models.sensorLeak);
   registerModelsForCategory('sensorButton', platformConsts.models.sensorButton);
   registerModelsForCategory('sensorContact', platformConsts.models.sensorContact);
