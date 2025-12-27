@@ -10,14 +10,24 @@ import {
   speedPercentToValue,
   speedValueToPercent,
 } from '../utils/functions.js';
+import { PURIFIER_H7120_SPEED_CODES } from '../catalog/index.js';
 
-// Speed codes for H7121 model (Low=1, Medium=2, High=3, Sleep=16)
-const SPEED_VALUE_CODES: Record<number, string> = {
-  1: 'MwUQAAAAAAAAAAAAAAAAAAAAACY=', // Sleep (16 -> 0x10)
-  2: 'MwUBAAAAAAAAAAAAAAAAAAAAADc=', // Low
-  3: 'MwUCAAAAAAAAAAAAAAAAAAAAADQ=', // Medium
-  4: 'MwUDAAAAAAAAAAAAAAAAAAAAADU=', // High
-};
+// Use catalog codes for speed
+const SPEED_VALUE_CODES = PURIFIER_H7120_SPEED_CODES;
+
+// Speed constants
+const SPEED_STEP = 25;
+const SPEED_VALUES = [0, 25, 50, 75, 100];
+const MAX_SPEED = 4;
+
+// Mode value bytes for external updates
+const MODE_SLEEP = 0x10;
+const MODE_LOW = 0x01;
+const MODE_MEDIUM = 0x02;
+const MODE_HIGH = 0x03;
+
+// Timer timeout duration in ms
+const UPDATE_TIMEOUT_MS = 60000;
 
 /**
  * Full-featured purifier device handler with speed control, night light, lock, and display.
@@ -28,8 +38,6 @@ export class PurifierFullDevice extends GoveeDeviceBase {
 
   // Update timeout
   private updateTimeout: string | false = false;
-
-  private static readonly MAX_SPEED = 4;
 
   // Cached values
   private cacheSpeed = 0;
@@ -72,8 +80,8 @@ export class PurifierFullDevice extends GoveeDeviceBase {
     this._service
       .getCharacteristic(this.hapChar.RotationSpeed)
       .setProps({
-        minStep: 25,
-        validValues: [0, 25, 50, 75, 100],
+        minStep: SPEED_STEP,
+        validValues: SPEED_VALUES,
       })
       .onSet(async (value) => this.internalSpeedUpdate(value as number));
     this.cacheSpeed = this._service.getCharacteristic(this.hapChar.RotationSpeed).value as number;
@@ -103,7 +111,7 @@ export class PurifierFullDevice extends GoveeDeviceBase {
         if (this.updateTimeout === timerKey) {
           this.updateTimeout = false;
         }
-      }, 60000);
+      }, UPDATE_TIMEOUT_MS);
 
       await this.sendDeviceUpdate({ cmd: 'statePuri', value: newValue });
 
@@ -130,8 +138,8 @@ export class PurifierFullDevice extends GoveeDeviceBase {
         return;
       }
 
-      const newValue = speedPercentToValue(value, PurifierFullDevice.MAX_SPEED, Math.round);
-      const newPercent = speedValueToPercent(newValue, PurifierFullDevice.MAX_SPEED);
+      const newValue = speedPercentToValue(value, MAX_SPEED, Math.round);
+      const newPercent = speedValueToPercent(newValue, MAX_SPEED);
 
       if (newPercent === this.cacheSpeed) {
         return;
@@ -189,24 +197,17 @@ export class PurifierFullDevice extends GoveeDeviceBase {
 
   private handleSpeedUpdate(hexParts: string[]): void {
     const modeValue = Number.parseInt(getTwoItemPosition(hexParts, 4), 16);
-    let speedPercent = 0;
 
-    switch (modeValue) {
-    case 0x10: // Sleep
-      speedPercent = 25;
-      break;
-    case 0x01: // Low
-      speedPercent = 50;
-      break;
-    case 0x02: // Medium
-      speedPercent = 75;
-      break;
-    case 0x03: // High
-      speedPercent = 100;
-      break;
-    }
+    // Map mode value to speed percentage
+    const modeToSpeedMap: Record<number, number> = {
+      [MODE_SLEEP]: SPEED_VALUES[1], // 25%
+      [MODE_LOW]: SPEED_VALUES[2], // 50%
+      [MODE_MEDIUM]: SPEED_VALUES[3], // 75%
+      [MODE_HIGH]: SPEED_VALUES[4], // 100%
+    };
 
-    if (speedPercent > 0 && this.cacheSpeed !== speedPercent) {
+    const speedPercent = modeToSpeedMap[modeValue];
+    if (speedPercent && this.cacheSpeed !== speedPercent) {
       this.cacheSpeed = speedPercent;
       this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
       this.accessory.log(`${platformLang.curSpeed} [${speedPercent}%]`);
