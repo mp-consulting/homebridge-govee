@@ -50,7 +50,7 @@ const modelCategoryMap = new Map<string, DeviceCategory>();
  */
 export function registerDeviceHandler(
   category: DeviceCategory,
-  handler: DeviceHandlerClass
+  handler: DeviceHandlerClass,
 ): void {
   deviceHandlers.set(category, handler);
 }
@@ -60,7 +60,7 @@ export function registerDeviceHandler(
  */
 export function registerModelsForCategory(
   category: DeviceCategory,
-  models: readonly string[]
+  models: readonly string[],
 ): void {
   for (const model of models) {
     modelCategoryMap.set(model.toUpperCase(), category);
@@ -98,7 +98,7 @@ export function getDeviceHandlerForModel(model: string): DeviceHandlerClass | un
 export function createDeviceInstance(
   model: string,
   platform: GoveePlatform,
-  accessory: GoveePlatformAccessoryWithControl
+  accessory: GoveePlatformAccessoryWithControl,
 ): GoveeDeviceBase | undefined {
   const Handler = getDeviceHandlerForModel(model);
   if (Handler) {
@@ -113,174 +113,50 @@ export function createDeviceInstance(
  * Initialize the model to category mappings from constants
  */
 export function initializeModelMappings(): void {
-  // RGB Lights - all categories of lights map to 'light'
+  // RGB Lights
   registerModelsForCategory('light', platformConsts.models.rgb);
-  registerModelsForCategory('light', platformConsts.models.rgbTwo);
-  registerModelsForCategory('light', platformConsts.models.rgb1a);
-  registerModelsForCategory('light', platformConsts.models.rgb2);
-  registerModelsForCategory('light', platformConsts.models.rgbNoScale);
-  registerModelsForCategory('light', platformConsts.models.motion);
-  registerModelsForCategory('light', platformConsts.models.adaptiveLighting);
 
-  // Light switch
-  registerModelsForCategory('lightSwitch', platformConsts.models.lightSwitch);
-
-  // Outlets
-  registerModelsForCategory('outletSingle', platformConsts.models.singleSwitch);
-  registerModelsForCategory('outletDouble', platformConsts.models.doubleSwitch);
-
-  // Switches (as identified in constants)
-  registerModelsForCategory('switchSingle', platformConsts.models.singleSwitchOutlet);
-  registerModelsForCategory('switchDouble', platformConsts.models.doubleSwitchOutlet);
-  registerModelsForCategory('switchTriple', platformConsts.models.tripleSwitchOutlet);
+  // Switches (outlets) - single, double, triple
   registerModelsForCategory('switchSingle', platformConsts.models.switchSingle);
   registerModelsForCategory('switchDouble', platformConsts.models.switchDouble);
   registerModelsForCategory('switchTriple', platformConsts.models.switchTriple);
 
-  // Fans - different models have different handlers
-  // H7100
-  for (const model of platformConsts.models.fanH7100 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'fan');
-  }
-  // H7101
-  for (const model of platformConsts.models.fanH7101 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'fan');
-  }
-  // H7102
-  for (const model of platformConsts.models.fanH7102 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'fan');
-  }
-  // H7105
-  for (const model of platformConsts.models.fanH7105 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'fan');
-  }
-  // H7106
-  for (const model of platformConsts.models.fanH7106 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'fan');
-  }
-  // H7107
-  for (const model of platformConsts.models.fanH7107 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'fan');
-  }
-  // H7111
-  for (const model of platformConsts.models.fanH7111 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'fan');
-  }
+  // Fans
+  registerModelsForCategory('fan', platformConsts.models.fan);
 
   // Heaters
-  registerModelsForCategory('heater', platformConsts.models.heaterSingle);
-  registerModelsForCategory('heater', platformConsts.models.heater1a);
-  registerModelsForCategory('heater', platformConsts.models.heater1b);
+  registerModelsForCategory('heater', platformConsts.models.heater1);
   registerModelsForCategory('heater', platformConsts.models.heater2);
 
-  // Coolers
-  registerModelsForCategory('cooler', platformConsts.models.cooler);
-
-  // Humidifiers - different models have different handlers
-  for (const model of platformConsts.models.humidifierH7140 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'humidifier');
-  }
-  for (const model of platformConsts.models.humidifierH7141 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'humidifier');
-  }
-  for (const model of platformConsts.models.humidifierH7142 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'humidifier');
-  }
-  for (const model of platformConsts.models.humidifierH7143 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'humidifier');
-  }
-  for (const model of platformConsts.models.humidifierH7145 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'humidifier');
-  }
-  for (const model of platformConsts.models.humidifierH7147 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'humidifier');
-  }
-  for (const model of platformConsts.models.humidifierH7148 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'humidifier');
-  }
-  for (const model of platformConsts.models.humidifierH7160 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'humidifier');
-  }
-  for (const model of platformConsts.models.humidifierH714E || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'humidifier');
-  }
+  // Humidifiers
+  registerModelsForCategory('humidifier', platformConsts.models.humidifier);
 
   // Dehumidifiers
-  for (const model of platformConsts.models.dehumidifierH7150 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'dehumidifier');
-  }
-  for (const model of platformConsts.models.dehumidifierH7151 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'dehumidifier');
-  }
+  registerModelsForCategory('dehumidifier', platformConsts.models.dehumidifier);
 
   // Purifiers
-  for (const model of platformConsts.models.purifierSingle || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'purifier');
-  }
-  for (const model of platformConsts.models.purifierH7120 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'purifier');
-  }
-  for (const model of platformConsts.models.purifierH7121 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'purifier');
-  }
-  for (const model of platformConsts.models.purifierH7122 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'purifier');
-  }
-  for (const model of platformConsts.models.purifierH7123 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'purifier');
-  }
-  for (const model of platformConsts.models.purifierH7124 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'purifier');
-  }
-  for (const model of platformConsts.models.purifierH7126 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'purifier');
-  }
-  for (const model of platformConsts.models.purifierH7127 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'purifier');
-  }
-  for (const model of platformConsts.models.purifierH7128 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'purifier');
-  }
-  for (const model of platformConsts.models.purifierH7129 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'purifier');
-  }
-  for (const model of platformConsts.models.purifierH712C || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'purifier');
-  }
+  registerModelsForCategory('purifier', platformConsts.models.purifier);
 
   // Diffusers
-  for (const model of platformConsts.models.diffuserH7161 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'diffuser');
-  }
-  for (const model of platformConsts.models.diffuserH7162 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'diffuser');
-  }
+  registerModelsForCategory('diffuser', platformConsts.models.diffuser);
 
   // Kettles
   registerModelsForCategory('kettle', platformConsts.models.kettle);
 
   // Ice Makers
-  for (const model of platformConsts.models.iceMakerH7172 || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'iceMaker');
-  }
+  registerModelsForCategory('iceMaker', platformConsts.models.iceMaker);
 
   // Sensors
-  registerModelsForCategory('sensorThermo', platformConsts.models.thermoWifi);
-  registerModelsForCategory('sensorThermo', platformConsts.models.thermoWifiHumi);
-  registerModelsForCategory('sensorLeak', platformConsts.models.leakSensor);
-  registerModelsForCategory('sensorButton', platformConsts.models.button);
-  registerModelsForCategory('sensorPresence', platformConsts.models.presenceSensor);
+  registerModelsForCategory('sensorThermo', platformConsts.models.sensorThermo);
+  registerModelsForCategory('sensorThermo', platformConsts.models.sensorThermo4);
+  registerModelsForCategory('sensorLeak', platformConsts.models.sensorLeak);
+  registerModelsForCategory('sensorButton', platformConsts.models.sensorButton);
+  registerModelsForCategory('sensorContact', platformConsts.models.sensorContact);
+  registerModelsForCategory('sensorPresence', platformConsts.models.sensorPresence);
+  registerModelsForCategory('sensorMonitor', platformConsts.models.sensorMonitor);
 
-  // Tap / Valve / TV
-  for (const model of platformConsts.models.tap || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'tap');
-  }
-  for (const model of platformConsts.models.valve || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'valve');
-  }
-  for (const model of platformConsts.models.tv || []) {
-    modelCategoryMap.set(model.toUpperCase(), 'tv');
-  }
+  // Template devices (for future expansion)
+  registerModelsForCategory('template', platformConsts.models.template);
 }
 
 /**

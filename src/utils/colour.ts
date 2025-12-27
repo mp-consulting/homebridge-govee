@@ -11,26 +11,26 @@ export function hs2rgb(h: number | string, s: number | string): RGB {
   let rgb: RGB;
 
   switch (Math.floor(hNum) % 6) {
-    case 0:
-      rgb = [255, t, p];
-      break;
-    case 1:
-      rgb = [q, 255, p];
-      break;
-    case 2:
-      rgb = [p, 255, t];
-      break;
-    case 3:
-      rgb = [p, q, 255];
-      break;
-    case 4:
-      rgb = [t, p, 255];
-      break;
-    case 5:
-      rgb = [255, p, q];
-      break;
-    default:
-      return [0, 0, 0];
+  case 0:
+    rgb = [255, t, p];
+    break;
+  case 1:
+    rgb = [q, 255, p];
+    break;
+  case 2:
+    rgb = [p, 255, t];
+    break;
+  case 3:
+    rgb = [p, q, 255];
+    break;
+  case 4:
+    rgb = [t, p, 255];
+    break;
+  case 5:
+    rgb = [255, p, q];
+    break;
+  default:
+    return [0, 0, 0];
   }
 
   if (rgb[0] === 255) {

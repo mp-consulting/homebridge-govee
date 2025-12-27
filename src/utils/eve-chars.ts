@@ -20,63 +20,67 @@ export default class EveCharacteristics {
     const uuids = this.uuids;
     const { Characteristic, Formats, Perms, Units } = api.hap;
 
+    const currentConsumptionProps = {
+      format: Formats.UINT16,
+      unit: 'W',
+      maxValue: 100000,
+      minValue: 0,
+      minStep: 1,
+      perms: [Perms.PAIRED_READ, Perms.NOTIFY],
+    };
+
     this.CurrentConsumption = class extends Characteristic {
       static readonly UUID = uuids.currentConsumption;
       constructor() {
-        super('Current Consumption', uuids.currentConsumption);
-        this.setProps({
-          format: Formats.UINT16,
-          unit: 'W',
-          maxValue: 100000,
-          minValue: 0,
-          minStep: 1,
-          perms: [Perms.PAIRED_READ, Perms.NOTIFY],
-        });
+        super('Current Consumption', uuids.currentConsumption, currentConsumptionProps);
         this.value = this.getDefaultValue();
       }
+    };
+
+    const voltageProps = {
+      format: Formats.FLOAT,
+      unit: 'V',
+      maxValue: 100000000000,
+      minValue: 0,
+      minStep: 1,
+      perms: [Perms.PAIRED_READ, Perms.NOTIFY],
     };
 
     this.Voltage = class extends Characteristic {
       static readonly UUID = uuids.voltage;
       constructor() {
-        super('Voltage', uuids.voltage);
-        this.setProps({
-          format: Formats.FLOAT,
-          unit: 'V',
-          maxValue: 100000000000,
-          minValue: 0,
-          minStep: 1,
-          perms: [Perms.PAIRED_READ, Perms.NOTIFY],
-        });
+        super('Voltage', uuids.voltage, voltageProps);
         this.value = this.getDefaultValue();
       }
+    };
+
+    const electricCurrentProps = {
+      format: Formats.FLOAT,
+      unit: 'A',
+      maxValue: 100000000000,
+      minValue: 0,
+      minStep: 0.1,
+      perms: [Perms.PAIRED_READ, Perms.NOTIFY],
     };
 
     this.ElectricCurrent = class extends Characteristic {
       static readonly UUID = uuids.electricCurrent;
       constructor() {
-        super('Electric Current', uuids.electricCurrent);
-        this.setProps({
-          format: Formats.FLOAT,
-          unit: 'A',
-          maxValue: 100000000000,
-          minValue: 0,
-          minStep: 0.1,
-          perms: [Perms.PAIRED_READ, Perms.NOTIFY],
-        });
+        super('Electric Current', uuids.electricCurrent, electricCurrentProps);
         this.value = this.getDefaultValue();
       }
+    };
+
+    const lastActivationProps = {
+      format: Formats.UINT32,
+      unit: Units.SECONDS,
+      perms: [Perms.PAIRED_READ, Perms.NOTIFY],
     };
 
     this.LastActivation = class extends Characteristic {
       static readonly UUID = uuids.lastActivation;
       constructor() {
-        super('Last Activation', uuids.lastActivation);
-        this.setProps({
-          format: Formats.UINT32,
-          unit: Units.SECONDS,
-          perms: [Perms.PAIRED_READ, Perms.NOTIFY],
-        });
+        super('Last Activation', uuids.lastActivation, lastActivationProps);
         this.value = this.getDefaultValue();
       }
     };

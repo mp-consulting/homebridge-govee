@@ -68,7 +68,7 @@ export abstract class GoveeDeviceBase {
       '[%s] %s %s.',
       this.accessory.displayName,
       platformLang.devInitOpts,
-      JSON.stringify(opts)
+      JSON.stringify(opts),
     );
   }
 
@@ -87,7 +87,7 @@ export abstract class GoveeDeviceBase {
     err: unknown,
     characteristic: Characteristic,
     revertValue: CharacteristicValue,
-    revertDelay = 2000
+    revertDelay = 2000,
   ): never {
     this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
 

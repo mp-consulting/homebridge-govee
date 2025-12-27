@@ -19,14 +19,17 @@ import { AWSClient, BLEClient, HTTPClient, LANClient } from './connection/index.
 import {
   initializeDeviceHandlers,
   createDeviceInstance,
-  GoveeDeviceBase,
 } from './device/index.js';
 import type {
   GoveePluginConfig,
   GoveePlatformAccessory,
+  GoveePlatformAccessoryWithControl,
   GoveeAccessoryContext,
   DeviceCommand,
   ExternalUpdateParams,
+  AWSParams,
+  BLEParams,
+  LANParams,
 } from './types.js';
 import { k2rgb } from './utils/colour.js';
 import {
@@ -44,18 +47,18 @@ import {
 } from './utils/functions.js';
 
 const PLUGIN_NAME = '@mp-consulting/homebridge-govee';
-const PLATFORM_NAME = 'Govee';
+export const PLATFORM_NAME = 'Govee';
 
 // Global state
-const devicesInHB = new Map<string, GoveePlatformAccessory>();
+const devicesInHB = new Map<string, GoveePlatformAccessoryWithControl>();
 const awsDevices: string[] = [];
 const awsDevicesToPoll: string[] = [];
 const httpDevices: Array<Record<string, unknown>> = [];
 const lanDevices: Array<Record<string, unknown>> = [];
 
 export interface ExtendedLogging extends Logging {
-  debug: (...args: unknown[]) => void;
-  debugWarn: (...args: unknown[]) => void;
+  debug: (msg: string, ...args: unknown[]) => void;
+  debugWarn: (msg: string, ...args: unknown[]) => void;
 }
 
 /**
@@ -126,7 +129,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       process.platform,
       process.version,
       api.serverVersion,
-      api.hap.HAPLibraryVersion()
+      api.hap.HAPLibraryVersion(),
     );
 
     // Apply configuration
@@ -173,12 +176,14 @@ export class GoveePlatform implements DynamicPlatformPlugin {
     // Apply device configurations
     const deviceArrayKeys = [
       'lightDevices', 'switchDevices', 'fanDevices', 'heaterDevices',
-      'humidifierDevices', 'purifierDevices', 'thermoDevices', 'leakDevices'
+      'humidifierDevices', 'purifierDevices', 'thermoDevices', 'leakDevices',
     ];
     for (const key of deviceArrayKeys) {
       if (Array.isArray(config[key])) {
         for (const deviceConfig of config[key]) {
-          if (!deviceConfig.deviceId) continue;
+          if (!deviceConfig.deviceId) {
+            continue;
+          }
           const id = parseDeviceId(deviceConfig.deviceId);
           if (deviceConfig.ignoreDevice) {
             this.ignoredDevices.push(id);
@@ -194,8 +199,12 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       this.log.info('%s.', platformLang.initialised);
 
       // Set up debug logging
-      this.log.debug = this.isBeta ? ((...args: unknown[]) => this.log.info(...args)) : (() => {});
-      this.log.debugWarn = this.isBeta ? ((...args: unknown[]) => this.log.warn(...args)) : (() => {});
+      this.log.debug = this.isBeta
+        ? ((msg: string, ...args: unknown[]) => this.log.info(msg, ...args))
+        : (() => {});
+      this.log.debugWarn = this.isBeta
+        ? ((msg: string, ...args: unknown[]) => this.log.warn(msg, ...args))
+        : (() => {});
 
       // Initialize custom characteristics
       this.cusChar = new CustomCharacteristics(this.api) as unknown as Record<string, typeof Characteristic>;
@@ -208,11 +217,16 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       const cachePath = join(this.api.user.storagePath(), '/bwp91_cache');
       const persistPath = join(this.api.user.storagePath(), '/persist');
 
-      if (!existsSync(cachePath)) mkdirSync(cachePath);
-      if (!existsSync(persistPath)) mkdirSync(persistPath);
+      if (!existsSync(cachePath)) {
+        mkdirSync(cachePath);
+      }
+      if (!existsSync(persistPath)) {
+        mkdirSync(persistPath);
+      }
 
       try {
-        this.storageData = storage.create({ dir: cachePath, forgiveParseErrors: true });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        this.storageData = (storage as any).create({ dir: cachePath, forgiveParseErrors: true });
         await this.storageData.init();
         this.storageClientData = true;
       } catch (err) {
@@ -225,16 +239,16 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       await this.setupBLEClient();
 
       // Set up command queue
-      const bleInterval = this.config.bleControlInterval >= 500
-        ? this.config.bleControlInterval / 1000
-        : this.config.bleControlInterval;
+      const bleControlInterval = this.config.bleControlInterval ?? 500;
+      const bleInterval = bleControlInterval >= 500
+        ? bleControlInterval / 1000
+        : bleControlInterval;
 
       this.queue = new PQueue({
         concurrency: 1,
         interval: bleInterval * 1000,
         intervalCap: 1,
         timeout: 10000,
-        throwOnTimeout: true,
       });
 
       // Initialize devices
@@ -250,10 +264,14 @@ export class GoveePlatform implements DynamicPlatformPlugin {
 
   private async setupLANClient(): Promise<void> {
     try {
-      if (this.config.lanDisable) throw new Error(platformLang.disabledInConfig);
+      if (this.config.lanDisable) {
+        throw new Error(platformLang.disabledInConfig);
+      }
       this.lanClient = new LANClient(this);
       const devices = await this.lanClient.getDevices();
-      devices.forEach((d: Record<string, unknown>) => lanDevices.push(d));
+      for (const d of devices) {
+        lanDevices.push(d as unknown as Record<string, unknown>);
+      }
       this.log.info('[LAN] %s.', platformLang.availableWithDevices(devices.length));
     } catch (err) {
       this.log.warn('[LAN] %s %s.', platformLang.disableClient, parseError(err));
@@ -263,7 +281,9 @@ export class GoveePlatform implements DynamicPlatformPlugin {
 
   private async setupHTTPAndAWSClients(persistPath: string): Promise<void> {
     try {
-      if (!this.config.username || !this.config.password) throw new Error(platformLang.noCreds);
+      if (!this.config.username || !this.config.password) {
+        throw new Error(platformLang.noCreds);
+      }
 
       const iotFile = join(persistPath, 'govee.pfx');
       this.httpClient = new HTTPClient(this);
@@ -271,8 +291,12 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       try {
         const storedData = await this.storageData.getItem('Govee_All_Devices_temp');
         const splitData = storedData?.split(':::');
-        if (!Array.isArray(splitData) || splitData.length !== 7) throw new Error(platformLang.accTokenNoExist);
-        if (splitData[2] !== this.config.username) throw new Error(platformLang.accTokenUserChange);
+        if (!Array.isArray(splitData) || splitData.length !== 7) {
+          throw new Error(platformLang.accTokenNoExist);
+        }
+        if (splitData[2] !== this.config.username) {
+          throw new Error(platformLang.accTokenUserChange);
+        }
         await promises.access(iotFile, 0);
 
         [this.accountTopic, this.accountToken, , this.accountId, this.iotEndpoint, this.iotPass, this.accountTokenTTR] = splitData;
@@ -288,7 +312,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
         try {
           await this.storageData.setItem(
             'Govee_All_Devices_temp',
-            `${this.accountTopic}:::${data.token}:::${this.config.username}:::${this.accountId}:::${this.iotEndpoint}:::${this.iotPass}:::${data.tokenTTR}`
+            `${this.accountTopic}:::${data.token}:::${this.config.username}:::${this.accountId}:::${this.iotEndpoint}:::${this.iotPass}:::${data.tokenTTR}`,
           );
         } catch (e) {
           this.log.warn('[HTTP] %s %s.', platformLang.accTokenStoreErr, parseError(e));
@@ -296,12 +320,21 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       }
 
       const devices = await this.httpClient.getDevices();
-      devices.forEach((d: Record<string, unknown>) => httpDevices.push(d));
+      for (const d of devices) {
+        httpDevices.push(d as unknown as Record<string, unknown>);
+      }
       this.log.info('[HTTP] %s.', platformLang.availableWithDevices(devices.length));
 
-      if (!this.config.awsDisable && this.iotPass) {
+      if (!this.config.awsDisable && this.iotPass && this.accountTopic && this.accountId) {
         const iotFileData = await pfxToCertAndKey(iotFile, this.iotPass);
-        this.awsClient = new AWSClient(this, iotFileData);
+        this.awsClient = new AWSClient({
+          accountTopic: this.accountTopic,
+          accountId: this.accountId,
+          clientId: this.clientId ?? 'homebridge-govee',
+          iotEndpoint: this.iotEndpoint ?? '',
+          log: this.log,
+          receiveUpdateAWS: (payload) => this.receiveUpdateAWS(payload as Record<string, unknown>),
+        }, iotFileData);
         this.log.info('[AWS] %s.', platformLang.available);
       }
     } catch (err) {
@@ -313,11 +346,13 @@ export class GoveePlatform implements DynamicPlatformPlugin {
 
   private async setupBLEClient(): Promise<void> {
     try {
-      if (this.config.bleDisable) throw new Error(platformLang.disabledInConfig);
+      if (this.config.bleDisable) {
+        throw new Error(platformLang.disabledInConfig);
+      }
       if (['linux', 'freebsd', 'win32'].includes(process.platform)) {
         const { default: BluetoothHciSocket } = await import('@stoprocent/bluetooth-hci-socket');
         const socket = new BluetoothHciSocket();
-        const device = process.env.NOBLE_HCI_DEVICE_ID ? Number.parseInt(process.env.NOBLE_HCI_DEVICE_ID, 10) : undefined;
+        const device = process.env.NOBLE_HCI_DEVICE_ID ? Number.parseInt(process.env.NOBLE_HCI_DEVICE_ID, 10) : 0;
         socket.bindRaw(device);
       }
       await import('@stoprocent/noble');
@@ -340,7 +375,9 @@ export class GoveePlatform implements DynamicPlatformPlugin {
         httpDevice.device = deviceId;
       }
 
-      if (this.ignoredDevices.includes(deviceId)) continue;
+      if (this.ignoredDevices.includes(deviceId)) {
+        continue;
+      }
 
       const model = httpDevice.sku as string;
       const lanDevice = lanDevices.find(el => el.device === deviceId);
@@ -357,7 +394,9 @@ export class GoveePlatform implements DynamicPlatformPlugin {
 
     for (const lanDevice of lanDevices.filter(el => !(el as Record<string, unknown>).initialised)) {
       const deviceId = lanDevice.device as string;
-      if (this.ignoredDevices.includes(deviceId)) continue;
+      if (this.ignoredDevices.includes(deviceId)) {
+        continue;
+      }
       this.initialiseDevice({
         device: deviceId,
         deviceName: this.deviceConf[deviceId]?.label as string || deviceId.replaceAll(':', ''),
@@ -368,7 +407,9 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       lanDevicesInitialised = true;
     }
 
-    if (!lanDevicesInitialised && !httpDevicesInitialised) throw new Error(platformLang.noDevs);
+    if (!lanDevicesInitialised && !httpDevicesInitialised) {
+      throw new Error(platformLang.noDevs);
+    }
 
     devicesInHB.forEach((accessory) => {
       const deviceId = accessory.context.gvDeviceId;
@@ -394,17 +435,27 @@ export class GoveePlatform implements DynamicPlatformPlugin {
 
   pluginShutdown(): void {
     try {
-      if (this.refreshBLEInterval) clearInterval(this.refreshBLEInterval);
-      if (this.refreshHTTPInterval) clearInterval(this.refreshHTTPInterval);
-      if (this.refreshAWSInterval) clearInterval(this.refreshAWSInterval);
-      if (this.lanClient) this.lanClient.close();
-      if (this.bleClient) this.bleClient.shutdown();
+      if (this.refreshBLEInterval) {
+        clearInterval(this.refreshBLEInterval);
+      }
+      if (this.refreshHTTPInterval) {
+        clearInterval(this.refreshHTTPInterval);
+      }
+      if (this.refreshAWSInterval) {
+        clearInterval(this.refreshAWSInterval);
+      }
+      if (this.lanClient) {
+        this.lanClient.close();
+      }
+      if (this.bleClient) {
+        this.bleClient.shutdown();
+      }
     } catch (err) {
       this.log.error('***** %s. *****', parseError(err));
     }
   }
 
-  applyAccessoryLogging(accessory: GoveePlatformAccessory): void {
+  applyAccessoryLogging(accessory: GoveePlatformAccessoryWithControl): void {
     if (this.config.disableDeviceLogging) {
       accessory.log = () => {};
       accessory.logWarn = () => {};
@@ -427,7 +478,9 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       if (!accessory) {
         accessory = this.addAccessory({ device: deviceId, deviceName, model });
       }
-      if (!accessory) throw new Error(platformLang.accNotFound);
+      if (!accessory) {
+        throw new Error(platformLang.accNotFound);
+      }
 
       this.applyAccessoryLogging(accessory);
 
@@ -456,7 +509,9 @@ export class GoveePlatform implements DynamicPlatformPlugin {
           if (parsed?.bleName) {
             accessory.context.hasBleControl = true;
             accessory.context.bleAddress = parsed.address?.toLowerCase() || deviceId.substring(6).toLowerCase();
-            if (this.bleClient) accessory.context.useBleControl = true;
+            if (this.bleClient) {
+              accessory.context.useBleControl = true;
+            }
           }
         }
       }
@@ -477,10 +532,13 @@ export class GoveePlatform implements DynamicPlatformPlugin {
     }
   }
 
-  addAccessory(device: { device: string; deviceName: string; model: string }): GoveePlatformAccessory | undefined {
+  addAccessory(device: { device: string; deviceName: string; model: string }): GoveePlatformAccessoryWithControl | undefined {
     try {
       const uuid = this.api.hap.uuid.generate(device.device);
-      const accessory = new this.api.platformAccessory(device.deviceName, uuid) as GoveePlatformAccessory;
+      const accessory = new this.api.platformAccessory(device.deviceName, uuid) as unknown as GoveePlatformAccessoryWithControl;
+
+      // Apply default logging methods
+      this.applyAccessoryLogging(accessory);
 
       accessory.getService(this.api.hap.Service.AccessoryInformation)!
         .setCharacteristic(this.api.hap.Characteristic.Name, device.deviceName)
@@ -490,7 +548,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
 
       accessory.context = { gvDeviceId: device.device, gvModel: device.model } as GoveeAccessoryContext;
       this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
-      this.configureAccessory(accessory);
+      this.configureAccessory(accessory as PlatformAccessory);
       this.log.info('[%s] %s.', device.deviceName, platformLang.devAdd);
       return accessory;
     } catch (err) {
@@ -500,7 +558,15 @@ export class GoveePlatform implements DynamicPlatformPlugin {
   }
 
   configureAccessory(accessory: PlatformAccessory): void {
-    devicesInHB.set(accessory.UUID, accessory as GoveePlatformAccessory);
+    const acc = accessory as unknown as GoveePlatformAccessoryWithControl;
+    // Apply default logging methods for restored accessories
+    if (!acc.log) {
+      acc.log = (msg: string) => this.log.info('[%s] %s.', acc.displayName, msg);
+      acc.logWarn = (msg: string) => this.log.warn('[%s] %s.', acc.displayName, msg);
+      acc.logDebug = () => {};
+      acc.logDebugWarn = () => {};
+    }
+    devicesInHB.set(accessory.UUID, acc);
   }
 
   removeAccessory(accessory: GoveePlatformAccessory): void {
@@ -515,7 +581,9 @@ export class GoveePlatform implements DynamicPlatformPlugin {
 
   async goveeAWSSync(allDevices = false): Promise<void> {
     const pollList = allDevices ? awsDevices : awsDevicesToPoll;
-    if (pollList.length === 0 || !this.awsClient) return;
+    if (pollList.length === 0 || !this.awsClient) {
+      return;
+    }
     for (const deviceId of pollList) {
       const accessory = devicesInHB.get(this.api.hap.uuid.generate(deviceId));
       if (accessory) {
@@ -528,58 +596,62 @@ export class GoveePlatform implements DynamicPlatformPlugin {
     }
   }
 
-  async sendDeviceUpdate(accessory: GoveePlatformAccessory, params: DeviceCommand): Promise<boolean> {
-    const data: { awsParams?: Record<string, unknown>; bleParams?: Record<string, unknown>; lanParams?: Record<string, unknown> } = {};
+  async sendDeviceUpdate(accessory: GoveePlatformAccessoryWithControl, params: DeviceCommand): Promise<boolean> {
+    const data: { awsParams?: AWSParams; bleParams?: BLEParams; lanParams?: LANParams } = {};
 
     switch (params.cmd) {
-      case 'state':
-        data.awsParams = { cmd: 'turn', data: { val: params.value === 'on' ? 1 : 0 } };
-        data.bleParams = { cmd: 0x01, data: params.value === 'on' ? 0x1 : 0x0 };
-        data.lanParams = { cmd: 'turn', data: { value: params.value === 'on' ? 1 : 0 } };
-        break;
-      case 'brightness': {
-        const val = params.value as number;
-        data.awsParams = { cmd: 'brightness', data: { val: Math.round(val * 2.54) } };
-        data.bleParams = { cmd: 0x04, data: Math.floor((val / 100) * 0xff) };
-        data.lanParams = { cmd: 'brightness', data: { value: val } };
-        break;
+    case 'state':
+      data.awsParams = { cmd: 'turn', data: { val: params.value === 'on' ? 1 : 0 } };
+      data.bleParams = { cmd: 0x01, data: params.value === 'on' ? 0x1 : 0x0 };
+      data.lanParams = { cmd: 'turn', data: { value: params.value === 'on' ? 1 : 0 } };
+      break;
+    case 'brightness': {
+      const val = params.value as number;
+      data.awsParams = { cmd: 'brightness', data: { val: Math.round(val * 2.54) } };
+      data.bleParams = { cmd: 0x04, data: Math.floor((val / 100) * 0xff) };
+      data.lanParams = { cmd: 'brightness', data: { value: val } };
+      break;
+    }
+    case 'color': {
+      const rgb = params.value as { r: number; g: number; b: number };
+      data.awsParams = { cmd: 'colorwc', data: { color: rgb, colorTemInKelvin: 0 } };
+      data.bleParams = { cmd: 0x05, data: [0x02, rgb.r, rgb.g, rgb.b] };
+      data.lanParams = { cmd: 'colorwc', data: { color: rgb, colorTemInKelvin: 0 } };
+      break;
+    }
+    case 'colorTem': {
+      const kelvin = params.value as number;
+      const [r, g, b] = k2rgb(kelvin);
+      data.awsParams = { cmd: 'colorwc', data: { color: { r, g, b }, colorTemInKelvin: kelvin } };
+      data.bleParams = { cmd: 0x05, data: [0x02, 0xff, 0xff, 0xff, 0x01, r, g, b] };
+      data.lanParams = { cmd: 'colorwc', data: { color: { r, g, b }, colorTemInKelvin: kelvin } };
+      break;
+    }
+    case 'stateOutlet':
+    case 'stateHumi':
+      data.awsParams = { cmd: 'turn', data: { val: params.value === 'on' || params.value === 1 ? 1 : 0 } };
+      break;
+    case 'stateDual':
+      data.awsParams = { cmd: 'turn', data: { val: params.value } };
+      break;
+    case 'ptReal': {
+      const code = params.value as string;
+      data.awsParams = { cmd: 'ptReal', data: { command: [code] } };
+      data.bleParams = { cmd: 'ptReal', data: base64ToHex(code) };
+      break;
+    }
+    case 'rgbScene': {
+      const [awsCode, bleCode] = params.value as [string, string | undefined];
+      if (awsCode) {
+        data.awsParams = { cmd: 'ptReal', data: { command: awsCode.split(',') } };
       }
-      case 'color': {
-        const rgb = params.value as { r: number; g: number; b: number };
-        data.awsParams = { cmd: 'colorwc', data: { color: rgb, colorTemInKelvin: 0 } };
-        data.bleParams = { cmd: 0x05, data: [0x02, rgb.r, rgb.g, rgb.b] };
-        data.lanParams = { cmd: 'colorwc', data: { color: rgb, colorTemInKelvin: 0 } };
-        break;
+      if (bleCode) {
+        data.bleParams = { cmd: 'ptReal', data: bleCode };
       }
-      case 'colorTem': {
-        const kelvin = params.value as number;
-        const [r, g, b] = k2rgb(kelvin);
-        data.awsParams = { cmd: 'colorwc', data: { color: { r, g, b }, colorTemInKelvin: kelvin } };
-        data.bleParams = { cmd: 0x05, data: [0x02, 0xff, 0xff, 0xff, 0x01, r, g, b] };
-        data.lanParams = { cmd: 'colorwc', data: { color: { r, g, b }, colorTemInKelvin: kelvin } };
-        break;
-      }
-      case 'stateOutlet':
-      case 'stateHumi':
-        data.awsParams = { cmd: 'turn', data: { val: params.value === 'on' || params.value === 1 ? 1 : 0 } };
-        break;
-      case 'stateDual':
-        data.awsParams = { cmd: 'turn', data: { val: params.value } };
-        break;
-      case 'ptReal': {
-        const code = params.value as string;
-        data.awsParams = { cmd: 'ptReal', data: { command: [code] } };
-        data.bleParams = { cmd: 'ptReal', data: base64ToHex(code) };
-        break;
-      }
-      case 'rgbScene': {
-        const [awsCode, bleCode] = params.value as [string, string | undefined];
-        if (awsCode) data.awsParams = { cmd: 'ptReal', data: { command: awsCode.split(',') } };
-        if (bleCode) data.bleParams = { cmd: 'ptReal', data: bleCode };
-        break;
-      }
-      default:
-        throw new Error('Invalid command');
+      break;
+    }
+    default:
+      throw new Error('Invalid command');
     }
 
     if (accessory.context.useLanControl && data.lanParams && this.lanClient) {
@@ -600,7 +672,9 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       }
     }
 
-    if (!data.bleParams) return true;
+    if (!data.bleParams) {
+      return true;
+    }
 
     return this.queue.add(async () => {
       if (accessory.context.useBleControl && data.bleParams && this.bleClient) {
@@ -635,11 +709,15 @@ export class GoveePlatform implements DynamicPlatformPlugin {
 
   receiveUpdateAWS(payload: Record<string, unknown>): void {
     const accessory = devicesInHB.get(this.api.hap.uuid.generate(payload.device as string));
-    if (accessory) this.receiveDeviceUpdate(accessory, { source: 'AWS', ...payload } as ExternalUpdateParams);
+    if (accessory) {
+      this.receiveDeviceUpdate(accessory, { source: 'AWS', ...payload } as ExternalUpdateParams);
+    }
   }
 
-  receiveDeviceUpdate(accessory: GoveePlatformAccessory, params: ExternalUpdateParams): void {
-    if (!accessory?.control?.externalUpdate) return;
+  receiveDeviceUpdate(accessory: GoveePlatformAccessoryWithControl, params: ExternalUpdateParams): void {
+    if (!accessory?.control?.externalUpdate) {
+      return;
+    }
 
     const data: ExternalUpdateParams = { source: params.source };
     if (params.state && typeof params.state === 'object' && hasProperty(params.state, 'onOff')) {
@@ -648,11 +726,21 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       data.state = params.state;
     }
 
-    if (hasProperty(params, 'battery')) data.battery = Math.min(Math.max(params.battery!, 0), 100);
-    if (hasProperty(params, 'leakDetected')) data.leakDetected = params.leakDetected;
-    if (hasProperty(params, 'temperature')) data.temperature = params.temperature;
-    if (hasProperty(params, 'humidity')) data.humidity = params.humidity;
-    if (hasProperty(params, 'online')) data.online = params.online;
+    if (hasProperty(params, 'battery')) {
+      data.battery = Math.min(Math.max(params.battery!, 0), 100);
+    }
+    if (hasProperty(params, 'leakDetected')) {
+      data.leakDetected = params.leakDetected;
+    }
+    if (hasProperty(params, 'temperature')) {
+      data.temperature = params.temperature;
+    }
+    if (hasProperty(params, 'humidity')) {
+      data.humidity = params.humidity;
+    }
+    if (hasProperty(params, 'online')) {
+      data.online = params.online;
+    }
 
     if (Object.keys(data).length > 1) {
       try {
@@ -663,7 +751,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
     }
   }
 
-  updateAccessoryStatus(accessory: GoveePlatformAccessory, online: boolean): void {
+  updateAccessoryStatus(accessory: GoveePlatformAccessoryWithControl, online: boolean): void {
     accessory.log?.(`Device is ${online ? 'online' : 'offline'}`);
   }
 }

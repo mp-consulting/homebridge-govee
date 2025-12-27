@@ -39,7 +39,7 @@ export class SwitchSingleDevice extends GoveeDeviceBase {
     // Pass the accessory to Fakegato to set up with Eve
     this.accessory.eveService = new this.platform.eveService('switch', this.accessory, {
       log: () => {},
-    });
+    }) as unknown as import('../types.js').EveHistoryService;
 
     // Output the customised options to the log
     this.logInitOptions({
@@ -78,7 +78,7 @@ export class SwitchSingleDevice extends GoveeDeviceBase {
       this.handleUpdateError(
         err,
         this._service.getCharacteristic(this.hapChar.On),
-        this.cacheState === 'on'
+        this.cacheState === 'on',
       );
     }
   }

@@ -252,7 +252,7 @@ const platformLang: PlatformLang = {
   storageWriteErr: 'could not save accessory to file as',
   syncFail: 'sync failed as',
   viaAL: 'via adaptive lighting',
-  welcome: "I'm looking for some lovely people to help maintain this plugin, please get in touch on GitHub or Discord if you'd like to help out",
+  welcome: 'I\'m looking for some lovely people to help maintain this plugin, please get in touch on GitHub or Discord if you\'d like to help out',
   unknownCommand: 'unknown command in payload received',
 };
 

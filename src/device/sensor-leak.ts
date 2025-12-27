@@ -27,7 +27,7 @@ export class SensorLeakDevice extends GoveeDeviceBase {
     this.eveChar = platform.eveChar as Record<string, typeof Characteristic>;
 
     // Set up custom variables for this device type
-    const deviceConf = this.deviceConf as SensorDeviceConfig;
+    const deviceConf = this.deviceConf as unknown as SensorDeviceConfig;
     this.lowBattThreshold = deviceConf.lowBattThreshold
       ? Math.min(deviceConf.lowBattThreshold, 100)
       : platformConsts.defaultValues.lowBattThreshold;
@@ -58,7 +58,7 @@ export class SensorLeakDevice extends GoveeDeviceBase {
     // Pass the accessory to Fakegato to set up with Eve
     this.accessory.eveService = new this.platform.eveService('motion', this.accessory, {
       log: () => {},
-    });
+    }) as unknown as import('../types.js').EveHistoryService;
 
     // Output the customised options to the log
     this.logInitOptions({});
@@ -80,7 +80,7 @@ export class SensorLeakDevice extends GoveeDeviceBase {
       this.battService.updateCharacteristic(this.hapChar.BatteryLevel, this.cacheBatt);
       this.battService.updateCharacteristic(
         this.hapChar.StatusLowBattery,
-        this.cacheBatt < this.lowBattThreshold ? 1 : 0
+        this.cacheBatt < this.lowBattThreshold ? 1 : 0,
       );
 
       // Log the change
@@ -96,14 +96,15 @@ export class SensorLeakDevice extends GoveeDeviceBase {
       // Add the alert to Eve if a leak has been detected
       if (this.cacheLeak && this.eveChar.LastActivation && this.accessory.eveService) {
         this._service.updateCharacteristic(
-          this.eveChar.LastActivation,
-          Math.round(new Date().valueOf() / 1000) - this.accessory.eveService.getInitialTime()
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          this.eveChar.LastActivation as any,
+          Math.round(new Date().valueOf() / 1000) - this.accessory.eveService.getInitialTime(),
         );
       }
 
       // Log the change
       this.accessory.log(
-        `${platformLang.curLeak} [${this.cacheLeak ? platformLang.labelYes : platformLang.labelNo}]`
+        `${platformLang.curLeak} [${this.cacheLeak ? platformLang.labelYes : platformLang.labelNo}]`,
       );
     }
   }

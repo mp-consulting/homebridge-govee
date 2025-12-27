@@ -5,7 +5,6 @@ import type {
   Logging,
   PlatformAccessory,
   PlatformConfig,
-  Service,
 } from 'homebridge';
 
 // ============================================================================
@@ -218,6 +217,7 @@ export interface GoveeAccessoryContext {
   offHumi?: number;
   sensorAttached?: boolean;
   lanIPAddress?: string;
+  ipAddress?: string;  // Alias for lanIPAddress for backwards compatibility
   cacheTarget?: number;
   cacheType?: 'heater' | 'cooler';
   adaptiveLighting?: boolean;
@@ -330,7 +330,9 @@ export interface DeviceStateUpdate {
   onOff?: number | boolean;
   brightness?: number;
   color?: { r: number; g: number; b: number };
+  rgb?: { r: number; g: number; b: number };  // Alias for color
   colorTemInKelvin?: number;
+  kelvin?: number;  // Alias for colorTemInKelvin
   temperature?: number;
   temperatureF?: number;
   humidity?: number;
@@ -418,8 +420,8 @@ export interface GoveePlatform extends DynamicPlatformPlugin {
 }
 
 export interface GoveeLogging extends Logging {
-  debug: (...args: unknown[]) => void;
-  debugWarn: (...args: unknown[]) => void;
+  debug: (msg: string, ...args: unknown[]) => void;
+  debugWarn: (msg: string, ...args: unknown[]) => void;
 }
 
 // ============================================================================

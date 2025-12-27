@@ -72,9 +72,12 @@ export class OutletSingleDevice extends GoveeDeviceBase {
   }
 
   private setupPowerMonitoring(): void {
-    const EveCurrentConsumption = this.eveChar.CurrentConsumption as typeof import('homebridge').Characteristic;
-    const EveElectricCurrent = this.eveChar.ElectricCurrent as typeof import('homebridge').Characteristic;
-    const EveVoltage = this.eveChar.Voltage as typeof import('homebridge').Characteristic;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const EveCurrentConsumption = this.eveChar.CurrentConsumption as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const EveElectricCurrent = this.eveChar.ElectricCurrent as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const EveVoltage = this.eveChar.Voltage as any;
 
     // Power readings
     if (!this._service.testCharacteristic(EveCurrentConsumption)) {
@@ -135,7 +138,7 @@ export class OutletSingleDevice extends GoveeDeviceBase {
       this.handleUpdateError(
         err,
         this._service.getCharacteristic(this.hapChar.On),
-        this.cacheState === 'on'
+        this.cacheState === 'on',
       );
     }
   }
@@ -177,14 +180,14 @@ export class OutletSingleDevice extends GoveeDeviceBase {
       const deviceFunction = `${getTwoItemPosition(hexParts, 1)}${getTwoItemPosition(hexParts, 2)}`;
 
       switch (deviceFunction) {
-        case 'aa19': {
-          // Power readings
-          this.handlePowerReadings(hexParts);
-          break;
-        }
-        default:
-          this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
-          break;
+      case 'aa19': {
+        // Power readings
+        this.handlePowerReadings(hexParts);
+        break;
+      }
+      default:
+        this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
+        break;
       }
     }
   }
@@ -194,9 +197,12 @@ export class OutletSingleDevice extends GoveeDeviceBase {
       return;
     }
 
-    const EveCurrentConsumption = this.eveChar.CurrentConsumption as typeof import('homebridge').Characteristic;
-    const EveElectricCurrent = this.eveChar.ElectricCurrent as typeof import('homebridge').Characteristic;
-    const EveVoltage = this.eveChar.Voltage as typeof import('homebridge').Characteristic;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const EveCurrentConsumption = this.eveChar.CurrentConsumption as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const EveElectricCurrent = this.eveChar.ElectricCurrent as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const EveVoltage = this.eveChar.Voltage as any;
 
     const hexWatt = `${getTwoItemPosition(hexParts, 13)}${getTwoItemPosition(hexParts, 14)}${getTwoItemPosition(hexParts, 15)}`;
     const hexAmp = `${getTwoItemPosition(hexParts, 11)}${getTwoItemPosition(hexParts, 12)}`;

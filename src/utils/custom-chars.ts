@@ -49,15 +49,12 @@ export default class CustomCharacteristics {
 
     const uuids = this.uuids;
     const { Characteristic, Formats, Perms } = api.hap;
+    const boolProps = { format: Formats.BOOL, perms: [Perms.PAIRED_READ, Perms.PAIRED_WRITE, Perms.NOTIFY] };
 
     this.ColourMode = class extends Characteristic {
       static readonly UUID = uuids.colourMode;
       constructor() {
-        super('Colour Mode', uuids.colourMode);
-        this.setProps({
-          format: Formats.BOOL,
-          perms: [Perms.PAIRED_READ, Perms.PAIRED_WRITE, Perms.NOTIFY],
-        });
+        super('Colour Mode', uuids.colourMode, boolProps);
         this.value = this.getDefaultValue();
       }
     };
@@ -65,11 +62,7 @@ export default class CustomCharacteristics {
     this.MusicMode = class extends Characteristic {
       static readonly UUID = uuids.musicMode;
       constructor() {
-        super('Music Mode', uuids.musicMode);
-        this.setProps({
-          format: Formats.BOOL,
-          perms: [Perms.PAIRED_READ, Perms.PAIRED_WRITE, Perms.NOTIFY],
-        });
+        super('Music Mode', uuids.musicMode, boolProps);
         this.value = this.getDefaultValue();
       }
     };
@@ -77,11 +70,7 @@ export default class CustomCharacteristics {
     this.MusicModeTwo = class extends Characteristic {
       static readonly UUID = uuids.musicModeTwo;
       constructor() {
-        super('Music Mode 2', uuids.musicModeTwo);
-        this.setProps({
-          format: Formats.BOOL,
-          perms: [Perms.PAIRED_READ, Perms.PAIRED_WRITE, Perms.NOTIFY],
-        });
+        super('Music Mode 2', uuids.musicModeTwo, boolProps);
         this.value = this.getDefaultValue();
       }
     };
@@ -89,11 +78,7 @@ export default class CustomCharacteristics {
     this.Scene = class extends Characteristic {
       static readonly UUID = uuids.scene;
       constructor() {
-        super('Scene', uuids.scene);
-        this.setProps({
-          format: Formats.BOOL,
-          perms: [Perms.PAIRED_READ, Perms.PAIRED_WRITE, Perms.NOTIFY],
-        });
+        super('Scene', uuids.scene, boolProps);
         this.value = this.getDefaultValue();
       }
     };
@@ -101,11 +86,7 @@ export default class CustomCharacteristics {
     this.SceneTwo = class extends Characteristic {
       static readonly UUID = uuids.sceneTwo;
       constructor() {
-        super('Scene 2', uuids.sceneTwo);
-        this.setProps({
-          format: Formats.BOOL,
-          perms: [Perms.PAIRED_READ, Perms.PAIRED_WRITE, Perms.NOTIFY],
-        });
+        super('Scene 2', uuids.sceneTwo, boolProps);
         this.value = this.getDefaultValue();
       }
     };
@@ -113,11 +94,7 @@ export default class CustomCharacteristics {
     this.SceneThree = class extends Characteristic {
       static readonly UUID = uuids.sceneThree;
       constructor() {
-        super('Scene 3', uuids.sceneThree);
-        this.setProps({
-          format: Formats.BOOL,
-          perms: [Perms.PAIRED_READ, Perms.PAIRED_WRITE, Perms.NOTIFY],
-        });
+        super('Scene 3', uuids.sceneThree, boolProps);
         this.value = this.getDefaultValue();
       }
     };
@@ -125,11 +102,7 @@ export default class CustomCharacteristics {
     this.SceneFour = class extends Characteristic {
       static readonly UUID = uuids.sceneFour;
       constructor() {
-        super('Scene 4', uuids.sceneFour);
-        this.setProps({
-          format: Formats.BOOL,
-          perms: [Perms.PAIRED_READ, Perms.PAIRED_WRITE, Perms.NOTIFY],
-        });
+        super('Scene 4', uuids.sceneFour, boolProps);
         this.value = this.getDefaultValue();
       }
     };
@@ -137,11 +110,7 @@ export default class CustomCharacteristics {
     this.DiyMode = class extends Characteristic {
       static readonly UUID = uuids.diyMode;
       constructor() {
-        super('DIY Mode', uuids.diyMode);
-        this.setProps({
-          format: Formats.BOOL,
-          perms: [Perms.PAIRED_READ, Perms.PAIRED_WRITE, Perms.NOTIFY],
-        });
+        super('DIY Mode', uuids.diyMode, boolProps);
         this.value = this.getDefaultValue();
       }
     };
@@ -149,11 +118,7 @@ export default class CustomCharacteristics {
     this.DiyModeTwo = class extends Characteristic {
       static readonly UUID = uuids.diyModeTwo;
       constructor() {
-        super('DIY Mode 2', uuids.diyModeTwo);
-        this.setProps({
-          format: Formats.BOOL,
-          perms: [Perms.PAIRED_READ, Perms.PAIRED_WRITE, Perms.NOTIFY],
-        });
+        super('DIY Mode 2', uuids.diyModeTwo, boolProps);
         this.value = this.getDefaultValue();
       }
     };
@@ -161,11 +126,7 @@ export default class CustomCharacteristics {
     this.DiyModeThree = class extends Characteristic {
       static readonly UUID = uuids.diyModeThree;
       constructor() {
-        super('DIY Mode 3', uuids.diyModeThree);
-        this.setProps({
-          format: Formats.BOOL,
-          perms: [Perms.PAIRED_READ, Perms.PAIRED_WRITE, Perms.NOTIFY],
-        });
+        super('DIY Mode 3', uuids.diyModeThree, boolProps);
         this.value = this.getDefaultValue();
       }
     };
@@ -173,11 +134,7 @@ export default class CustomCharacteristics {
     this.DiyModeFour = class extends Characteristic {
       static readonly UUID = uuids.diyModeFour;
       constructor() {
-        super('DIY Mode 4', uuids.diyModeFour);
-        this.setProps({
-          format: Formats.BOOL,
-          perms: [Perms.PAIRED_READ, Perms.PAIRED_WRITE, Perms.NOTIFY],
-        });
+        super('DIY Mode 4', uuids.diyModeFour, boolProps);
         this.value = this.getDefaultValue();
       }
     };
@@ -185,11 +142,7 @@ export default class CustomCharacteristics {
     this.Segmented = class extends Characteristic {
       static readonly UUID = uuids.segmented;
       constructor() {
-        super('Segmented', uuids.segmented);
-        this.setProps({
-          format: Formats.BOOL,
-          perms: [Perms.PAIRED_READ, Perms.PAIRED_WRITE, Perms.NOTIFY],
-        });
+        super('Segmented', uuids.segmented, boolProps);
         this.value = this.getDefaultValue();
       }
     };
@@ -197,11 +150,7 @@ export default class CustomCharacteristics {
     this.SegmentedTwo = class extends Characteristic {
       static readonly UUID = uuids.segmentedTwo;
       constructor() {
-        super('Segmented 2', uuids.segmentedTwo);
-        this.setProps({
-          format: Formats.BOOL,
-          perms: [Perms.PAIRED_READ, Perms.PAIRED_WRITE, Perms.NOTIFY],
-        });
+        super('Segmented 2', uuids.segmentedTwo, boolProps);
         this.value = this.getDefaultValue();
       }
     };
@@ -209,11 +158,7 @@ export default class CustomCharacteristics {
     this.SegmentedThree = class extends Characteristic {
       static readonly UUID = uuids.segmentedThree;
       constructor() {
-        super('Segmented 3', uuids.segmentedThree);
-        this.setProps({
-          format: Formats.BOOL,
-          perms: [Perms.PAIRED_READ, Perms.PAIRED_WRITE, Perms.NOTIFY],
-        });
+        super('Segmented 3', uuids.segmentedThree, boolProps);
         this.value = this.getDefaultValue();
       }
     };
@@ -221,11 +166,7 @@ export default class CustomCharacteristics {
     this.SegmentedFour = class extends Characteristic {
       static readonly UUID = uuids.segmentedFour;
       constructor() {
-        super('Segmented 4', uuids.segmentedFour);
-        this.setProps({
-          format: Formats.BOOL,
-          perms: [Perms.PAIRED_READ, Perms.PAIRED_WRITE, Perms.NOTIFY],
-        });
+        super('Segmented 4', uuids.segmentedFour, boolProps);
         this.value = this.getDefaultValue();
       }
     };
@@ -233,11 +174,7 @@ export default class CustomCharacteristics {
     this.VideoMode = class extends Characteristic {
       static readonly UUID = uuids.videoMode;
       constructor() {
-        super('Video Mode', uuids.videoMode);
-        this.setProps({
-          format: Formats.BOOL,
-          perms: [Perms.PAIRED_READ, Perms.PAIRED_WRITE, Perms.NOTIFY],
-        });
+        super('Video Mode', uuids.videoMode, boolProps);
         this.value = this.getDefaultValue();
       }
     };
@@ -245,11 +182,7 @@ export default class CustomCharacteristics {
     this.VideoModeTwo = class extends Characteristic {
       static readonly UUID = uuids.videoModeTwo;
       constructor() {
-        super('Video Mode 2', uuids.videoModeTwo);
-        this.setProps({
-          format: Formats.BOOL,
-          perms: [Perms.PAIRED_READ, Perms.PAIRED_WRITE, Perms.NOTIFY],
-        });
+        super('Video Mode 2', uuids.videoModeTwo, boolProps);
         this.value = this.getDefaultValue();
       }
     };
@@ -257,11 +190,7 @@ export default class CustomCharacteristics {
     this.NightLight = class extends Characteristic {
       static readonly UUID = uuids.nightLight;
       constructor() {
-        super('Night Light', uuids.nightLight);
-        this.setProps({
-          format: Formats.BOOL,
-          perms: [Perms.PAIRED_READ, Perms.PAIRED_WRITE, Perms.NOTIFY],
-        });
+        super('Night Light', uuids.nightLight, boolProps);
         this.value = this.getDefaultValue();
       }
     };
@@ -269,11 +198,7 @@ export default class CustomCharacteristics {
     this.DisplayLight = class extends Characteristic {
       static readonly UUID = uuids.displayLight;
       constructor() {
-        super('Display Light', uuids.displayLight);
-        this.setProps({
-          format: Formats.BOOL,
-          perms: [Perms.PAIRED_READ, Perms.PAIRED_WRITE, Perms.NOTIFY],
-        });
+        super('Display Light', uuids.displayLight, boolProps);
         this.value = this.getDefaultValue();
       }
     };

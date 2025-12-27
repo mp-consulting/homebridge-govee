@@ -171,7 +171,7 @@ export class HumidifierDevice extends GoveeDeviceBase {
         // Calculate current RGB values
         const newRGB = hs2rgb(
           this.lightService.getCharacteristic(this.hapChar.Hue).value as number,
-          this.lightService.getCharacteristic(this.hapChar.Saturation).value as number
+          this.lightService.getCharacteristic(this.hapChar.Saturation).value as number,
         );
         hexValues = [0x33, 0x1b, 0x01, this.cacheBright, ...newRGB];
       } else {
@@ -229,19 +229,19 @@ export class HumidifierDevice extends GoveeDeviceBase {
       const deviceFunction = `${getTwoItemPosition(hexParts, 2)}${getTwoItemPosition(hexParts, 3)}`;
 
       switch (deviceFunction) {
-        case '1b00': // night light off
-        case '1b01': { // night light on
-          const newNight = deviceFunction === '1b01' ? 'on' : 'off';
-          if (newNight !== this.cacheLightState) {
-            this.cacheLightState = newNight;
-            this.lightService.updateCharacteristic(this.hapChar.On, this.cacheLightState === 'on');
-            this.accessory.log(`current night light state [${this.cacheLightState}]`);
-          }
-          break;
+      case '1b00': // night light off
+      case '1b01': { // night light on
+        const newNight = deviceFunction === '1b01' ? 'on' : 'off';
+        if (newNight !== this.cacheLightState) {
+          this.cacheLightState = newNight;
+          this.lightService.updateCharacteristic(this.hapChar.On, this.cacheLightState === 'on');
+          this.accessory.log(`current night light state [${this.cacheLightState}]`);
         }
-        default:
-          this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
-          break;
+        break;
+      }
+      default:
+        this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
+        break;
       }
     }
   }

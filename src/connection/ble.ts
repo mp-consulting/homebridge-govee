@@ -111,7 +111,9 @@ export default class BLEClient {
       this.btClient = noble as Noble;
 
       this.eventHandlers.stateChange = (state: string) => {
-        if (this.isShuttingDown) return;
+        if (this.isShuttingDown) {
+          return;
+        }
         this.btState = state;
         this.log.debug('[BLE] adapter state changed to: %s.', state);
 
@@ -121,24 +123,32 @@ export default class BLEClient {
       };
 
       this.eventHandlers.scanStart = () => {
-        if (this.isShuttingDown) return;
+        if (this.isShuttingDown) {
+          return;
+        }
         this.isScanning = true;
         this.log.debug('[BLE] scanning started.');
       };
 
       this.eventHandlers.scanStop = () => {
-        if (this.isShuttingDown) return;
+        if (this.isShuttingDown) {
+          return;
+        }
         this.isScanning = false;
         this.log.debug('[BLE] scanning stopped.');
       };
 
       this.eventHandlers.warning = (message: string) => {
-        if (this.isShuttingDown) return;
+        if (this.isShuttingDown) {
+          return;
+        }
         this.log.warn('[BLE] adapter warning: %s.', message);
       };
 
       this.eventHandlers.discover = (peripheral: Peripheral) => {
-        if (this.isShuttingDown) return;
+        if (this.isShuttingDown) {
+          return;
+        }
         this.handleDiscoveredPeripheral(peripheral);
       };
 
@@ -161,7 +171,9 @@ export default class BLEClient {
       }
 
       const { localName, manufacturerData } = advertisement;
-      if (!manufacturerData) return;
+      if (!manufacturerData) {
+        return;
+      }
 
       const streamUpdate = manufacturerData.toString('hex');
       this.log.debug('[BLE] sensor data from %s: %s.', address, streamUpdate);
@@ -207,7 +219,9 @@ export default class BLEClient {
       return true;
     }
 
-    if (!this.btClient) return false;
+    if (!this.btClient) {
+      return false;
+    }
 
     try {
       await Promise.race([

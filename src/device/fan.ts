@@ -234,57 +234,57 @@ export class FanDevice extends GoveeDeviceBase {
       const deviceFunction = `${getTwoItemPosition(hexParts, 2)}${getTwoItemPosition(hexParts, 3)}`;
 
       switch (deviceFunction) {
-        case '0501': {
-          // Fan speed
-          const newSpeed = getTwoItemPosition(hexParts, 4);
-          const newSpeedInt = Number.parseInt(newSpeed, 10) * 11;
-          const newMode = 'manual';
-          if (this.cacheMode !== newMode) {
-            this.cacheMode = newMode;
-            this.accessory.log(`${platformLang.curMode} [${this.cacheMode}]`);
-          }
-          if (this.cacheSpeed !== newSpeedInt) {
-            this.cacheSpeed = newSpeedInt;
+      case '0501': {
+        // Fan speed
+        const newSpeed = getTwoItemPosition(hexParts, 4);
+        const newSpeedInt = Number.parseInt(newSpeed, 10) * 11;
+        const newMode = 'manual';
+        if (this.cacheMode !== newMode) {
+          this.cacheMode = newMode;
+          this.accessory.log(`${platformLang.curMode} [${this.cacheMode}]`);
+        }
+        if (this.cacheSpeed !== newSpeedInt) {
+          this.cacheSpeed = newSpeedInt;
+          this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
+          this.accessory.log(`${platformLang.curSpeed} [${this.cacheSpeed}%]`);
+        }
+        break;
+      }
+      case '0500': {
+        // Auto mode on/off
+        // (Guess) Fixed Speed: 1, Custom: 2, Auto: 3, Sleep: 5, Nature: 6, Turbo: 7
+        const newMode = getTwoItemPosition(hexParts, 4) === '03' ? 'auto' : 'manual';
+        if (this.cacheMode !== newMode) {
+          this.cacheMode = newMode;
+          this.accessory.log(`${platformLang.curMode} [${this.cacheMode}]`);
+
+          if (this.cacheMode === 'auto' && this.cacheSpeed !== 99) {
+            this.cacheSpeed = 99;
             this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
             this.accessory.log(`${platformLang.curSpeed} [${this.cacheSpeed}%]`);
           }
-          break;
         }
-        case '0500': {
-          // Auto mode on/off
-          // (Guess) Fixed Speed: 1, Custom: 2, Auto: 3, Sleep: 5, Nature: 6, Turbo: 7
-          const newMode = getTwoItemPosition(hexParts, 4) === '03' ? 'auto' : 'manual';
-          if (this.cacheMode !== newMode) {
-            this.cacheMode = newMode;
-            this.accessory.log(`${platformLang.curMode} [${this.cacheMode}]`);
-
-            if (this.cacheMode === 'auto' && this.cacheSpeed !== 99) {
-              this.cacheSpeed = 99;
-              this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
-              this.accessory.log(`${platformLang.curSpeed} [${this.cacheSpeed}%]`);
-            }
-          }
-          break;
+        break;
+      }
+      case '0503': {
+        // Auto mode, we need to keep this code to send it back to the device
+        const code = hexToTwoItems(`33${hexString.substring(2, hexString.length - 2)}`);
+        this.cacheAutoCode = generateCodeFromHexValues(code.map((p) => Number.parseInt(p, 16))) as string;
+        break;
+      }
+      case '1f01': {
+        // Swing Mode
+        const newSwing = getTwoItemPosition(hexParts, 4) === '01' ? 'on' : 'off';
+        if (this.cacheSwing !== newSwing) {
+          this.cacheSwing = newSwing;
+          this._service.updateCharacteristic(this.hapChar.SwingMode, this.cacheSwing === 'on' ? 1 : 0);
+          this.accessory.log(`${platformLang.curSwing} [${this.cacheSwing}]`);
         }
-        case '0503': {
-          // Auto mode, we need to keep this code to send it back to the device
-          const code = hexToTwoItems(`33${hexString.substring(2, hexString.length - 2)}`);
-          this.cacheAutoCode = generateCodeFromHexValues(code.map((p) => Number.parseInt(p, 16))) as string;
-          break;
-        }
-        case '1f01': {
-          // Swing Mode
-          const newSwing = getTwoItemPosition(hexParts, 4) === '01' ? 'on' : 'off';
-          if (this.cacheSwing !== newSwing) {
-            this.cacheSwing = newSwing;
-            this._service.updateCharacteristic(this.hapChar.SwingMode, this.cacheSwing === 'on' ? 1 : 0);
-            this.accessory.log(`${platformLang.curSwing} [${this.cacheSwing}]`);
-          }
-          break;
-        }
-        default:
-          this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
-          break;
+        break;
+      }
+      default:
+        this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
+        break;
       }
     }
   }

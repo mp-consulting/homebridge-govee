@@ -1,4 +1,4 @@
-import type { Service, Characteristic, CharacteristicValue, HAPStatus } from 'homebridge';
+import type { Service, HAPStatus } from 'homebridge';
 import type { AdaptiveLightingController } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
 import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams, LightDeviceConfig } from '../types.js';
@@ -307,7 +307,7 @@ export class LightDevice extends GoveeDeviceBase {
       this.handleUpdateError(
         err,
         this._service.getCharacteristic(this.hapChar.On),
-        this.cacheState === 'on'
+        this.cacheState === 'on',
       );
     }
   }
@@ -355,7 +355,7 @@ export class LightDevice extends GoveeDeviceBase {
       this.handleUpdateError(
         err,
         this._service.getCharacteristic(this.hapChar.Brightness),
-        this.cacheBright
+        this.cacheBright,
       );
     }
   }
@@ -428,7 +428,7 @@ export class LightDevice extends GoveeDeviceBase {
       this.handleUpdateError(
         err,
         this._service.getCharacteristic(this.hapChar.Hue),
-        this.cacheHue
+        this.cacheHue,
       );
     }
   }
@@ -519,7 +519,7 @@ export class LightDevice extends GoveeDeviceBase {
       this.handleUpdateError(
         err,
         this._service.getCharacteristic(this.hapChar.ColorTemperature),
-        this.cacheMired
+        this.cacheMired,
       );
     }
   }
@@ -529,7 +529,7 @@ export class LightDevice extends GoveeDeviceBase {
     awsCode: string,
     bleCode: string | undefined,
     value: boolean,
-    isService = false
+    isService = false,
   ): Promise<void> {
     try {
       // Don't continue if command is to turn off

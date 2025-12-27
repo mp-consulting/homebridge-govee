@@ -87,8 +87,8 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
     this.cacheState = this._service.getCharacteristic(this.hapChar.Active).value === 1 ? 'on' : 'off';
     this.cacheHeat = this.cacheState === 'on' &&
       this._service.getCharacteristic(this.hapChar.TargetHeaterCoolerState).value === 2
-        ? 'on'
-        : 'off';
+      ? 'on'
+      : 'off';
 
     // Pass the accessory to Fakegato to set up with Eve
     this.accessory.eveService = new this.platform.eveService('custom', this.accessory, {
@@ -169,7 +169,7 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
       const newOnState = this.cacheHeat === 'on' ? 2 : 1;
       this._service.updateCharacteristic(
         this.hapChar.CurrentHeaterCoolerState,
-        value === 1 ? newOnState : 0
+        value === 1 ? newOnState : 0,
       );
     } catch (err) {
       this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
@@ -230,7 +230,7 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
       this.accessory.log(`${platformLang.curHeat} [${this.cacheHeat}]`);
       this._service.updateCharacteristic(
         this.hapChar.CurrentHeaterCoolerState,
-        this.cacheHeat === 'on' ? 2 : 1
+        this.cacheHeat === 'on' ? 2 : 1,
       );
     } catch (err) {
       this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
@@ -239,7 +239,7 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
       setTimeout(() => {
         this._service.updateCharacteristic(
           this.hapChar.HeatingThresholdTemperature,
-          this.accessory.context.cacheTarget ?? 20
+          this.accessory.context.cacheTarget ?? 20,
         );
       }, 2000);
       throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
@@ -289,7 +289,7 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
       this.accessory.log(`${platformLang.curHeat} [${this.cacheHeat}]`);
       this._service.updateCharacteristic(
         this.hapChar.CurrentHeaterCoolerState,
-        this.cacheHeat === 'on' ? 2 : 1
+        this.cacheHeat === 'on' ? 2 : 1,
       );
     } catch (err) {
       this.accessory.logWarn(parseError(err));

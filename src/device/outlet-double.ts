@@ -62,7 +62,7 @@ export class OutletDoubleDevice extends GoveeDeviceBase {
     this.service1.getCharacteristic(this.hapChar.On).onSet(async (value) => {
       await this.internalStateUpdate(
         this.service1,
-        value ? OUTLET_COMMANDS.outlet1On : OUTLET_COMMANDS.outlet1Off
+        value ? OUTLET_COMMANDS.outlet1On : OUTLET_COMMANDS.outlet1Off,
       );
     });
     this.service1.cacheState = this.service1.getCharacteristic(this.hapChar.On).value ? 'on' : 'off';
@@ -70,7 +70,7 @@ export class OutletDoubleDevice extends GoveeDeviceBase {
     this.service2.getCharacteristic(this.hapChar.On).onSet(async (value) => {
       await this.internalStateUpdate(
         this.service2,
-        value ? OUTLET_COMMANDS.outlet2On : OUTLET_COMMANDS.outlet2Off
+        value ? OUTLET_COMMANDS.outlet2On : OUTLET_COMMANDS.outlet2Off,
       );
     });
     this.service2.cacheState = this.service2.getCharacteristic(this.hapChar.On).value ? 'on' : 'off';
@@ -96,7 +96,7 @@ export class OutletDoubleDevice extends GoveeDeviceBase {
 
   private async internalStateUpdate(
     service: Service & { cacheState?: 'on' | 'off' },
-    value: number
+    value: number,
   ): Promise<void> {
     try {
       const newValue = value % 16 === 0 ? 'off' : 'on';
@@ -134,7 +134,7 @@ export class OutletDoubleDevice extends GoveeDeviceBase {
       return;
     }
 
-    const states = params.state as ['on' | 'off', 'on' | 'off'];
+    const states = params.state as unknown as ['on' | 'off', 'on' | 'off'];
 
     if (states[0] !== this.service1.cacheState) {
       this.service1.cacheState = states[0];

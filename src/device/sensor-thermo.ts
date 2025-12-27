@@ -31,7 +31,7 @@ export class SensorThermoDevice extends GoveeDeviceBase {
     super(platform, accessory);
 
     // Set up custom variables for this device type
-    const deviceConf = this.deviceConf as SensorDeviceConfig;
+    const deviceConf = this.deviceConf as unknown as SensorDeviceConfig;
     this.lowBattThreshold = deviceConf.lowBattThreshold
       ? Math.min(deviceConf.lowBattThreshold, 100)
       : platformConsts.defaultValues.lowBattThreshold;
@@ -67,7 +67,7 @@ export class SensorThermoDevice extends GoveeDeviceBase {
     // Pass the accessory to Fakegato to set up with Eve
     this.accessory.eveService = new this.platform.eveService('custom', this.accessory, {
       log: () => {},
-    });
+    }) as unknown as import('../types.js').EveHistoryService;
 
     // Output the customised options to the log
     this.logInitOptions({
@@ -108,7 +108,7 @@ export class SensorThermoDevice extends GoveeDeviceBase {
       this.battService.updateCharacteristic(this.hapChar.BatteryLevel, this.cacheBatt);
       this.battService.updateCharacteristic(
         this.hapChar.StatusLowBattery,
-        this.cacheBatt < this.lowBattThreshold ? 1 : 0
+        this.cacheBatt < this.lowBattThreshold ? 1 : 0,
       );
 
       // Log the change
@@ -166,7 +166,7 @@ export class SensorThermoDevice extends GoveeDeviceBase {
     try {
       await this.platform.storageData.setItem(
         `${this.deviceId}_temp`,
-        this.cacheTemp
+        this.cacheTemp,
       );
     } catch (err) {
       this.accessory.logWarn(`${platformLang.storageWriteErr} ${parseError(err)}`);
