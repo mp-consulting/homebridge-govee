@@ -39,6 +39,8 @@ export { DiffuserDevice } from './diffuser.js';
 export { PurifierDevice } from './purifier.js';
 export { PurifierFullDevice } from './purifier-full.js';
 export { PurifierH7126Device } from './purifier-h7126.js';
+export { PurifierH7122Device } from './purifier-h7122.js';
+export { PurifierH7120Device } from './purifier-h7120.js';
 export { IceMakerDevice } from './ice-maker.js';
 export { KettleDevice } from './kettle.js';
 export { SensorButtonDevice } from './sensor-button.js';
@@ -79,6 +81,8 @@ import { DiffuserDevice } from './diffuser.js';
 import { PurifierDevice } from './purifier.js';
 import { PurifierFullDevice } from './purifier-full.js';
 import { PurifierH7126Device } from './purifier-h7126.js';
+import { PurifierH7122Device } from './purifier-h7122.js';
+import { PurifierH7120Device } from './purifier-h7120.js';
 import { IceMakerDevice } from './ice-maker.js';
 import { KettleDevice } from './kettle.js';
 import { SensorButtonDevice } from './sensor-button.js';
@@ -133,9 +137,9 @@ export function initializeDeviceHandlers(): void {
   registerDeviceHandler('purifier', PurifierDevice);
 
   // Model-specific purifier handlers (with speed control)
-  registerModelHandler('H7121', PurifierFullDevice);
-  registerModelHandler('H7120', PurifierFullDevice);
-  registerModelHandler('H7122', PurifierFullDevice);
+  registerModelHandler('H7121', PurifierH7120Device); // 4-speed, night light, lock, display
+  registerModelHandler('H7120', PurifierH7120Device); // 4-speed, night light, lock, display
+  registerModelHandler('H7122', PurifierH7122Device); // 5-speed, air quality PM2.5, lock, display
   registerModelHandler('H7123', PurifierFullDevice);
   registerModelHandler('H7124', PurifierFullDevice);
   registerModelHandler('H7126', PurifierH7126Device);

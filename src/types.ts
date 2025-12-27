@@ -223,6 +223,7 @@ export interface GoveeAccessoryContext {
   cacheType?: 'heater' | 'cooler';
   adaptiveLighting?: boolean;
   valveType?: number;
+  cacheDisplayCode?: string;  // Cached display code for dynamic display light control
 }
 
 export type GoveePlatformAccessory = PlatformAccessory<GoveeAccessoryContext>;
