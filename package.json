@@ -37,7 +37,8 @@
     "homebridge": "^1.8.0 || ^2.0.0-beta.0"
   },
   "scripts": {
-    "build": "rimraf ./dist && tsc",
+    "build": "rimraf ./dist && tsc && npm run build:ui",
+    "build:ui": "tsc -p homebridge-ui/tsconfig.json",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "npm run lint -- --fix",
     "prepublishOnly": "npm run lint && npm run build",
