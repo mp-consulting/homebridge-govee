@@ -10,8 +10,8 @@ const deviceTypes = {
       { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' },
       { id: 'showAs', label: 'Show As', type: 'select', options: [
         { value: 'default', label: 'Light (default)' },
-        { value: 'switch', label: 'Switch' }
-      ]},
+        { value: 'switch', label: 'Switch' },
+      ] },
       { id: 'customIPAddress', label: 'Custom IP Address', type: 'text', advanced: true },
       { id: 'customAddress', label: 'Custom BLE Address', type: 'text', advanced: true },
       { id: 'brightnessStep', label: 'Brightness Step', type: 'number', min: 1, max: 100, advanced: true },
@@ -20,9 +20,9 @@ const deviceTypes = {
       { id: 'awsColourMode', label: 'AWS Colour Mode', type: 'select', advanced: true, options: [
         { value: 'default', label: 'Default' },
         { value: 'rgb', label: 'RGB' },
-        { value: 'redgreenblue', label: 'Red/Green/Blue' }
-      ]}
-    ]
+        { value: 'redgreenblue', label: 'Red/Green/Blue' },
+      ] },
+    ],
   },
   switchDevices: {
     fields: [
@@ -39,10 +39,10 @@ const deviceTypes = {
         { value: 'valve', label: 'Valve' },
         { value: 'audio', label: 'Audio Receiver' },
         { value: 'box', label: 'Set-Top Box' },
-        { value: 'stick', label: 'Streaming Stick' }
-      ]},
-      { id: 'temperatureSource', label: 'Temperature Source (Device ID)', type: 'text', advanced: true }
-    ]
+        { value: 'stick', label: 'Streaming Stick' },
+      ] },
+      { id: 'temperatureSource', label: 'Temperature Source (Device ID)', type: 'text', advanced: true },
+    ],
   },
   thermoDevices: {
     fields: [
@@ -50,60 +50,60 @@ const deviceTypes = {
       { id: 'label', label: 'Custom Label', type: 'text' },
       { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' },
       { id: 'lowBattThreshold', label: 'Low Battery Threshold (%)', type: 'number', min: 1, max: 100 },
-      { id: 'showExtraSwitch', label: 'Show Extra Switch', type: 'checkbox' }
-    ]
+      { id: 'showExtraSwitch', label: 'Show Extra Switch', type: 'checkbox' },
+    ],
   },
   leakDevices: {
     fields: [
       { id: 'deviceId', label: 'Device ID', type: 'text', required: true },
       { id: 'label', label: 'Custom Label', type: 'text' },
       { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' },
-      { id: 'lowBattThreshold', label: 'Low Battery Threshold (%)', type: 'number', min: 1, max: 100 }
-    ]
+      { id: 'lowBattThreshold', label: 'Low Battery Threshold (%)', type: 'number', min: 1, max: 100 },
+    ],
   },
   fanDevices: {
     fields: [
       { id: 'deviceId', label: 'Device ID', type: 'text', required: true },
       { id: 'label', label: 'Custom Label', type: 'text' },
       { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' },
-      { id: 'hideLight', label: 'Hide Light Control', type: 'checkbox' }
-    ]
+      { id: 'hideLight', label: 'Hide Light Control', type: 'checkbox' },
+    ],
   },
   heaterDevices: {
     fields: [
       { id: 'deviceId', label: 'Device ID', type: 'text', required: true },
       { id: 'label', label: 'Custom Label', type: 'text' },
       { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' },
-      { id: 'tempReporting', label: 'Temperature Reporting', type: 'checkbox' }
-    ]
+      { id: 'tempReporting', label: 'Temperature Reporting', type: 'checkbox' },
+    ],
   },
   humidifierDevices: {
     fields: [
       { id: 'deviceId', label: 'Device ID', type: 'text', required: true },
       { id: 'label', label: 'Custom Label', type: 'text' },
-      { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' }
-    ]
+      { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' },
+    ],
   },
   purifierDevices: {
     fields: [
       { id: 'deviceId', label: 'Device ID', type: 'text', required: true },
       { id: 'label', label: 'Custom Label', type: 'text' },
-      { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' }
-    ]
+      { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' },
+    ],
   },
   dehumidifierDevices: {
     fields: [
       { id: 'deviceId', label: 'Device ID', type: 'text', required: true },
       { id: 'label', label: 'Custom Label', type: 'text' },
-      { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' }
-    ]
+      { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' },
+    ],
   },
   diffuserDevices: {
     fields: [
       { id: 'deviceId', label: 'Device ID', type: 'text', required: true },
       { id: 'label', label: 'Custom Label', type: 'text' },
-      { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' }
-    ]
+      { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' },
+    ],
   },
   kettleDevices: {
     fields: [
@@ -115,16 +115,16 @@ const deviceTypes = {
       { id: 'hideModeCoffee', label: 'Hide Coffee Mode', type: 'checkbox', advanced: true },
       { id: 'hideModeBlackTea', label: 'Hide Black Tea Mode', type: 'checkbox', advanced: true },
       { id: 'showCustomMode1', label: 'Show Custom Mode 1', type: 'checkbox', advanced: true },
-      { id: 'showCustomMode2', label: 'Show Custom Mode 2', type: 'checkbox', advanced: true }
-    ]
+      { id: 'showCustomMode2', label: 'Show Custom Mode 2', type: 'checkbox', advanced: true },
+    ],
   },
   iceMakerDevices: {
     fields: [
       { id: 'deviceId', label: 'Device ID', type: 'text', required: true },
       { id: 'label', label: 'Custom Label', type: 'text' },
-      { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' }
-    ]
-  }
+      { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' },
+    ],
+  },
 };
 
 let pluginConfig = { platform: 'Govee', name: 'Govee' };
@@ -143,7 +143,7 @@ function renderDeviceField(type, index, field, value) {
       </div>`;
   } else if (field.type === 'select') {
     const options = field.options.map(opt =>
-      `<option value="${opt.value}" ${value === opt.value ? 'selected' : ''}>${opt.label}</option>`
+      `<option value="${opt.value}" ${value === opt.value ? 'selected' : ''}>${opt.label}</option>`,
     ).join('');
     html = `
       <div class="mb-2">
@@ -227,8 +227,12 @@ function handleDeviceFieldChange(event) {
   const index = parseInt(field.dataset.index);
   const fieldName = field.dataset.field;
 
-  if (!pluginConfig[type]) pluginConfig[type] = [];
-  if (!pluginConfig[type][index]) pluginConfig[type][index] = {};
+  if (!pluginConfig[type]) {
+    pluginConfig[type] = [];
+  }
+  if (!pluginConfig[type][index]) {
+    pluginConfig[type][index] = {};
+  }
 
   if (field.type === 'checkbox') {
     pluginConfig[type][index][fieldName] = field.checked;
@@ -256,7 +260,9 @@ function handleDeviceFieldChange(event) {
 }
 
 function addDevice(type) {
-  if (!pluginConfig[type]) pluginConfig[type] = [];
+  if (!pluginConfig[type]) {
+    pluginConfig[type] = [];
+  }
   pluginConfig[type].push({ deviceId: '' });
   renderDeviceList(type);
 }
@@ -297,7 +303,9 @@ function removeDevice(type, index) {
       // Load text fields
       textFields.forEach(field => {
         const el = document.getElementById(field);
-        if (el) el.value = pluginConfig[field] || '';
+        if (el) {
+          el.value = pluginConfig[field] || '';
+        }
       });
 
       // Load number fields
@@ -311,7 +319,9 @@ function removeDevice(type, index) {
       // Load boolean fields
       booleanFields.forEach(field => {
         const el = document.getElementById(field);
-        if (el) el.checked = pluginConfig[field] || false;
+        if (el) {
+          el.checked = pluginConfig[field] || false;
+        }
       });
 
       // Auto-populate devices from cached discovery (from plugin startup)
@@ -343,7 +353,9 @@ function removeDevice(type, index) {
         const deviceName = device.deviceName || 'Unknown';
         const deviceType = device.deviceType || getDeviceTypeFromModel(device.model);
 
-        if (!deviceId) continue;
+        if (!deviceId) {
+          continue;
+        }
 
         // Initialize array if needed
         if (!pluginConfig[deviceType]) {
@@ -357,7 +369,7 @@ function removeDevice(type, index) {
           // Add device with name as label
           pluginConfig[deviceType].push({
             deviceId: deviceId,
-            label: deviceName
+            label: deviceName,
           });
           addedCount++;
         }
@@ -534,7 +546,9 @@ function removeDevice(type, index) {
           const deviceName = device.deviceName || 'Unknown';
           const model = device.sku || device.model || '';
 
-          if (!deviceId) continue;
+          if (!deviceId) {
+            continue;
+          }
 
           // Determine device type from model
           const deviceType = getDeviceTypeFromModel(model);
@@ -551,7 +565,7 @@ function removeDevice(type, index) {
             // Add device with name as label
             pluginConfig[deviceType].push({
               deviceId: deviceId,
-              label: deviceName
+              label: deviceName,
             });
             addedCount++;
             addedByType[deviceType] = (addedByType[deviceType] || 0) + 1;
@@ -572,7 +586,7 @@ function removeDevice(type, index) {
             const typeName = type.replace('Devices', '').replace(/([A-Z])/g, ' $1').trim();
             summaryHtml += `${count} ${typeName} device(s)<br>`;
           }
-          summaryHtml += `</div>`;
+          summaryHtml += '</div>';
         }
         if (skippedCount > 0) {
           summaryHtml += `<div class="alert alert-info mb-2">${skippedCount} device(s) already in configuration.</div>`;
@@ -615,7 +629,7 @@ function removeDevice(type, index) {
                 if (pluginConfig[type] && pluginConfig[type].length > 0) {
                   const collapseEl = document.getElementById(`${type}Collapse`);
                   if (collapseEl) {
-                    const collapse = new bootstrap.Collapse(collapseEl, { toggle: true });
+                    new bootstrap.Collapse(collapseEl, { toggle: true });
                     break;
                   }
                 }

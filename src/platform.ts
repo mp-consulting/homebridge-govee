@@ -59,7 +59,9 @@ type DeviceTypeKey = 'lightDevices' | 'switchDevices' | 'thermoDevices' | 'leakD
  * Determine the device type configuration key from a model SKU
  */
 function getDeviceTypeFromModel(model: string): DeviceTypeKey {
-  if (!model) return 'lightDevices';
+  if (!model) {
+    return 'lightDevices';
+  }
 
   const sku = model.toUpperCase();
   const models = platformConsts.models;
@@ -70,7 +72,9 @@ function getDeviceTypeFromModel(model: string): DeviceTypeKey {
       models.switchTriple.includes(sku)) {
     return 'switchDevices';
   }
-  if (models.sensorLeak.includes(sku)) return 'leakDevices';
+  if (models.sensorLeak.includes(sku)) {
+    return 'leakDevices';
+  }
   if (models.sensorThermo.includes(sku) ||
       models.sensorThermo4.includes(sku) ||
       models.sensorMonitor.includes(sku) ||
@@ -79,14 +83,30 @@ function getDeviceTypeFromModel(model: string): DeviceTypeKey {
       models.sensorPresence.includes(sku)) {
     return 'thermoDevices';
   }
-  if (models.fan.includes(sku)) return 'fanDevices';
-  if (models.heater1.includes(sku) || models.heater2.includes(sku)) return 'heaterDevices';
-  if (models.humidifier.includes(sku)) return 'humidifierDevices';
-  if (models.dehumidifier.includes(sku)) return 'dehumidifierDevices';
-  if (models.purifier.includes(sku)) return 'purifierDevices';
-  if (models.diffuser.includes(sku)) return 'diffuserDevices';
-  if (models.iceMaker.includes(sku)) return 'iceMakerDevices';
-  if (models.kettle.includes(sku)) return 'kettleDevices';
+  if (models.fan.includes(sku)) {
+    return 'fanDevices';
+  }
+  if (models.heater1.includes(sku) || models.heater2.includes(sku)) {
+    return 'heaterDevices';
+  }
+  if (models.humidifier.includes(sku)) {
+    return 'humidifierDevices';
+  }
+  if (models.dehumidifier.includes(sku)) {
+    return 'dehumidifierDevices';
+  }
+  if (models.purifier.includes(sku)) {
+    return 'purifierDevices';
+  }
+  if (models.diffuser.includes(sku)) {
+    return 'diffuserDevices';
+  }
+  if (models.iceMaker.includes(sku)) {
+    return 'iceMakerDevices';
+  }
+  if (models.kettle.includes(sku)) {
+    return 'kettleDevices';
+  }
 
   // Default to light for RGB models and unknown
   return 'lightDevices';

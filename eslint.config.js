@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['dist/**'],
+    ignores: ['dist/**', 'homebridge-ui/public/models.js'],
   },
   {
     rules: {
@@ -38,14 +38,29 @@ export default tseslint.config(
         document: 'readonly',
         window: 'readonly',
         homebridge: 'readonly',
+        bootstrap: 'readonly',
+        console: 'readonly',
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
         setInterval: 'readonly',
         clearInterval: 'readonly',
+        modelCategories: 'readonly',
+        getDeviceTypeFromModel: 'readonly',
       },
     },
     rules: {
       '@typescript-eslint/no-use-before-define': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+    },
+  },
+  // Node globals for scripts
+  {
+    files: ['scripts/**/*.js'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+      },
     },
   },
   // Node globals for server
