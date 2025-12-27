@@ -1,5 +1,6 @@
 # Ignore compiled code
 dist
+homebridge-ui/*.js
 
 # ------------- Defaults ------------- #
 .DS_Store
