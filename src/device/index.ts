@@ -41,6 +41,8 @@ export { PurifierFullDevice } from './purifier-full.js';
 export { PurifierH7126Device } from './purifier-h7126.js';
 export { PurifierH7122Device } from './purifier-h7122.js';
 export { PurifierH7120Device } from './purifier-h7120.js';
+export { PurifierH7123Device } from './purifier-h7123.js';
+export { PurifierH7127Device } from './purifier-h7127.js';
 export { IceMakerDevice } from './ice-maker.js';
 export { KettleDevice } from './kettle.js';
 export { SensorButtonDevice } from './sensor-button.js';
@@ -79,10 +81,11 @@ import { CoolerSingleDevice } from './cooler-single.js';
 import { DehumidifierDevice } from './dehumidifier.js';
 import { DiffuserDevice } from './diffuser.js';
 import { PurifierDevice } from './purifier.js';
-import { PurifierFullDevice } from './purifier-full.js';
 import { PurifierH7126Device } from './purifier-h7126.js';
 import { PurifierH7122Device } from './purifier-h7122.js';
 import { PurifierH7120Device } from './purifier-h7120.js';
+import { PurifierH7123Device } from './purifier-h7123.js';
+import { PurifierH7127Device } from './purifier-h7127.js';
 import { IceMakerDevice } from './ice-maker.js';
 import { KettleDevice } from './kettle.js';
 import { SensorButtonDevice } from './sensor-button.js';
@@ -140,13 +143,13 @@ export function initializeDeviceHandlers(): void {
   registerModelHandler('H7121', PurifierH7120Device); // 4-speed, night light, lock, display
   registerModelHandler('H7120', PurifierH7120Device); // 4-speed, night light, lock, display
   registerModelHandler('H7122', PurifierH7122Device); // 5-speed, air quality PM2.5, lock, display
-  registerModelHandler('H7123', PurifierFullDevice);
-  registerModelHandler('H7124', PurifierFullDevice);
-  registerModelHandler('H7126', PurifierH7126Device);
-  registerModelHandler('H7127', PurifierFullDevice);
-  registerModelHandler('H7128', PurifierFullDevice);
-  registerModelHandler('H7129', PurifierFullDevice);
-  registerModelHandler('H712C', PurifierFullDevice);
+  registerModelHandler('H7123', PurifierH7123Device); // 5-speed, air quality (no PM2.5), lock, display
+  registerModelHandler('H7124', PurifierH7123Device); // Same as H7123
+  registerModelHandler('H7126', PurifierH7126Device); // 3-speed, lock, display
+  registerModelHandler('H7127', PurifierH7127Device); // 3-speed, lock, display
+  registerModelHandler('H7128', PurifierH7127Device); // Same as H7127
+  registerModelHandler('H7129', PurifierH7127Device); // Same as H7127
+  registerModelHandler('H712C', PurifierH7127Device); // Same as H7127
 
   registerDeviceHandler('kettle', KettleDevice);
   registerDeviceHandler('iceMaker', IceMakerDevice);
