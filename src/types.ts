@@ -336,6 +336,7 @@ export interface DeviceStateUpdate {
   kelvin?: number;  // Alias for colorTemInKelvin
   temperature?: number;
   temperatureF?: number;
+  setTemperature?: number;
   humidity?: number;
   battery?: number;
   leakDetected?: boolean;
