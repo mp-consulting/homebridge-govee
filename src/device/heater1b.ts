@@ -10,6 +10,23 @@ import {
   nearestHalf,
   processCommands,
 } from '../utils/functions.js';
+import {
+  DEVICE_STATE_CODES,
+  HEATER_SWING_CODES,
+  LOCK_CODES,
+  HEATER_H7130_SPEED_CODES,
+  HEATER_SPEED_LABELS,
+  HEATER_H7130_TEMP_CODES_AUTO,
+  HEATER_H7130_TEMP_CODES_HEAT,
+  HEATER_TEMP_MIN,
+  HEATER_TEMP_MAX,
+} from '../catalog/index.js';
+
+// Speed step for rotation speed control
+const HEATER_SPEED_STEP = 33;
+const HEATER_SPEED_VALUES = [0, 33, 66, 99];
+const DEFAULT_TEMP = 20;
+const TEMP_WARN_THRESHOLD = 100;
 
 /**
  * Heater 1B device handler for H7130 (with temperature reporting).
@@ -19,84 +36,11 @@ export class Heater1bDevice extends GoveeDeviceBase {
   private _service!: Service;
   private fanService!: Service;
 
-  // Speed codes (base64 encoded commands)
-  private readonly speedCode: Record<number, string> = {
-    33: 'MwUBAAAAAAAAAAAAAAAAAAAAADc=',
-    66: 'MwUCAAAAAAAAAAAAAAAAAAAAADQ=',
-    99: 'MwUDAAAAAAAAAAAAAAAAAAAAADU=',
-  };
-
-  private readonly speedCodeLabel: Record<number, string> = {
-    33: 'low',
-    66: 'medium',
-    99: 'high',
-  };
-
-  // Temperature codes for auto mode
-  private readonly tempCodeAuto: Record<number, string> = {
-    5: 'MxoBAJAEAAAAAAAAAAAAAAAAALw=',
-    6: 'MxoBAJBoAAAAAAAAAAAAAAAAANA=',
-    7: 'MxoBAJEwAAAAAAAAAAAAAAAAAIk=',
-    8: 'MxoBAJH4AAAAAAAAAAAAAAAAAEE=',
-    9: 'MxoBAJLAAAAAAAAAAAAAAAAAAHo=',
-    10: 'MxoBAJOIAAAAAAAAAAAAAAAAADM=',
-    11: 'MxoBAJPsAAAAAAAAAAAAAAAAAFc=',
-    12: 'MxoBAJS0AAAAAAAAAAAAAAAAAAg=',
-    13: 'MxoBAJV8AAAAAAAAAAAAAAAAAME=',
-    14: 'MxoBAJZEAAAAAAAAAAAAAAAAAPo=',
-    15: 'MxoBAJcMAAAAAAAAAAAAAAAAALM=',
-    16: 'MxoBAJdwAAAAAAAAAAAAAAAAAM8=',
-    17: 'MxoBAJg4AAAAAAAAAAAAAAAAAIg=',
-    18: 'MxoBAJkAAAAAAAAAAAAAAAAAALE=',
-    19: 'MxoBAJnIAAAAAAAAAAAAAAAAAHk=',
-    20: 'MxoBAJqQAAAAAAAAAAAAAAAAACI=',
-    21: 'MxoBAJr0AAAAAAAAAAAAAAAAAEY=',
-    22: 'MxoBAJu8AAAAAAAAAAAAAAAAAA8=',
-    23: 'MxoBAJyEAAAAAAAAAAAAAAAAADA=',
-    24: 'MxoBAJ1MAAAAAAAAAAAAAAAAAPk=',
-    25: 'MxoBAJ4UAAAAAAAAAAAAAAAAAKI=',
-    26: 'MxoBAJ54AAAAAAAAAAAAAAAAAM4=',
-    27: 'MxoBAJ9AAAAAAAAAAAAAAAAAAPc=',
-    28: 'MxoBAKAIAAAAAAAAAAAAAAAAAIA=',
-    29: 'MxoBAKDQAAAAAAAAAAAAAAAAAFg=',
-    30: 'MxoBAKGYAAAAAAAAAAAAAAAAABE=',
-  };
-
-  // Temperature codes for heat mode
-  private readonly tempCodeHeat: Record<number, string> = {
-    5: 'MxoAAJAEAAAAAAAAAAAAAAAAAL0=',
-    6: 'MxoAAJBoAAAAAAAAAAAAAAAAANE=',
-    7: 'MxoAAJEwAAAAAAAAAAAAAAAAAIg=',
-    8: 'MxoAAJH4AAAAAAAAAAAAAAAAAEA=',
-    9: 'MxoAAJLAAAAAAAAAAAAAAAAAAHs=',
-    10: 'MxoAAJOIAAAAAAAAAAAAAAAAADI=',
-    11: 'MxoAAJPsAAAAAAAAAAAAAAAAAFY=',
-    12: 'MxoAAJS0AAAAAAAAAAAAAAAAAAk=',
-    13: 'MxoAAJV8AAAAAAAAAAAAAAAAAMA=',
-    14: 'MxoAAJZEAAAAAAAAAAAAAAAAAPs=',
-    15: 'MxoAAJcMAAAAAAAAAAAAAAAAALI=',
-    16: 'MxoAAJdwAAAAAAAAAAAAAAAAAM4=',
-    17: 'MxoAAJg4AAAAAAAAAAAAAAAAAIk=',
-    18: 'MxoAAJkAAAAAAAAAAAAAAAAAALA=',
-    19: 'MxoAAJnIAAAAAAAAAAAAAAAAAHg=',
-    20: 'MxoAAJqQAAAAAAAAAAAAAAAAACM=',
-    21: 'MxoAAJr0AAAAAAAAAAAAAAAAAEc=',
-    22: 'MxoAAJu8AAAAAAAAAAAAAAAAAA4=',
-    23: 'MxoAAJyEAAAAAAAAAAAAAAAAADE=',
-    24: 'MxoAAJ1MAAAAAAAAAAAAAAAAAPg=',
-    25: 'MxoAAJ4UAAAAAAAAAAAAAAAAAKM=',
-    26: 'MxoAAJ54AAAAAAAAAAAAAAAAAM8=',
-    27: 'MxoAAJ9AAAAAAAAAAAAAAAAAAPY=',
-    28: 'MxoAAKAIAAAAAAAAAAAAAAAAAIE=',
-    29: 'MxoAAKDQAAAAAAAAAAAAAAAAAFk=',
-    30: 'MxoAAKGYAAAAAAAAAAAAAAAAABA=',
-  };
-
   // Cached values
   private cacheMode: 'auto' | 'heat' = 'auto';
-  private cacheTemp = 20;
-  private cacheTarg = 20;
-  private cacheSpeed = 33;
+  private cacheTemp = DEFAULT_TEMP;
+  private cacheTarg = DEFAULT_TEMP;
+  private cacheSpeed = HEATER_SPEED_STEP;
   private cacheSwing: 'on' | 'off' = 'off';
   private cacheLock: 'on' | 'off' = 'off';
   private cacheFanState: 'on' | 'off' = 'off';
@@ -118,8 +62,8 @@ export class Heater1bDevice extends GoveeDeviceBase {
     let heaterService = this.accessory.getService(this.hapServ.HeaterCooler);
     if (!heaterService) {
       heaterService = this.accessory.addService(this.hapServ.HeaterCooler);
-      heaterService.updateCharacteristic(this.hapChar.CurrentTemperature, 20);
-      heaterService.updateCharacteristic(this.hapChar.HeatingThresholdTemperature, 20);
+      heaterService.updateCharacteristic(this.hapChar.CurrentTemperature, DEFAULT_TEMP);
+      heaterService.updateCharacteristic(this.hapChar.HeatingThresholdTemperature, DEFAULT_TEMP);
     }
     this._service = heaterService;
 
@@ -150,8 +94,8 @@ export class Heater1bDevice extends GoveeDeviceBase {
     this._service
       .getCharacteristic(this.hapChar.HeatingThresholdTemperature)
       .setProps({
-        minValue: 5,
-        maxValue: 30,
+        minValue: HEATER_TEMP_MIN,
+        maxValue: HEATER_TEMP_MAX,
         minStep: 1,
       })
       .onSet(async (value) => this.internalTempUpdate(value as number));
@@ -179,8 +123,8 @@ export class Heater1bDevice extends GoveeDeviceBase {
     this.fanService
       .getCharacteristic(this.hapChar.RotationSpeed)
       .setProps({
-        minStep: 33,
-        validValues: [0, 33, 66, 99],
+        minStep: HEATER_SPEED_STEP,
+        validValues: HEATER_SPEED_VALUES,
       })
       .onSet(async (value) => this.internalSpeedUpdate(value as number));
     this.cacheSpeed = this.fanService.getCharacteristic(this.hapChar.RotationSpeed).value as number;
@@ -201,7 +145,7 @@ export class Heater1bDevice extends GoveeDeviceBase {
 
       await this.sendDeviceUpdate({
         cmd: 'ptReal',
-        value: value ? 'MwEBAAAAAAAAAAAAAAAAAAAAADM=' : 'MwEAAAAAAAAAAAAAAAAAAAAAADI=',
+        value: value ? DEVICE_STATE_CODES.on : DEVICE_STATE_CODES.off,
       });
 
       this.cacheState = newValue;
@@ -229,7 +173,7 @@ export class Heater1bDevice extends GoveeDeviceBase {
         return;
       }
 
-      const objectToChoose = newMode === 'auto' ? this.tempCodeAuto : this.tempCodeHeat;
+      const objectToChoose = newMode === 'auto' ? HEATER_H7130_TEMP_CODES_AUTO : HEATER_H7130_TEMP_CODES_HEAT;
 
       await this.sendDeviceUpdate({
         cmd: 'ptReal',
@@ -253,7 +197,7 @@ export class Heater1bDevice extends GoveeDeviceBase {
         return;
       }
 
-      const objectToChoose = this.cacheMode === 'auto' ? this.tempCodeAuto : this.tempCodeHeat;
+      const objectToChoose = this.cacheMode === 'auto' ? HEATER_H7130_TEMP_CODES_AUTO : HEATER_H7130_TEMP_CODES_HEAT;
 
       await this.sendDeviceUpdate({
         cmd: 'ptReal',
@@ -281,7 +225,7 @@ export class Heater1bDevice extends GoveeDeviceBase {
 
       await this.sendDeviceUpdate({
         cmd: 'ptReal',
-        value: value ? 'MxgBAAAAAAAAAAAAAAAAAAAAACo=' : 'MxgAAAAAAAAAAAAAAAAAAAAAACs=',
+        value: value ? HEATER_SWING_CODES.on : HEATER_SWING_CODES.off,
       });
 
       this.cacheSwing = newValue;
@@ -305,7 +249,7 @@ export class Heater1bDevice extends GoveeDeviceBase {
 
       await this.sendDeviceUpdate({
         cmd: 'ptReal',
-        value: value ? 'MxABAAAAAAAAAAAAAAAAAAAAACI=' : 'MxAAAAAAAAAAAAAAAAAAAAAAACM=',
+        value: value ? LOCK_CODES.on : LOCK_CODES.off,
       });
 
       this.cacheLock = newValue;
@@ -357,11 +301,11 @@ export class Heater1bDevice extends GoveeDeviceBase {
 
       await this.sendDeviceUpdate({
         cmd: 'ptReal',
-        value: this.speedCode[value],
+        value: HEATER_H7130_SPEED_CODES[value],
       });
 
       this.cacheSpeed = value;
-      this.accessory.log(`${platformLang.curSpeed} [${this.speedCodeLabel[value]}]`);
+      this.accessory.log(`${platformLang.curSpeed} [${HEATER_SPEED_LABELS[value]}]`);
     } catch (err) {
       this.handleUpdateError(
         err,
@@ -387,9 +331,9 @@ export class Heater1bDevice extends GoveeDeviceBase {
 
     // Update the current temperature
     if (hasProperty(params, 'temperature')) {
-      const newTemp = nearestHalf(farToCen(params.temperature! / 100));
+      const newTemp = nearestHalf(farToCen(params.temperature! / TEMP_WARN_THRESHOLD));
       if (newTemp !== this.cacheTemp) {
-        if (newTemp > 100) {
+        if (newTemp > TEMP_WARN_THRESHOLD) {
           this.accessory.logWarn('you should disable `tempReporting` in the config for this device');
         } else {
           this.cacheTemp = newTemp;
@@ -401,7 +345,7 @@ export class Heater1bDevice extends GoveeDeviceBase {
 
     // Update the target temperature
     if (hasProperty(params, 'setTemperature')) {
-      const newTemp = Math.round(farToCen(params.setTemperature! / 100));
+      const newTemp = Math.round(farToCen(params.setTemperature! / TEMP_WARN_THRESHOLD));
       if (newTemp !== this.cacheTarg) {
         this.cacheTarg = newTemp;
         this._service.updateCharacteristic(this.hapChar.HeatingThresholdTemperature, this.cacheTarg);
@@ -455,18 +399,14 @@ export class Heater1bDevice extends GoveeDeviceBase {
 
   private handleSpeedExternalUpdate(hexParts: string[]): void {
     const speedByte = getTwoItemPosition(hexParts, 3);
-    let newSpeed: number;
-    switch (speedByte) {
-    case '01':
-      newSpeed = 33;
-      break;
-    case '02':
-      newSpeed = 66;
-      break;
-    case '03':
-      newSpeed = 99;
-      break;
-    default:
+    // Map hex speed byte to percentage: 01=33%, 02=66%, 03=99%
+    const speedByteMap: Record<string, number> = {
+      '01': HEATER_SPEED_VALUES[1],
+      '02': HEATER_SPEED_VALUES[2],
+      '03': HEATER_SPEED_VALUES[3],
+    };
+    const newSpeed = speedByteMap[speedByte];
+    if (newSpeed === undefined) {
       return;
     }
 
@@ -478,7 +418,7 @@ export class Heater1bDevice extends GoveeDeviceBase {
     if (this.cacheSpeed !== newSpeed) {
       this.cacheSpeed = newSpeed;
       this.fanService.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
-      this.accessory.log(`${platformLang.curSpeed} [${this.speedCodeLabel[this.cacheSpeed]}]`);
+      this.accessory.log(`${platformLang.curSpeed} [${HEATER_SPEED_LABELS[this.cacheSpeed]}]`);
     }
   }
 
