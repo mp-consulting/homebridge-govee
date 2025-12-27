@@ -21,10 +21,22 @@
       </div>
       <div class="card-body">
         <p class="text-muted">Test your Govee account credentials before saving the configuration.</p>
+        <div class="mb-3">
+          <label for="usernameDisplay" class="form-label">Username (from config)</label>
+          <input type="text" class="form-control" id="usernameDisplay" readonly>
+        </div>
+        <div class="mb-3">
+          <label for="passwordDisplay" class="form-label">Password (from config)</label>
+          <div class="input-group">
+            <input type="password" class="form-control" id="passwordDisplay" readonly>
+            <button class="btn btn-outline-secondary" type="button" id="togglePassword">Show</button>
+          </div>
+        </div>
         <button id="testLoginBtn" class="btn btn-primary">
           <span id="testLoginSpinner" class="spinner-border d-none" role="status"></span>
           Test Connection
         </button>
+        <div id="loginResult" class="mt-3"></div>
       </div>
     </div>
 
@@ -66,13 +78,47 @@
         return;
       }
 
+      // Load and display credentials from config
+      const loadCredentials = async () => {
+        try {
+          const config = await homebridge.getPluginConfig();
+          const pluginConfig = config[0] || {};
+          document.getElementById('usernameDisplay').value = pluginConfig.username || '(not configured)';
+          document.getElementById('passwordDisplay').value = pluginConfig.password || '';
+          if (!pluginConfig.username || !pluginConfig.password) {
+            document.getElementById('loginResult').innerHTML =
+              '<div class="alert alert-warning">Please configure your username and password in the Settings tab first.</div>';
+          }
+        } catch (err) {
+          console.error('Failed to load config:', err);
+        }
+      };
+
+      // Load credentials on page load
+      await loadCredentials();
+
+      // Toggle password visibility
+      document.getElementById('togglePassword').addEventListener('click', () => {
+        const passwordField = document.getElementById('passwordDisplay');
+        const toggleBtn = document.getElementById('togglePassword');
+        if (passwordField.type === 'password') {
+          passwordField.type = 'text';
+          toggleBtn.textContent = 'Hide';
+        } else {
+          passwordField.type = 'password';
+          toggleBtn.textContent = 'Show';
+        }
+      });
+
       // Test login button
       document.getElementById('testLoginBtn').addEventListener('click', async () => {
         const btn = document.getElementById('testLoginBtn');
         const spinner = document.getElementById('testLoginSpinner');
+        const loginResult = document.getElementById('loginResult');
 
         spinner.classList.remove('d-none');
         btn.disabled = true;
+        loginResult.innerHTML = '';
 
         try {
           const config = await homebridge.getPluginConfig();
@@ -80,6 +126,7 @@
 
           if (!pluginConfig.username || !pluginConfig.password) {
             homebridge.toast.warning('Please enter your credentials in the config first.');
+            loginResult.innerHTML = '<div class="alert alert-warning">Please configure your username and password in the Settings tab first.</div>';
             return;
           }
 
@@ -90,11 +137,14 @@
 
           if (response.success) {
             homebridge.toast.success('Connection successful!');
+            loginResult.innerHTML = `<div class="alert alert-success">${response.message}</div>`;
           } else {
             homebridge.toast.warning(response.message || 'Connection failed');
+            loginResult.innerHTML = `<div class="alert alert-warning">${response.message || 'Connection failed'}</div>`;
           }
         } catch (err) {
           homebridge.toast.error(err.message || 'Connection failed');
+          loginResult.innerHTML = `<div class="alert alert-danger">${err.message || 'Connection failed'}</div>`;
         } finally {
           spinner.classList.add('d-none');
           btn.disabled = false;
@@ -135,7 +185,7 @@
             for (const device of devices) {
               html += `<li class="list-group-item d-flex justify-content-between align-items-center">
                 <span><strong>${device.deviceName || 'Unknown'}</strong> (${device.model || 'Unknown'})</span>
-                <span class="badge bg-secondary">${device.device || ''}</span>
+                <span class="badge bg-secondary">${device.deviceId || ''}</span>
               </li>`;
             }
             html += '</ul>';
