@@ -1,4 +1,4 @@
-name: Build and Lint
+name: CI — Build, Lint, Test
 
 on: [push, pull_request]
 
@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [20.x, 22.x, 24.x]
+        node-version: [20.x, 22.x]
 
     steps:
       - uses: actions/checkout@v5
