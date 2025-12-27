@@ -78,10 +78,18 @@ Configure the plugin using the Homebridge UI or by editing your `config.json`:
 - **Appliances**: Heaters, humidifiers, purifiers, fans, and more
 - **Other**: Kettles, ice makers, and various smart home devices
 
+### Architecture
+
+The plugin uses a modular architecture:
+
+- **Device Catalog** (`src/catalog/`): Centralized device definitions, command codes, and capabilities
+- **Device Handlers** (`src/device/`): Individual handlers for each device type extending a common base class
+- **Connections** (`src/connection/`): AWS IoT, LAN, and BLE connection managers
+
 ### Help/Support
 
 - [Support Request](https://github.com/mp-consulting/homebridge-govee/issues/new/choose)
-- [Changelog](https://github.com/mp-consulting/homebridge-govee/blob/latest/CHANGELOG.md)
+- [Changelog](CHANGELOG.md)
 
 ### Credits
 
