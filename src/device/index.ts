@@ -27,6 +27,7 @@ export { SensorLeakDevice } from './sensor-leak.js';
 export { FanDevice } from './fan.js';
 export { FanLightDevice } from './fan-light.js';
 export { HumidifierDevice } from './humidifier.js';
+export { HumidifierH7160Device } from './humidifier-h7160.js';
 export { HeaterSingleDevice } from './heater-single.js';
 export { Heater1aDevice } from './heater1a.js';
 export { Heater1bDevice } from './heater1b.js';
@@ -60,6 +61,7 @@ import { SensorLeakDevice } from './sensor-leak.js';
 import { FanDevice } from './fan.js';
 import { FanLightDevice } from './fan-light.js';
 import { HumidifierDevice } from './humidifier.js';
+import { HumidifierH7160Device } from './humidifier-h7160.js';
 import { HeaterSingleDevice } from './heater-single.js';
 import { Heater1aDevice } from './heater1a.js';
 import { Heater1bDevice } from './heater1b.js';
@@ -104,6 +106,10 @@ export function initializeDeviceHandlers(): void {
   registerModelHandler('H7107', FanLightDevice);
 
   registerDeviceHandler('humidifier', HumidifierDevice);
+
+  // Model-specific humidifier handlers
+  registerModelHandler('H7160', HumidifierH7160Device);
+
   registerDeviceHandler('heater', HeaterSingleDevice);
   registerDeviceHandler('heater1a', Heater1aDevice);
   registerDeviceHandler('heater1b', Heater1bDevice);
