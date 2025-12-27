@@ -28,6 +28,7 @@ export { FanDevice } from './fan.js';
 export { FanLightDevice } from './fan-light.js';
 export { HumidifierDevice } from './humidifier.js';
 export { HumidifierH7160Device } from './humidifier-h7160.js';
+export { HumidifierH7142Device } from './humidifier-h7142.js';
 export { HeaterSingleDevice } from './heater-single.js';
 export { Heater1aDevice } from './heater1a.js';
 export { Heater1bDevice } from './heater1b.js';
@@ -37,6 +38,7 @@ export { DehumidifierDevice } from './dehumidifier.js';
 export { DiffuserDevice } from './diffuser.js';
 export { PurifierDevice } from './purifier.js';
 export { PurifierFullDevice } from './purifier-full.js';
+export { PurifierH7126Device } from './purifier-h7126.js';
 export { IceMakerDevice } from './ice-maker.js';
 export { KettleDevice } from './kettle.js';
 export { SensorButtonDevice } from './sensor-button.js';
@@ -66,6 +68,7 @@ import { FanDevice } from './fan.js';
 import { FanLightDevice } from './fan-light.js';
 import { HumidifierDevice } from './humidifier.js';
 import { HumidifierH7160Device } from './humidifier-h7160.js';
+import { HumidifierH7142Device } from './humidifier-h7142.js';
 import { HeaterSingleDevice } from './heater-single.js';
 import { Heater1aDevice } from './heater1a.js';
 import { Heater1bDevice } from './heater1b.js';
@@ -75,6 +78,7 @@ import { DehumidifierDevice } from './dehumidifier.js';
 import { DiffuserDevice } from './diffuser.js';
 import { PurifierDevice } from './purifier.js';
 import { PurifierFullDevice } from './purifier-full.js';
+import { PurifierH7126Device } from './purifier-h7126.js';
 import { IceMakerDevice } from './ice-maker.js';
 import { KettleDevice } from './kettle.js';
 import { SensorButtonDevice } from './sensor-button.js';
@@ -117,6 +121,7 @@ export function initializeDeviceHandlers(): void {
 
   // Model-specific humidifier handlers
   registerModelHandler('H7160', HumidifierH7160Device);
+  registerModelHandler('H7142', HumidifierH7142Device);
 
   registerDeviceHandler('heater', HeaterSingleDevice);
   registerDeviceHandler('heater1a', Heater1aDevice);
@@ -133,7 +138,7 @@ export function initializeDeviceHandlers(): void {
   registerModelHandler('H7122', PurifierFullDevice);
   registerModelHandler('H7123', PurifierFullDevice);
   registerModelHandler('H7124', PurifierFullDevice);
-  registerModelHandler('H7126', PurifierFullDevice);
+  registerModelHandler('H7126', PurifierH7126Device);
   registerModelHandler('H7127', PurifierFullDevice);
   registerModelHandler('H7128', PurifierFullDevice);
   registerModelHandler('H7129', PurifierFullDevice);
