@@ -141,6 +141,9 @@ export type DeviceConfigEntry =
   | BasicDeviceConfig
   | KettleDeviceConfig;
 
+// Alias for sensor devices
+export type SensorDeviceConfig = LeakDeviceConfig | ThermoDeviceConfig;
+
 // ============================================================================
 // Device Types
 // ============================================================================
@@ -202,7 +205,10 @@ export interface GoveeAccessoryContext {
   bleAddress?: string;
   bleName?: string;
   supportedCmds?: string[];
-  supportedCmdsOpts?: Record<string, unknown>;
+  supportedCmdsOpts?: {
+    colorTem?: { range?: { min?: number; max?: number } };
+    [key: string]: unknown;
+  };
   temperatureSource?: string;
   minTemp?: number;
   maxTemp?: number;
@@ -210,6 +216,11 @@ export interface GoveeAccessoryContext {
   minHumi?: number;
   maxHumi?: number;
   offHumi?: number;
+  sensorAttached?: boolean;
+  lanIPAddress?: string;
+  cacheTarget?: number;
+  cacheType?: 'heater' | 'cooler';
+  adaptiveLighting?: boolean;
 }
 
 export type GoveePlatformAccessory = PlatformAccessory<GoveeAccessoryContext>;
@@ -265,6 +276,10 @@ export interface CommandData {
   bleParams?: BLEParams;
   lanParams?: LANParams;
 }
+
+// Aliases for device handlers
+export type DeviceCommand = DeviceUpdateParams;
+export type ExternalUpdateParams = DeviceStateUpdate;
 
 // ============================================================================
 // Connection Types
@@ -329,6 +344,8 @@ export interface DeviceStateUpdate {
   filterLife?: number;
   airQuality?: number;
   pm25?: number;
+  state?: 'on' | 'off';
+  commands?: string[];
   [key: string]: unknown;
 }
 
@@ -493,12 +510,18 @@ export interface EveCharacteristics {
 // Accessory with Control
 // ============================================================================
 
+export interface EveHistoryService {
+  addEntry: (entry: Record<string, unknown>) => void;
+  getInitialTime: () => number;
+}
+
 export interface GoveePlatformAccessoryWithControl extends GoveePlatformAccessory {
   control?: DeviceController;
-  log: (msg: string) => void;
-  logWarn: (msg: string) => void;
-  logDebug: (msg: string) => void;
-  logDebugWarn: (msg: string) => void;
+  eveService?: EveHistoryService;
+  log: (msg: string, ...args: unknown[]) => void;
+  logWarn: (msg: string, ...args: unknown[]) => void;
+  logDebug: (msg: string, ...args: unknown[]) => void;
+  logDebugWarn: (msg: string, ...args: unknown[]) => void;
 }
 
 // ============================================================================

@@ -1,12 +1,12 @@
 import type { GoveePlatform } from '../platform.js';
-import type { GoveePlatformAccessory } from '../types.js';
+import type { GoveePlatformAccessoryWithControl } from '../types.js';
 import type { GoveeDeviceBase } from './base.js';
 import { platformConsts } from '../utils/index.js';
 
 // Device handler type
 export type DeviceHandlerClass = new (
   platform: GoveePlatform,
-  accessory: GoveePlatformAccessory
+  accessory: GoveePlatformAccessoryWithControl
 ) => GoveeDeviceBase;
 
 // Device category types
@@ -98,7 +98,7 @@ export function getDeviceHandlerForModel(model: string): DeviceHandlerClass | un
 export function createDeviceInstance(
   model: string,
   platform: GoveePlatform,
-  accessory: GoveePlatformAccessory
+  accessory: GoveePlatformAccessoryWithControl
 ): GoveeDeviceBase | undefined {
   const Handler = getDeviceHandlerForModel(model);
   if (Handler) {

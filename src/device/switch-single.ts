@@ -1,6 +1,6 @@
-import type { Service, HAPStatus } from 'homebridge';
+import type { Service } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
-import type { GoveePlatformAccessory, ExternalUpdateParams } from '../types.js';
+import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
 
@@ -11,7 +11,7 @@ import { platformLang } from '../utils/index.js';
 export class SwitchSingleDevice extends GoveeDeviceBase {
   private _service!: Service;
 
-  constructor(platform: GoveePlatform, accessory: GoveePlatformAccessory) {
+  constructor(platform: GoveePlatform, accessory: GoveePlatformAccessoryWithControl) {
     super(platform, accessory);
   }
 

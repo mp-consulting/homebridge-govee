@@ -34,8 +34,10 @@ const CONNECTION_TIMEOUT = 10000;
 const WRITE_TIMEOUT = 5000;
 
 interface Noble {
-  on(event: string, callback: (...args: unknown[]) => void): void;
-  removeListener(event: string, callback: (...args: unknown[]) => void): void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  on(event: string, callback: (...args: any[]) => void): void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  removeListener(event: string, callback: (...args: any[]) => void): void;
   removeAllListeners(): void;
   startScanningAsync(serviceUUIDs: string[], allowDuplicates: boolean): Promise<void>;
   stopScanningAsync(): Promise<void>;
@@ -55,7 +57,7 @@ interface Peripheral {
   };
   discoverAllServicesAndCharacteristicsAsync(): Promise<{
     services: unknown[];
-    characteristics: Record<string, Characteristic>;
+    characteristics: Characteristic[];
   }>;
   disconnectAsync(): Promise<void>;
 }

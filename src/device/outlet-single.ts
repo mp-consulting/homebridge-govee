@@ -1,6 +1,6 @@
-import type { Service, HAPStatus } from 'homebridge';
+import type { Service } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
-import type { GoveePlatformAccessory, ExternalUpdateParams } from '../types.js';
+import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
 import {
@@ -8,7 +8,6 @@ import {
   generateRandomString,
   getTwoItemPosition,
   hexToTwoItems,
-  parseError,
 } from '../utils/functions.js';
 
 /**
@@ -17,7 +16,8 @@ import {
  */
 export class OutletSingleDevice extends GoveeDeviceBase {
   private _service!: Service;
-  private eveChar: Record<string, unknown>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private eveChar: any;
 
   // Power monitoring cache (for H5086)
   private cacheWatt = 0;
@@ -27,7 +27,7 @@ export class OutletSingleDevice extends GoveeDeviceBase {
   // Debounce timeout
   private updateTimeout: string | false = false;
 
-  constructor(platform: GoveePlatform, accessory: GoveePlatformAccessory) {
+  constructor(platform: GoveePlatform, accessory: GoveePlatformAccessoryWithControl) {
     super(platform, accessory);
     this.eveChar = platform.eveChar;
   }
@@ -60,7 +60,7 @@ export class OutletSingleDevice extends GoveeDeviceBase {
       // Pass the accessory to Fakegato to set up with Eve
       this.accessory.eveService = new this.platform.eveService('switch', this.accessory, {
         log: () => {},
-      });
+      }) as unknown as import('../types.js').EveHistoryService;
     }
 
     // Output the customised options to the log
@@ -94,7 +94,7 @@ export class OutletSingleDevice extends GoveeDeviceBase {
     // Pass the accessory to Fakegato to set up with Eve
     this.accessory.eveService = new this.platform.eveService('energy', this.accessory, {
       log: () => {},
-    });
+    }) as unknown as import('../types.js').EveHistoryService;
   }
 
   private async internalStateUpdate(value: boolean): Promise<void> {

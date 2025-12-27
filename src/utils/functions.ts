@@ -76,15 +76,18 @@ export function parseDeviceId(deviceId: string): string {
     .replace(/[^A-F0-9_:]+/g, '');
 }
 
-export function parseError(err: Error & { stack?: string }, hideStack: string[] = []): string {
-  let toReturn = err.message;
-  if (err?.stack?.length && err.stack.length > 0 && !hideStack.includes(err.message)) {
-    const stack = err.stack.split('\n');
-    if (stack[1]) {
-      toReturn += stack[1].replace('   ', '');
+export function parseError(err: unknown, hideStack: string[] = []): string {
+  if (err instanceof Error) {
+    let toReturn = err.message;
+    if (err.stack && err.stack.length > 0 && !hideStack.includes(err.message)) {
+      const stack = err.stack.split('\n');
+      if (stack[1]) {
+        toReturn += stack[1].replace('   ', '');
+      }
     }
+    return toReturn;
   }
-  return toReturn;
+  return String(err);
 }
 
 export async function pfxToCertAndKey(pfxPath: string, p12Password: string): Promise<IotCertificate> {

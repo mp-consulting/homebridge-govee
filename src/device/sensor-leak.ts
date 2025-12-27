@@ -1,6 +1,6 @@
 import type { Service, Characteristic } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
-import type { GoveePlatformAccessory, ExternalUpdateParams, SensorDeviceConfig } from '../types.js';
+import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams, SensorDeviceConfig } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformConsts, platformLang } from '../utils/index.js';
 import { hasProperty } from '../utils/functions.js';
@@ -22,7 +22,7 @@ export class SensorLeakDevice extends GoveeDeviceBase {
   private cacheBatt = 0;
   private cacheOnline = true;
 
-  constructor(platform: GoveePlatform, accessory: GoveePlatformAccessory) {
+  constructor(platform: GoveePlatform, accessory: GoveePlatformAccessoryWithControl) {
     super(platform, accessory);
     this.eveChar = platform.eveChar as Record<string, typeof Characteristic>;
 

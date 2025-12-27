@@ -1,6 +1,6 @@
 import type { Service, HAPStatus } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
-import type { GoveePlatformAccessory, ExternalUpdateParams } from '../types.js';
+import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
 import { hs2rgb } from '../utils/colour.js';
@@ -37,7 +37,7 @@ export class HumidifierDevice extends GoveeDeviceBase {
   private cacheLightState: 'on' | 'off' = 'off';
   private cacheBright = 100;
 
-  constructor(platform: GoveePlatform, accessory: GoveePlatformAccessory) {
+  constructor(platform: GoveePlatform, accessory: GoveePlatformAccessoryWithControl) {
     super(platform, accessory);
   }
 
@@ -114,7 +114,7 @@ export class HumidifierDevice extends GoveeDeviceBase {
       setTimeout(() => {
         this._service.updateCharacteristic(this.hapChar.On, this.cacheState === 'on');
       }, 2000);
-      throw new this.hapErr(-70402 as HAPStatus);
+      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
     }
   }
 
@@ -152,7 +152,7 @@ export class HumidifierDevice extends GoveeDeviceBase {
       setTimeout(() => {
         this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
       }, 2000);
-      throw new this.hapErr(-70402 as HAPStatus);
+      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
     }
   }
 
@@ -196,7 +196,7 @@ export class HumidifierDevice extends GoveeDeviceBase {
       setTimeout(() => {
         this.lightService.updateCharacteristic(this.hapChar.On, this.cacheLightState === 'on');
       }, 2000);
-      throw new this.hapErr(-70402 as HAPStatus);
+      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
     }
   }
 

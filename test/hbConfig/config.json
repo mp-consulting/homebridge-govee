@@ -23,8 +23,10 @@
       "debug": false
     },
     {
-      "name": "homebridge-plugin-name",
-      "platform": "ExampleHomebridgePlugin"
+      "name": "Govee",
+      "username": "mickael.palma@mac.com",
+      "password": "votdoX-vemhuh-8cakna",
+      "platform": "Govee"
     }
   ],
   "accessories": []

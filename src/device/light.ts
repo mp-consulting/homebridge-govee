@@ -1,7 +1,7 @@
 import type { Service, Characteristic, CharacteristicValue, HAPStatus } from 'homebridge';
 import type { AdaptiveLightingController } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
-import type { GoveePlatformAccessory, ExternalUpdateParams, LightDeviceConfig } from '../types.js';
+import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams, LightDeviceConfig } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { hs2rgb, k2rgb, m2hs, rgb2hs } from '../utils/colour.js';
 import { platformConsts, platformLang } from '../utils/index.js';
@@ -38,7 +38,8 @@ export class LightDevice extends GoveeDeviceBase {
   private alController?: AdaptiveLightingController;
 
   // Custom characteristics reference
-  private cusChar: Record<string, typeof Characteristic>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private cusChar: Record<string, any>;
 
   // Configuration
   private readonly alShift: number;
@@ -68,7 +69,7 @@ export class LightDevice extends GoveeDeviceBase {
   private updateKeyColour?: string;
   private updateKeyCT?: string;
 
-  constructor(platform: GoveePlatform, accessory: GoveePlatformAccessory) {
+  constructor(platform: GoveePlatform, accessory: GoveePlatformAccessoryWithControl) {
     super(platform, accessory);
 
     this.cusChar = platform.cusChar;
@@ -80,7 +81,7 @@ export class LightDevice extends GoveeDeviceBase {
     this.maxKelvin = supportedOpts?.colorTem?.range?.max ?? 9000;
 
     // Get device configuration
-    const deviceConf = this.deviceConf as LightDeviceConfig;
+    const deviceConf = this.deviceConf as unknown as Partial<LightDeviceConfig>;
     this.alShift = deviceConf.adaptiveLightingShift ?? platformConsts.defaultValues.adaptiveLightingShift;
     this.brightStep = deviceConf.brightnessStep
       ? Math.min(deviceConf.brightnessStep, 100)
@@ -133,11 +134,12 @@ export class LightDevice extends GoveeDeviceBase {
 
   private setupSceneCharacteristics(): void {
     this.usedCodes = [];
-    const deviceConf = this.deviceConf as LightDeviceConfig;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const deviceConf = this.deviceConf as any;
 
     for (const charName of SCENE_CHAR_NAMES) {
       const confName = charName.charAt(0).toLowerCase() + charName.slice(1);
-      const confCode = (deviceConf as Record<string, { sceneCode?: string; bleCode?: string; showAs?: string }>)[confName];
+      const confCode = deviceConf[confName] as { sceneCode?: string; bleCode?: string; showAs?: string } | undefined;
 
       // Check if any code has been entered in the config by the user
       if (confCode?.sceneCode) {
@@ -585,7 +587,7 @@ export class LightDevice extends GoveeDeviceBase {
           this._service.updateCharacteristic(this.cusChar[charName], false);
         }
       }, 2000);
-      throw new this.hapErr(-70402 as HAPStatus);
+      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
     }
   }
 

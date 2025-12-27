@@ -1,6 +1,6 @@
 import type { Service } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
-import type { GoveePlatformAccessory, ExternalUpdateParams, SensorDeviceConfig } from '../types.js';
+import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams, SensorDeviceConfig } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformConsts, platformLang } from '../utils/index.js';
 import { cenToFar, generateRandomString, hasProperty, parseError } from '../utils/functions.js';
@@ -27,7 +27,7 @@ export class SensorThermoDevice extends GoveeDeviceBase {
   // BLE priority key
   private bleKey: string | false = false;
 
-  constructor(platform: GoveePlatform, accessory: GoveePlatformAccessory) {
+  constructor(platform: GoveePlatform, accessory: GoveePlatformAccessoryWithControl) {
     super(platform, accessory);
 
     // Set up custom variables for this device type
@@ -36,7 +36,7 @@ export class SensorThermoDevice extends GoveeDeviceBase {
       ? Math.min(deviceConf.lowBattThreshold, 100)
       : platformConsts.defaultValues.lowBattThreshold;
 
-    this.httpTimeout = platform.config.bleRefreshTime * 4.5 * 1000;
+    this.httpTimeout = (platform.config.bleRefreshTime ?? 15) * 4.5 * 1000;
   }
 
   get service(): Service {

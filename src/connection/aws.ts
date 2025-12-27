@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import url from 'node:url';
 
-import { device as iotDevice } from 'aws-iot-device-sdk';
+import { device as IotDeviceClass } from 'aws-iot-device-sdk';
 
 import type {
   AWSMessage,
@@ -28,19 +28,18 @@ interface AWSPlatformRef {
 
 export default class AWSClient {
   private accountTopic: string;
-  private device: ReturnType<typeof iotDevice>;
+  private device: InstanceType<typeof IotDeviceClass>;
   public connected = false;
 
   constructor(platform: AWSPlatformRef, iotFile: IotCertificate) {
     this.accountTopic = platform.accountTopic;
 
-    this.device = iotDevice({
+    this.device = new IotDeviceClass({
       privateKey: Buffer.from(iotFile.key, 'utf8'),
       clientCert: Buffer.from(iotFile.cert, 'utf8'),
       caCert: readFileSync(resolve(dirname, './cert/AmazonRootCA1.pem')),
       clientId: `AP/${platform.accountId}/${platform.clientId}`,
       host: platform.iotEndpoint,
-      enableMetrics: false,
     });
 
     this.device.on('close', () => {
@@ -58,8 +57,9 @@ export default class AWSClient {
       this.connected = false;
     });
 
-    this.device.on('error', (error: Error) => {
-      platform.log.debugWarn('[AWS] %s [%s].', platformLang.awsEventError, parseError(error));
+    this.device.on('error', (error: string | Error) => {
+      const errorMsg = typeof error === 'string' ? error : parseError(error);
+      platform.log.debugWarn('[AWS] %s [%s].', platformLang.awsEventError, errorMsg);
       this.connected = false;
     });
 
@@ -101,7 +101,7 @@ export default class AWSClient {
 
   async connect(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.device.subscribe(this.accountTopic, {}, (err?: Error) => {
+      this.device.subscribe(this.accountTopic, { qos: 0 }, (err?: Error) => {
         if (err) {
           reject(err);
         } else {

@@ -1,6 +1,6 @@
 import type { Service, HAPStatus } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
-import type { GoveePlatformAccessory, ExternalUpdateParams } from '../types.js';
+import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
 import { parseError } from '../utils/functions.js';
@@ -27,7 +27,7 @@ export class OutletDoubleDevice extends GoveeDeviceBase {
   private service1!: Service & { cacheState?: 'on' | 'off' };
   private service2!: Service & { cacheState?: 'on' | 'off' };
 
-  constructor(platform: GoveePlatform, accessory: GoveePlatformAccessory) {
+  constructor(platform: GoveePlatform, accessory: GoveePlatformAccessoryWithControl) {
     super(platform, accessory);
   }
 
@@ -125,7 +125,7 @@ export class OutletDoubleDevice extends GoveeDeviceBase {
       setTimeout(() => {
         service.updateCharacteristic(this.hapChar.On, service.cacheState === 'on');
       }, 2000);
-      throw new this.hapErr(-70402 as HAPStatus);
+      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
     }
   }
 

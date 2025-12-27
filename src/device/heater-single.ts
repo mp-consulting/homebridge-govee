@@ -1,6 +1,6 @@
 import type { Service, HAPStatus } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
-import type { GoveePlatformAccessory, ExternalUpdateParams } from '../types.js';
+import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
 import { generateRandomString, hasProperty, parseError } from '../utils/functions.js';
@@ -25,7 +25,7 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
   // Update timeout
   private updateTimeout: string | false = false;
 
-  constructor(platform: GoveePlatform, accessory: GoveePlatformAccessory) {
+  constructor(platform: GoveePlatform, accessory: GoveePlatformAccessoryWithControl) {
     super(platform, accessory);
     this.temperatureSource = accessory.context.temperatureSource ?? '';
   }
@@ -79,7 +79,7 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
     // Add the set handler to the target temperature characteristic
     this._service
       .getCharacteristic(this.hapChar.HeatingThresholdTemperature)
-      .updateValue(this.accessory.context.cacheTarget)
+      .updateValue(this.accessory.context.cacheTarget ?? 20)
       .setProps({ minStep: 0.5 })
       .onSet(async (value) => this.internalTargetTempUpdate(value as number));
 
@@ -93,7 +93,7 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
     // Pass the accessory to Fakegato to set up with Eve
     this.accessory.eveService = new this.platform.eveService('custom', this.accessory, {
       log: () => {},
-    });
+    }) as unknown as import('../types.js').EveHistoryService;
 
     // Set up an interval to get regular temperature updates
     setTimeout(() => {
@@ -127,7 +127,7 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
         newValue = 'off';
         newState = 'off';
         newHeat = 'off';
-      } else if (this.cacheTemp < this.accessory.context.cacheTarget) {
+      } else if (this.cacheTemp < (this.accessory.context.cacheTarget ?? 20)) {
         newValue = 'on';
         newState = 'on';
         newHeat = 'on';
@@ -178,7 +178,7 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
       setTimeout(() => {
         this._service.updateCharacteristic(this.hapChar.Active, this.cacheState === 'on' ? 1 : 0);
       }, 2000);
-      throw new this.hapErr(-70402 as HAPStatus);
+      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
     }
   }
 
@@ -239,10 +239,10 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
       setTimeout(() => {
         this._service.updateCharacteristic(
           this.hapChar.HeatingThresholdTemperature,
-          this.accessory.context.cacheTarget
+          this.accessory.context.cacheTarget ?? 20
         );
       }, 2000);
-      throw new this.hapErr(-70402 as HAPStatus);
+      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
     }
   }
 
@@ -256,7 +256,7 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
       // Check to see if we need to turn on or off
       let newValue: 'on' | 'off';
       let newHeat: 'on' | 'off';
-      if (this.cacheTemp < this.accessory.context.cacheTarget) {
+      if (this.cacheTemp < (this.accessory.context.cacheTarget ?? 20)) {
         newValue = 'on';
         newHeat = 'on';
       } else {

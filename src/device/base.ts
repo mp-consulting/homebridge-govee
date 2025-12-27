@@ -4,16 +4,16 @@ import type {
   CharacteristicValue,
   HAPStatus,
   Service,
+  WithUUID,
 } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
-import type { GoveePlatformAccessory, DeviceCommand, ExternalUpdateParams } from '../types.js';
-import { platformLang, platformConsts } from '../utils/index.js';
+import type { GoveePlatformAccessoryWithControl, DeviceCommand, ExternalUpdateParams } from '../types.js';
+import { platformLang } from '../utils/index.js';
 import { parseError } from '../utils/functions.js';
 
 // HAP types extracted from the API
 type HapCharacteristic = API['hap']['Characteristic'];
 type HapService = API['hap']['Service'];
-type HapStatusError = API['hap']['HapStatusError'];
 
 /**
  * Base class for all Govee device handlers.
@@ -22,10 +22,9 @@ type HapStatusError = API['hap']['HapStatusError'];
 export abstract class GoveeDeviceBase {
   // Platform references
   protected readonly platform: GoveePlatform;
-  protected readonly accessory: GoveePlatformAccessory;
+  protected readonly accessory: GoveePlatformAccessoryWithControl;
   protected readonly hapChar: HapCharacteristic;
   protected readonly hapServ: HapService;
-  protected readonly hapErr: typeof HapStatusError;
 
   // Common cache values
   protected cacheState: 'on' | 'off' = 'off';
@@ -34,12 +33,11 @@ export abstract class GoveeDeviceBase {
   // Device configuration
   protected readonly deviceConf: Record<string, unknown>;
 
-  constructor(platform: GoveePlatform, accessory: GoveePlatformAccessory) {
+  constructor(platform: GoveePlatform, accessory: GoveePlatformAccessoryWithControl) {
     this.platform = platform;
     this.accessory = accessory;
     this.hapChar = platform.api.hap.Characteristic;
     this.hapServ = platform.api.hap.Service;
-    this.hapErr = platform.api.hap.HapStatusError;
 
     // Get device-specific configuration
     this.deviceConf = platform.deviceConf[accessory.context.gvDeviceId] || {};
@@ -97,14 +95,14 @@ export abstract class GoveeDeviceBase {
       characteristic.updateValue(revertValue);
     }, revertDelay);
 
-    throw new this.hapErr(-70402 as HAPStatus);
+    throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
   }
 
   /**
    * Remove a service if it exists
    */
   protected removeServiceIfExists(serviceName: keyof HapService): void {
-    const ServiceClass = this.hapServ[serviceName] as typeof Service | undefined;
+    const ServiceClass = this.hapServ[serviceName] as WithUUID<typeof Service> | undefined;
     if (ServiceClass) {
       const existingService = this.accessory.getService(ServiceClass);
       if (existingService) {
@@ -114,25 +112,22 @@ export abstract class GoveeDeviceBase {
   }
 
   /**
-   * Get or add a service
+   * Get or add a service by service type
    */
-  protected getOrAddService<T extends Service>(
-    ServiceClass: new (...args: unknown[]) => T
-  ): T {
-    const existing = this.accessory.getService(ServiceClass as unknown as typeof Service);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  protected getOrAddService(ServiceClass: any): Service {
+    const existing = this.accessory.getService(ServiceClass);
     if (existing) {
-      return existing as T;
+      return existing;
     }
-    return this.accessory.addService(ServiceClass as unknown as typeof Service) as T;
+    return this.accessory.addService(ServiceClass);
   }
 
   /**
    * Add a characteristic to a service if it doesn't exist
    */
-  protected addCharacteristicIfMissing(
-    service: Service,
-    CharacteristicClass: typeof Characteristic
-  ): Characteristic {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  protected addCharacteristicIfMissing(service: Service, CharacteristicClass: any): Characteristic {
     if (!service.testCharacteristic(CharacteristicClass)) {
       service.addCharacteristic(CharacteristicClass);
     }
@@ -142,10 +137,8 @@ export abstract class GoveeDeviceBase {
   /**
    * Remove a characteristic from a service if it exists
    */
-  protected removeCharacteristicIfExists(
-    service: Service,
-    CharacteristicClass: typeof Characteristic
-  ): void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  protected removeCharacteristicIfExists(service: Service, CharacteristicClass: any): void {
     if (service.testCharacteristic(CharacteristicClass)) {
       const char = service.getCharacteristic(CharacteristicClass);
       service.removeCharacteristic(char);

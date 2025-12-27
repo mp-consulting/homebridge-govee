@@ -1,6 +1,6 @@
 import type { Service, HAPStatus } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
-import type { GoveePlatformAccessory, ExternalUpdateParams } from '../types.js';
+import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
 import {
@@ -39,7 +39,7 @@ export class FanDevice extends GoveeDeviceBase {
   private cacheSwing: 'on' | 'off' = 'off';
   private cacheAutoCode?: string;
 
-  constructor(platform: GoveePlatform, accessory: GoveePlatformAccessory) {
+  constructor(platform: GoveePlatform, accessory: GoveePlatformAccessoryWithControl) {
     super(platform, accessory);
   }
 
@@ -112,7 +112,7 @@ export class FanDevice extends GoveeDeviceBase {
       setTimeout(() => {
         this._service.updateCharacteristic(this.hapChar.Active, this.cacheState === 'on' ? 1 : 0);
       }, 2000);
-      throw new this.hapErr(-70402 as HAPStatus);
+      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
     }
   }
 
@@ -166,7 +166,7 @@ export class FanDevice extends GoveeDeviceBase {
       setTimeout(() => {
         this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
       }, 2000);
-      throw new this.hapErr(-70402 as HAPStatus);
+      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
     }
   }
 
@@ -196,7 +196,7 @@ export class FanDevice extends GoveeDeviceBase {
       setTimeout(() => {
         this._service.updateCharacteristic(this.hapChar.SwingMode, this.cacheSwing === 'on' ? 1 : 0);
       }, 2000);
-      throw new this.hapErr(-70402 as HAPStatus);
+      throw new this.platform.api.hap.HapStatusError(-70402 as HAPStatus);
     }
   }
 
@@ -269,7 +269,7 @@ export class FanDevice extends GoveeDeviceBase {
         case '0503': {
           // Auto mode, we need to keep this code to send it back to the device
           const code = hexToTwoItems(`33${hexString.substring(2, hexString.length - 2)}`);
-          this.cacheAutoCode = generateCodeFromHexValues(code.map((p) => Number.parseInt(p, 16)));
+          this.cacheAutoCode = generateCodeFromHexValues(code.map((p) => Number.parseInt(p, 16))) as string;
           break;
         }
         case '1f01': {
