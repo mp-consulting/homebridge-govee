@@ -1,6 +1,9 @@
 # Ignore compiled code
 dist
+
+# Ignore compiled JS in homebridge-ui, but keep server.js (source file)
 homebridge-ui/*.js
+!homebridge-ui/server.js
 
 # ------------- Defaults ------------- #
 .DS_Store
