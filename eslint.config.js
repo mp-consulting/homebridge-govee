@@ -46,6 +46,7 @@ export default tseslint.config(
         clearInterval: 'readonly',
         modelCategories: 'readonly',
         getDeviceTypeFromModel: 'readonly',
+        confirm: 'readonly',
       },
     },
     rules: {
