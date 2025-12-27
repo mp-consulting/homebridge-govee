@@ -25,7 +25,6 @@
           <span id="testLoginSpinner" class="spinner-border d-none" role="status"></span>
           Test Connection
         </button>
-        <div id="testLoginResult" class="mt-3"></div>
       </div>
     </div>
 
@@ -71,28 +70,31 @@
       document.getElementById('testLoginBtn').addEventListener('click', async () => {
         const btn = document.getElementById('testLoginBtn');
         const spinner = document.getElementById('testLoginSpinner');
-        const result = document.getElementById('testLoginResult');
 
         spinner.classList.remove('d-none');
         btn.disabled = true;
-        result.innerHTML = '';
 
         try {
           const config = await homebridge.getPluginConfig();
           const pluginConfig = config[0] || {};
 
+          if (!pluginConfig.username || !pluginConfig.password) {
+            homebridge.toast.warning('Please enter your credentials in the config first.');
+            return;
+          }
+
           const response = await homebridge.request('/test-login', {
-            username: pluginConfig.username || '',
-            password: pluginConfig.password || '',
+            username: pluginConfig.username,
+            password: pluginConfig.password,
           });
 
           if (response.success) {
-            result.innerHTML = '<div class="alert alert-success">Connection successful!</div>';
+            homebridge.toast.success('Connection successful!');
           } else {
-            result.innerHTML = `<div class="alert alert-warning">${response.message}</div>`;
+            homebridge.toast.warning(response.message || 'Connection failed');
           }
         } catch (err) {
-          result.innerHTML = `<div class="alert alert-danger">Error: ${err.message || 'Unknown error'}</div>`;
+          homebridge.toast.error(err.message || 'Connection failed');
         } finally {
           spinner.classList.add('d-none');
           btn.disabled = false;
@@ -110,12 +112,25 @@
         deviceList.innerHTML = '';
 
         try {
-          const response = await homebridge.request('/discover');
+          const config = await homebridge.getPluginConfig();
+          const pluginConfig = config[0] || {};
+
+          if (!pluginConfig.username || !pluginConfig.password) {
+            homebridge.toast.warning('Please enter your credentials in the config first.');
+            return;
+          }
+
+          const response = await homebridge.request('/discover', {
+            username: pluginConfig.username,
+            password: pluginConfig.password,
+          });
           const devices = response.devices || [];
 
           if (devices.length === 0) {
+            homebridge.toast.info('No devices found.');
             deviceList.innerHTML = '<div class="alert alert-info">No devices found. Please ensure your credentials are correct.</div>';
           } else {
+            homebridge.toast.success(`Found ${devices.length} device(s).`);
             let html = '<ul class="list-group">';
             for (const device of devices) {
               html += `<li class="list-group-item d-flex justify-content-between align-items-center">
@@ -127,6 +142,7 @@
             deviceList.innerHTML = html;
           }
         } catch (err) {
+          homebridge.toast.error(err.message || 'Discovery failed');
           deviceList.innerHTML = `<div class="alert alert-danger">Error: ${err.message || 'Unknown error'}</div>`;
         } finally {
           spinner.classList.add('d-none');
