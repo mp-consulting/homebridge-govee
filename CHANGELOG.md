@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.4] - 2026-02-22
+
+### Added
+
+- **H802A Support**: Added Govee H802A LED Light Strip to the device compatibility catalog (#1)
+
 ## [1.0.2] - 2025-12-27
 
 ### Improved
