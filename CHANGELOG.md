@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.5] - 2026-02-22
+
+### Added
+
+- **Unit Test Suite**: Added 215 tests across 10 test files using Vitest, covering color conversion, sensor decoding, device catalog, registry pipeline, speed calculations, and utility functions
+- **CI Test Step**: Tests now run automatically in the CI pipeline alongside lint and build
+
+### Changed
+
+- **Platform Robustness**: Refactored platform internals for improved device lifecycle management and error handling
+- **Connection Layer Hardening**: Improved AWS IoT, BLE, HTTP, and LAN clients with better retry logic, error handling, and connection state management
+- **Device Handler Safety**: Added defensive null checks and graceful degradation across all device handlers
+- **HTTP Client**: Replaced manual retry logic with robust queued request handling and proper error classification
+- **BLE Client**: Improved scan lifecycle, connection cleanup, and error recovery
+
+### Fixed
+
+- **Security**: Addressed potential vulnerabilities in connection handling and input validation
+- **UI Script**: Fixed curly brace lint violation in homebridge-ui script
+
 ## [1.0.4] - 2026-02-22
 
 ### Added
