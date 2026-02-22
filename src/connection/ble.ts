@@ -9,24 +9,6 @@ import { isValidPeripheral } from '../utils/validation.js';
 
 process.env.NOBLE_REPORT_ALL_HCI_EVENTS = '1';
 
-process.on('uncaughtException', (err) => {
-  if (err.message && err.message.includes('BLEManager')) {
-    console.error('[BLE] native ble crash detected:', err.message);
-    console.error('[BLE] this is a known issue with Noble on some macos systems, ble functionality may be limited.');
-  } else {
-    throw err;
-  }
-});
-
-process.on('unhandledRejection', (reason) => {
-  if (reason && reason.toString().includes('BLEManager')) {
-    console.error('[BLE] unhandled ble rejection:', reason);
-    console.error('[BLE] this is a known issue with Noble on some macos systems, ble functionality may be limited.');
-  } else {
-    throw reason;
-  }
-});
-
 const H5075_UUID = 'ec88';
 const H5101_UUID = '0001';
 const CONTROL_CHARACTERISTIC_UUID = '000102030405060708090a0b0c0d1910';
@@ -157,6 +139,18 @@ export default class BLEClient {
       this.btClient.on('scanStop', this.eventHandlers.scanStop);
       this.btClient.on('warning', this.eventHandlers.warning);
       this.btClient.on('discover', this.eventHandlers.discover);
+
+      // Handle Noble-specific errors without installing global process handlers
+      this.btClient.on('error', (err: Error) => {
+        if (this.isShuttingDown) {
+          return;
+        }
+        if (err.message && err.message.includes('BLEManager')) {
+          this.log.warn('[BLE] native ble error detected: %s. BLE functionality may be limited.', err.message);
+        } else {
+          this.log.warn('[BLE] adapter error: %s.', err.message);
+        }
+      });
     } catch (err) {
       this.log.warn('[BLE] failed to setup event listeners:', (err as Error).message);
     }

@@ -6,13 +6,12 @@ import { platformLang } from '../utils/index.js';
 import { hs2rgb, rgb2hs } from '../utils/colour.js';
 import {
   base64ToHex,
+  createDebouncedGuard,
   generateCodeFromHexValues,
-  generateRandomString,
   getTwoItemPosition,
   hexToDecimal,
   hexToTwoItems,
   processCommands,
-  sleep,
 } from '../utils/functions.js';
 
 // Speed codes for 12-speed fans (H7105, H7107)
@@ -50,9 +49,9 @@ export class FanLightDevice extends GoveeDeviceBase {
   private cacheHue = 0;
   private cacheSat = 0;
 
-  // Debounce keys
-  private updateKeyBright?: string;
-  private updateKeyColour?: string;
+  // Debounce guards
+  private debounceBright = createDebouncedGuard(350);
+  private debounceColour = createDebouncedGuard(300);
 
   // Config
   private hideLight = false;
@@ -227,10 +226,7 @@ export class FanLightDevice extends GoveeDeviceBase {
   private async internalBrightnessUpdate(value: number): Promise<void> {
     try {
       // Debounce
-      const updateKeyBright = generateRandomString(5);
-      this.updateKeyBright = updateKeyBright;
-      await sleep(350);
-      if (updateKeyBright !== this.updateKeyBright) {
+      if (!await this.debounceBright()) {
         return;
       }
 
@@ -270,10 +266,7 @@ export class FanLightDevice extends GoveeDeviceBase {
   private async internalColourUpdate(value: number): Promise<void> {
     try {
       // Debounce
-      const updateKeyColour = generateRandomString(5);
-      this.updateKeyColour = updateKeyColour;
-      await sleep(300);
-      if (updateKeyColour !== this.updateKeyColour) {
+      if (!await this.debounceColour()) {
         return;
       }
 

@@ -72,6 +72,10 @@ export default class LANClient {
         const strMessage = msg.toString();
         try {
           const message: LANMessage = JSON.parse(strMessage);
+          if (!message?.msg?.cmd) {
+            this.log.debug('[LAN] Ignoring malformed message (missing msg.cmd): %s', strMessage);
+            return;
+          }
           const command = message.msg.cmd;
 
           switch (command) {
@@ -245,13 +249,13 @@ export default class LANClient {
 
   startStatusPolling(): void {
     this.statusPolling = setInterval(async () => {
-      this.lanDevices.forEach(async (device) => {
+      for (const device of this.lanDevices) {
         try {
           await this.sendDeviceStateRequest(device);
         } catch (err) {
           this.log.warn('[%s] [LAN] %s %s.', device.device, platformLang.lanReqError, parseError(err as Error));
         }
-      });
+      }
     }, (this.config.lanRefreshTime || 30) * 1000);
   }
 

@@ -23,9 +23,7 @@ export type DeviceCategory =
   | 'switchTriple'
   | 'fan'
   | 'heater'
-  | 'heater1a'
   | 'heater1b'
-  | 'heater2'
   | 'cooler'
   | 'humidifier'
   | 'dehumidifier'
@@ -140,6 +138,16 @@ export function createDeviceInstance(
     const thermoSwitchHandler = getDeviceHandler('sensorThermoSwitch');
     if (thermoSwitchHandler) {
       const instance = new thermoSwitchHandler(platform, accessory);
+      instance.init();
+      return instance;
+    }
+  }
+
+  // Special case: heater1 models with tempReporting use the heater1b handler
+  if (category === 'heater' && deviceConf?.tempReporting) {
+    const heater1bHandler = getDeviceHandler('heater1b');
+    if (heater1bHandler) {
+      const instance = new heater1bHandler(platform, accessory);
       instance.init();
       return instance;
     }

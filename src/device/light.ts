@@ -4,7 +4,7 @@ import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams, LightDevi
 import { GoveeDeviceBase } from './base.js';
 import { hs2rgb, k2rgb, m2hs, rgb2hs } from '../utils/colour.js';
 import { platformConsts, platformLang } from '../utils/index.js';
-import { generateRandomString, hasProperty, parseError, sleep } from '../utils/functions.js';
+import { createDebouncedGuard, hasProperty, parseError, sleep } from '../utils/functions.js';
 
 // Scene characteristic names
 const SCENE_CHAR_NAMES = [
@@ -63,10 +63,10 @@ export class LightDevice extends GoveeDeviceBase {
   private cacheMired = 0;
   private cacheScene = '';
 
-  // Debounce keys
-  private updateKeyBright?: string;
-  private updateKeyColour?: string;
-  private updateKeyCT?: string;
+  // Debounce guards
+  private debounceBright = createDebouncedGuard(350);
+  private debounceColour = createDebouncedGuard(300);
+  private debounceCT = createDebouncedGuard(300);
 
   constructor(platform: GoveePlatform, accessory: GoveePlatformAccessoryWithControl) {
     super(platform, accessory);
@@ -313,11 +313,8 @@ export class LightDevice extends GoveeDeviceBase {
 
   private async internalBrightnessUpdate(value: number): Promise<void> {
     try {
-      // This acts like a debounce function when endlessly sliding the brightness scale
-      const updateKeyBright = generateRandomString(5);
-      this.updateKeyBright = updateKeyBright;
-      await sleep(350);
-      if (updateKeyBright !== this.updateKeyBright) {
+      // Debounce when endlessly sliding the brightness scale
+      if (!await this.debounceBright()) {
         return;
       }
 
@@ -361,11 +358,8 @@ export class LightDevice extends GoveeDeviceBase {
 
   private async internalColourUpdate(value: number, force = false): Promise<void> {
     try {
-      // This acts like a debounce function when endlessly sliding the colour wheel
-      const updateKeyColour = generateRandomString(5);
-      this.updateKeyColour = updateKeyColour;
-      await sleep(300);
-      if (updateKeyColour !== this.updateKeyColour) {
+      // Debounce when endlessly sliding the colour wheel
+      if (!await this.debounceColour()) {
         return;
       }
 
@@ -434,11 +428,8 @@ export class LightDevice extends GoveeDeviceBase {
 
   private async internalCTUpdate(value: number): Promise<void> {
     try {
-      // This acts like a debounce function when endlessly sliding the colour wheel
-      const updateKeyCT = generateRandomString(5);
-      this.updateKeyCT = updateKeyCT;
-      await sleep(300);
-      if (updateKeyCT !== this.updateKeyCT) {
+      // Debounce when endlessly sliding the colour temperature
+      if (!await this.debounceCT()) {
         return;
       }
 

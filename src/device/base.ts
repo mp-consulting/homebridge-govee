@@ -53,13 +53,21 @@ export abstract class GoveeDeviceBase {
    * Handle external updates from AWS/LAN/BLE/HTTP.
    * Override in subclasses to process device-specific updates.
    */
-  abstract externalUpdate(params: ExternalUpdateParams): void;
+  abstract externalUpdate(params: ExternalUpdateParams): void | Promise<void>;
 
   /**
    * Get the primary service for this device.
    * Returns undefined for diagnostic/template devices that don't expose HomeKit services.
    */
   abstract get service(): Service | undefined;
+
+  /**
+   * Clean up resources (intervals, timers, listeners) when the device is removed or the plugin shuts down.
+   * Override in subclasses that allocate persistent resources.
+   */
+  destroy(): void {
+    // Default no-op; subclasses override as needed
+  }
 
   /**
    * Log device initialization options

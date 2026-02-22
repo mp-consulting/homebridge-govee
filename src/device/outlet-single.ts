@@ -144,6 +144,11 @@ export class OutletSingleDevice extends GoveeDeviceBase {
   }
 
   externalUpdate(params: ExternalUpdateParams): void {
+    // Ignore external updates during the debounce window after an internal command
+    if (this.updateTimeout) {
+      return;
+    }
+
     // Check to see if the provided state is different from the cached state
     if (params.state && params.state !== this.cacheState) {
       // State is different so update Homebridge with new values
