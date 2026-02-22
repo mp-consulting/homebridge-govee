@@ -126,6 +126,11 @@ export class ValveDevice extends GoveeDeviceBase {
   }
 
   externalUpdate(params: ExternalUpdateParams): void {
+    // Ignore external updates during the debounce window after an internal command
+    if (this.updateTimeout) {
+      return;
+    }
+
     if (params.state && params.state !== this.cacheState) {
       this.cacheState = params.state;
 
@@ -149,6 +154,13 @@ export class ValveDevice extends GoveeDeviceBase {
           clearTimeout(this.timer);
         }
       }
+    }
+  }
+
+  override destroy(): void {
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = undefined;
     }
   }
 }

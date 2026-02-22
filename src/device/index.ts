@@ -131,9 +131,22 @@ export function initializeDeviceHandlers(): void {
   registerModelHandler('H7142', HumidifierH7142Device);
 
   registerDeviceHandler('heater', HeaterSingleDevice);
-  registerDeviceHandler('heater1a', Heater1aDevice);
+
+  // Model-specific heater handlers
+  // H7130/H713A/H713B/H713C use Heater1aDevice (Fanv2 with speed modes)
+  // Config-based override to Heater1bDevice (with temp reporting) is in createDeviceInstance
+  registerModelHandler('H7130', Heater1aDevice);
+  registerModelHandler('H713A', Heater1aDevice);
+  registerModelHandler('H713B', Heater1aDevice);
+  registerModelHandler('H713C', Heater1aDevice);
+
+  // H7131/H7132 use Heater2Device (with night light and color control)
+  registerModelHandler('H7131', Heater2Device);
+  registerModelHandler('H7132', Heater2Device);
+
+  // Heater1b is used as a config-based override (tempReporting=true) in createDeviceInstance
   registerDeviceHandler('heater1b', Heater1bDevice);
-  registerDeviceHandler('heater2', Heater2Device);
+
   registerDeviceHandler('cooler', CoolerSingleDevice);
   registerDeviceHandler('dehumidifier', DehumidifierDevice);
   registerDeviceHandler('diffuser', DiffuserDevice);

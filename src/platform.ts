@@ -112,12 +112,6 @@ function getDeviceTypeFromModel(model: string): DeviceTypeKey {
   return 'lightDevices';
 }
 
-// Global state
-const devicesInHB = new Map<string, GoveePlatformAccessoryWithControl>();
-const awsDevices: string[] = [];
-const awsDevicesToPoll: string[] = [];
-const httpDevices: Array<Record<string, unknown>> = [];
-const lanDevices: Array<Record<string, unknown>> = [];
 
 export interface ExtendedLogging extends Logging {
   debug: (msg: string, ...args: unknown[]) => void;
@@ -162,19 +156,26 @@ export class GoveePlatform implements DynamicPlatformPlugin {
   public iotEndpoint?: string;
   public iotPass?: string;
 
+  // Device state (instance-level, not module-level)
+  private readonly devicesInHB = new Map<string, GoveePlatformAccessoryWithControl>();
+  private readonly awsDevices: string[] = [];
+  private readonly httpDevices: Array<Record<string, unknown>> = [];
+  private readonly lanDevices: Array<Record<string, unknown>> = [];
+
   // Plugin state
   private readonly isBeta: boolean;
   private queue!: PQueue;
   private refreshBLEInterval?: ReturnType<typeof setInterval>;
   private refreshHTTPInterval?: ReturnType<typeof setInterval>;
   private refreshAWSInterval?: ReturnType<typeof setInterval>;
+  private awsSyncInProgress = false;
 
   constructor(log: Logging, config: PlatformConfig, api: API) {
     this.api = api;
     this.Service = api.hap.Service;
     this.Characteristic = api.hap.Characteristic;
     this.log = log as ExtendedLogging;
-    this.isBeta = false;
+    this.isBeta = !!config.debug;
 
     // Check Homebridge version
     if (!api.versionGreaterOrEqual?.('1.5.0')) {
@@ -213,8 +214,11 @@ export class GoveePlatform implements DynamicPlatformPlugin {
         const intVal = Number.parseInt(String(val), 10);
         if (!Number.isNaN(intVal)) {
           const minKey = key as keyof typeof platformConsts.minValues;
-          if (intVal >= platformConsts.minValues[minKey]) {
+          const minVal = platformConsts.minValues[minKey];
+          if (intVal >= minVal) {
             (this.config as Record<string, unknown>)[key] = intVal;
+          } else {
+            this.log.warn('[Config] %s value %d is below minimum %d, using default', key, intVal, minVal);
           }
         }
       }
@@ -336,7 +340,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       this.lanClient = new LANClient(this);
       const devices = await this.lanClient.getDevices();
       for (const d of devices) {
-        lanDevices.push(d as unknown as Record<string, unknown>);
+        this.lanDevices.push(d as unknown as Record<string, unknown>);
       }
       this.log.info('[LAN] %s.', platformLang.availableWithDevices(devices.length));
     } catch (err) {
@@ -396,7 +400,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
 
       const devices = await this.httpClient.getDevices();
       for (const d of devices) {
-        httpDevices.push(d as unknown as Record<string, unknown>);
+        this.httpDevices.push(d as unknown as Record<string, unknown>);
       }
       this.log.info('[HTTP] %s.', platformLang.availableWithDevices(devices.length));
 
@@ -463,7 +467,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       }> = [];
 
       // Process HTTP devices
-      for (const httpDevice of httpDevices) {
+      for (const httpDevice of this.httpDevices) {
         let deviceId = httpDevice.device as string;
         if (!deviceId.includes(':')) {
           deviceId = deviceId.replace(/([a-z0-9]{2})(?=[a-z0-9])/gi, '$&:').toUpperCase();
@@ -476,7 +480,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       }
 
       // Process LAN-only devices
-      for (const lanDevice of lanDevices) {
+      for (const lanDevice of this.lanDevices) {
         const deviceId = lanDevice.device as string;
         // Skip if already added from HTTP
         if (allDevices.some(d => d.deviceId === deviceId)) {
@@ -504,7 +508,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
     // Store discovered devices for UI auto-population
     await this.storeDiscoveredDevices();
 
-    for (const httpDevice of httpDevices) {
+    for (const httpDevice of this.httpDevices) {
       let deviceId = httpDevice.device as string;
       if (!deviceId.includes(':')) {
         deviceId = deviceId.replace(/([a-z0-9]{2})(?=[a-z0-9])/gi, '$&:').toUpperCase();
@@ -516,7 +520,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       }
 
       const model = httpDevice.sku as string;
-      const lanDevice = lanDevices.find(el => el.device === deviceId);
+      const lanDevice = this.lanDevices.find(el => el.device === deviceId);
 
       if (lanDevice) {
         this.initialiseDevice({ ...lanDevice, httpInfo: httpDevice, model, deviceName: httpDevice.deviceName, isLanDevice: true });
@@ -528,7 +532,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       httpDevicesInitialised = true;
     }
 
-    for (const lanDevice of lanDevices.filter(el => !(el as Record<string, unknown>).initialised)) {
+    for (const lanDevice of this.lanDevices.filter(el => !(el as Record<string, unknown>).initialised)) {
       const deviceId = lanDevice.device as string;
       if (this.ignoredDevices.includes(deviceId)) {
         continue;
@@ -547,19 +551,19 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       throw new Error(platformLang.noDevs);
     }
 
-    devicesInHB.forEach((accessory) => {
+    this.devicesInHB.forEach((accessory) => {
       const deviceId = accessory.context.gvDeviceId;
       if (
-        (!httpDevices.some(el => el.device === deviceId) && !lanDevices.some(el => el.device === deviceId)) ||
+        (!this.httpDevices.some(el => el.device === deviceId) && !this.lanDevices.some(el => el.device === deviceId)) ||
         this.ignoredDevices.includes(deviceId)
       ) {
         this.removeAccessory(accessory);
       }
     });
 
-    if (this.awsClient && awsDevices.length > 0) {
+    if (this.awsClient && this.awsDevices.length > 0) {
       await this.awsClient.connect();
-      this.goveeAWSSync(true);
+      this.goveeAWSSync();
       this.refreshAWSInterval = setInterval(() => this.goveeAWSSync(), 60000);
     }
 
@@ -571,6 +575,15 @@ export class GoveePlatform implements DynamicPlatformPlugin {
 
   pluginShutdown(): void {
     try {
+      // Destroy all device handlers (clears intervals, timers, listeners)
+      for (const accessory of this.devicesInHB.values()) {
+        try {
+          accessory.control?.destroy?.();
+        } catch (err) {
+          this.log.debug('[%s] destroy error: %s', accessory.displayName, parseError(err));
+        }
+      }
+
       if (this.refreshBLEInterval) {
         clearInterval(this.refreshBLEInterval);
       }
@@ -610,9 +623,9 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       const deviceName = device.deviceName as string;
       const uuid = this.api.hap.uuid.generate(deviceId);
 
-      this.log.debug('[Init] Device %s, UUID: %s, cached: %s', deviceName, uuid, devicesInHB.has(uuid));
+      this.log.debug('[Init] Device %s, UUID: %s, cached: %s', deviceName, uuid, this.devicesInHB.has(uuid));
 
-      let accessory = devicesInHB.get(uuid);
+      let accessory = this.devicesInHB.get(uuid);
       if (!accessory) {
         accessory = this.addAccessory({ device: deviceId, deviceName, model });
       }
@@ -635,21 +648,25 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       if (httpInfo?.deviceExt) {
         const deviceExt = httpInfo.deviceExt as Record<string, unknown>;
         if (deviceExt.deviceSettings) {
-          const parsed = JSON.parse(deviceExt.deviceSettings as string);
-          if (parsed?.topic) {
-            accessory.context.hasAwsControl = true;
-            accessory.context.awsTopic = parsed.topic;
-            if (this.awsClient) {
-              accessory.context.useAwsControl = true;
-              awsDevices.push(deviceId);
+          try {
+            const parsed = JSON.parse(deviceExt.deviceSettings as string);
+            if (parsed?.topic) {
+              accessory.context.hasAwsControl = true;
+              accessory.context.awsTopic = parsed.topic;
+              if (this.awsClient) {
+                accessory.context.useAwsControl = true;
+                this.awsDevices.push(deviceId);
+              }
             }
-          }
-          if (parsed?.bleName) {
-            accessory.context.hasBleControl = true;
-            accessory.context.bleAddress = parsed.address?.toLowerCase() || deviceId.substring(6).toLowerCase();
-            if (this.bleClient) {
-              accessory.context.useBleControl = true;
+            if (parsed?.bleName) {
+              accessory.context.hasBleControl = true;
+              accessory.context.bleAddress = parsed.address?.toLowerCase() || deviceId.substring(6).toLowerCase();
+              if (this.bleClient) {
+                accessory.context.useBleControl = true;
+              }
             }
+          } catch {
+            this.log.debugWarn('[%s] Failed to parse deviceSettings, skipping AWS/BLE setup', deviceName);
           }
         }
       }
@@ -664,7 +681,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       }
 
       this.api.updatePlatformAccessories([accessory]);
-      devicesInHB.set(accessory.UUID, accessory);
+      this.devicesInHB.set(accessory.UUID, accessory);
     } catch (err) {
       this.log.warn('[%s] %s %s.', device.deviceName, platformLang.devNotInit, parseError(err));
     }
@@ -676,7 +693,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
 
       // Check if the accessory is already cached (might have been restored from a different UUID)
       // This can happen if the device ID format changed between runs
-      for (const [existingUuid, existingAccessory] of devicesInHB) {
+      for (const [existingUuid, existingAccessory] of this.devicesInHB) {
         if (existingAccessory.context?.gvDeviceId === device.device) {
           this.log.debug('[%s] Found existing accessory with matching device ID (different UUID: %s vs %s)', device.deviceName, existingUuid, uuid);
           return existingAccessory;
@@ -715,33 +732,44 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       acc.logDebugWarn = () => {};
     }
     this.log.debug('[Restored] %s (UUID: %s)', acc.displayName, accessory.UUID);
-    devicesInHB.set(accessory.UUID, acc);
+    this.devicesInHB.set(accessory.UUID, acc);
   }
 
   removeAccessory(accessory: GoveePlatformAccessory): void {
     try {
+      // Clean up device handler resources before removal
+      this.devicesInHB.get(accessory.UUID)?.control?.destroy?.();
+
       this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
-      devicesInHB.delete(accessory.UUID);
+      this.devicesInHB.delete(accessory.UUID);
       this.log.info('[%s] %s.', accessory.displayName, platformLang.devRemove);
     } catch (err) {
       this.log.warn('[%s] %s %s.', accessory.displayName, platformLang.devNotRemove, parseError(err));
     }
   }
 
-  async goveeAWSSync(allDevices = false): Promise<void> {
-    const pollList = allDevices ? awsDevices : awsDevicesToPoll;
-    if (pollList.length === 0 || !this.awsClient) {
+  async goveeAWSSync(): Promise<void> {
+    if (this.awsDevices.length === 0 || !this.awsClient) {
       return;
     }
-    for (const deviceId of pollList) {
-      const accessory = devicesInHB.get(this.api.hap.uuid.generate(deviceId));
-      if (accessory) {
-        try {
-          await this.awsClient.requestUpdate(accessory);
-        } catch (err) {
-          accessory.logDebugWarn?.(`[AWS] ${platformLang.syncFail} ${parseError(err)}`);
+    if (this.awsSyncInProgress) {
+      this.log.debug('[AWS] Sync already in progress, skipping this cycle');
+      return;
+    }
+    this.awsSyncInProgress = true;
+    try {
+      for (const deviceId of this.awsDevices) {
+        const accessory = this.devicesInHB.get(this.api.hap.uuid.generate(deviceId));
+        if (accessory) {
+          try {
+            await this.awsClient.requestUpdate(accessory);
+          } catch (err) {
+            accessory.logDebugWarn?.(`[AWS] ${platformLang.syncFail} ${parseError(err)}`);
+          }
         }
       }
+    } finally {
+      this.awsSyncInProgress = false;
     }
   }
 
@@ -839,7 +867,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
   }
 
   receiveUpdateLAN(accessoryId: string, params: Record<string, unknown>, ipAddress: string): void {
-    devicesInHB.forEach((accessory) => {
+    this.devicesInHB.forEach((accessory) => {
       if (accessory.context.gvDeviceId === accessoryId) {
         if (!accessory.context.useLanControl) {
           accessory.context.hasLanControl = true;
@@ -857,7 +885,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
   }
 
   receiveUpdateAWS(payload: Record<string, unknown>): void {
-    const accessory = devicesInHB.get(this.api.hap.uuid.generate(payload.device as string));
+    const accessory = this.devicesInHB.get(this.api.hap.uuid.generate(payload.device as string));
     if (accessory) {
       this.receiveDeviceUpdate(accessory, { source: 'AWS', ...payload } as ExternalUpdateParams);
     }
@@ -870,7 +898,9 @@ export class GoveePlatform implements DynamicPlatformPlugin {
 
     const data: ExternalUpdateParams = { source: params.source };
     if (params.state && typeof params.state === 'object' && hasProperty(params.state, 'onOff')) {
-      data.state = [1, 17].includes((params.state as Record<string, unknown>).onOff as number) ? 'on' : 'off';
+      const onOff = (params.state as Record<string, unknown>).onOff;
+      const onOffNum = typeof onOff === 'number' ? onOff : Number(onOff);
+      data.state = !Number.isNaN(onOffNum) && [1, 17].includes(onOffNum) ? 'on' : 'off';
     } else if (typeof params.state === 'string') {
       data.state = params.state;
     }

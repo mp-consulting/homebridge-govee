@@ -1,10 +1,9 @@
-import { Buffer } from 'node:buffer';
-
 import axios, { type AxiosError } from 'axios';
 
 import type { GoveeHTTPDeviceInfo, GoveeLogging, GoveePluginConfig, HTTPLoginResult } from '../types.js';
 import platformConsts from '../utils/constants.js';
 import { parseError, sleep } from '../utils/functions.js';
+import { GOVEE_API_URLS, goveeHeaders } from '../utils/govee-api.js';
 import platformLang from '../utils/lang-en.js';
 
 interface HTTPPlatformRef {
@@ -21,16 +20,16 @@ interface HTTPPlatformRef {
   };
 }
 
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 30000;
+
 export default class HTTPClient {
   private log: GoveeLogging;
   private password: string;
   private token?: string;
   private tokenTTR?: string;
   private username: string;
-  private appVersion: string;
-  private userAgent: string;
   private clientId: string;
-  private base64Tried = false;
 
   constructor(platform: HTTPPlatformRef) {
     this.log = platform.log;
@@ -39,12 +38,13 @@ export default class HTTPClient {
     this.tokenTTR = platform.accountTokenTTR;
     this.username = platform.config.username || '';
 
-    this.appVersion = '5.6.01';
-    this.userAgent = `GoveeHome/${this.appVersion} (com.ihoment.GoVeeSensor; build:2; iOS 16.5.0) Alamofire/5.6.4`;
-
     let clientSuffix = platform.api.hap.uuid.generate(this.username).replace(/-/g, '');
     clientSuffix = clientSuffix.substring(0, clientSuffix.length - 2);
     this.clientId = `hb${clientSuffix}`;
+  }
+
+  private headers(token?: string): Record<string, string | number> {
+    return goveeHeaders(token || this.token!, this.clientId);
   }
 
   /**
@@ -57,12 +57,12 @@ export default class HTTPClient {
     }
   }
 
-  async login(): Promise<HTTPLoginResult> {
+  async login(retryCount = 0): Promise<HTTPLoginResult> {
     try {
       this.log.debug('[HTTP] Attempting login for user: %s', this.username);
 
       const res = await axios({
-        url: 'https://app2.govee.com/account/rest/account/v1/login',
+        url: GOVEE_API_URLS.login,
         method: 'post',
         data: {
           email: this.username,
@@ -81,26 +81,13 @@ export default class HTTPClient {
 
       if (!res.data.client || !res.data.client.token) {
         this.log.debug('[HTTP] Login response missing client/token. Message: %s', res.data.message || 'none');
-        if (res.data.message && res.data.message.replace(/\s+/g, '') === 'Incorrectpassword') {
-          if (this.base64Tried) {
-            throw new Error(res.data.message || platformLang.noToken);
-          } else {
-            this.log.debug('[HTTP] Trying base64 decoded password');
-            this.base64Tried = true;
-            this.password = Buffer.from(this.password, 'base64')
-              .toString('utf8')
-              .replace(/\r\n|\n|\r/g, '')
-              .trim();
-            return await this.login();
-          }
-        }
         throw new Error(res.data.message || platformLang.noToken);
       }
 
       this.log.debug('[HTTP] Primary login successful, fetching TTR token...');
 
       const ttrRes = await axios({
-        url: 'https://community-api.govee.com/os/v1/login',
+        url: GOVEE_API_URLS.loginTTR,
         method: 'post',
         data: {
           email: this.username,
@@ -110,24 +97,16 @@ export default class HTTPClient {
       });
 
       this.token = res.data.client.token;
-      this.tokenTTR = ttrRes.data.data.token;
+      this.tokenTTR = ttrRes.data?.data?.token;
 
       this.log.debug('[HTTP] %s. AccountId: %s', platformLang.loginSuccess, res.data.client.accountId);
 
       this.log.debug('[HTTP] Fetching IoT credentials...');
 
       const iotRes = await axios({
-        url: 'https://app2.govee.com/app/v1/account/iot/key',
+        url: GOVEE_API_URLS.iotKey,
         method: 'get',
-        headers: {
-          'Authorization': `Bearer ${this.token}`,
-          'appVersion': this.appVersion,
-          'clientId': this.clientId,
-          'clientType': 1,
-          'iotVersion': 0,
-          'timestamp': Date.now(),
-          'User-Agent': this.userAgent,
-        },
+        headers: this.headers(),
       });
 
       this.log.debug('[HTTP] IoT credentials received. Endpoint: %s', iotRes.data.data.endpoint);
@@ -145,9 +124,13 @@ export default class HTTPClient {
     } catch (err) {
       const axiosErr = err as AxiosError;
       if (axiosErr.code && platformConsts.httpRetryCodes.includes(axiosErr.code)) {
-        this.log.warn('[HTTP] %s [login() - %s].', platformLang.httpRetry, axiosErr.code);
-        await sleep(30000);
-        return this.login();
+        if (retryCount >= MAX_RETRIES) {
+          this.log.warn('[HTTP] login() failed after %d retries [%s].', MAX_RETRIES, axiosErr.code);
+          throw err;
+        }
+        this.log.warn('[HTTP] %s [login() - %s] (attempt %d/%d).', platformLang.httpRetry, axiosErr.code, retryCount + 1, MAX_RETRIES);
+        await sleep(RETRY_DELAY_MS);
+        return this.login(retryCount + 1);
       }
       throw err;
     }
@@ -156,24 +139,16 @@ export default class HTTPClient {
   async logout(): Promise<void> {
     try {
       await axios({
-        url: 'https://app2.govee.com/account/rest/account/v1/logout',
+        url: GOVEE_API_URLS.logout,
         method: 'post',
-        headers: {
-          'Authorization': `Bearer ${this.token}`,
-          'appVersion': this.appVersion,
-          'clientId': this.clientId,
-          'clientType': 1,
-          'iotVersion': 0,
-          'timestamp': Date.now(),
-          'User-Agent': this.userAgent,
-        },
+        headers: this.headers(),
       });
     } catch (err) {
       this.log.warn('[HTTP] %s %s.', platformLang.logoutFail, parseError(err as Error));
     }
   }
 
-  async getDevices(isSync = true): Promise<GoveeHTTPDeviceInfo[]> {
+  async getDevices(isSync = true, retryCount = 0): Promise<GoveeHTTPDeviceInfo[]> {
     try {
       if (!this.token) {
         this.log.debug('[HTTP] getDevices called but no token exists');
@@ -183,17 +158,9 @@ export default class HTTPClient {
       this.log.debug('[HTTP] Fetching device list...');
 
       const res = await axios({
-        url: 'https://app2.govee.com/device/rest/devices/v1/list',
+        url: GOVEE_API_URLS.devices,
         method: 'post',
-        headers: {
-          'Authorization': `Bearer ${this.token}`,
-          'appVersion': this.appVersion,
-          'clientId': this.clientId,
-          'clientType': 1,
-          'iotVersion': 0,
-          'timestamp': Date.now(),
-          'User-Agent': this.userAgent,
-        },
+        headers: this.headers(),
         timeout: 30000,
       });
 
@@ -217,35 +184,16 @@ export default class HTTPClient {
     } catch (err) {
       const axiosErr = err as AxiosError;
       if (!isSync && axiosErr.code && platformConsts.httpRetryCodes.includes(axiosErr.code)) {
-        this.log.warn('[HTTP] %s [getDevices() - %s].', platformLang.httpRetry, axiosErr.code);
-        await sleep(30000);
-        return this.getDevices();
+        if (retryCount >= MAX_RETRIES) {
+          this.log.warn('[HTTP] getDevices() failed after %d retries [%s].', MAX_RETRIES, axiosErr.code);
+          throw err;
+        }
+        this.log.warn('[HTTP] %s [getDevices() - %s] (attempt %d/%d).', platformLang.httpRetry, axiosErr.code, retryCount + 1, MAX_RETRIES);
+        await sleep(RETRY_DELAY_MS);
+        return this.getDevices(isSync, retryCount + 1);
       }
       throw err;
     }
-  }
-
-  async getTapToRuns(): Promise<unknown[]> {
-    const res = await axios({
-      url: 'https://app2.govee.com/bff-app/v1/exec-plat/home',
-      method: 'get',
-      headers: {
-        'Authorization': `Bearer ${this.tokenTTR}`,
-        'appVersion': this.appVersion,
-        'clientId': this.clientId,
-        'clientType': 1,
-        'iotVersion': 0,
-        'timestamp': Date.now(),
-        'User-Agent': this.userAgent,
-      },
-      timeout: 10000,
-    });
-
-    if (!res?.data?.data?.components) {
-      throw new Error('not a valid response');
-    }
-
-    return res.data.data.components;
   }
 
   async getLeakDeviceWarning(deviceId: string, deviceSku: string): Promise<unknown[]> {
@@ -254,17 +202,9 @@ export default class HTTPClient {
     }
 
     const res = await axios({
-      url: 'https://app2.govee.com/leak/rest/device/v1/warnMessage',
+      url: GOVEE_API_URLS.leakWarning,
       method: 'post',
-      headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'appVersion': this.appVersion,
-        'clientId': this.clientId,
-        'clientType': 1,
-        'iotVersion': 0,
-        'timestamp': Date.now(),
-        'User-Agent': this.userAgent,
-      },
+      headers: this.headers(),
       data: {
         device: deviceId.replaceAll(':', ''),
         limit: 50,

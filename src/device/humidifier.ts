@@ -6,6 +6,7 @@ import { platformLang } from '../utils/index.js';
 import {
   generateNightLightCode,
   generateNightLightOffCode,
+  getTwoItemPosition,
   processCommands,
   speedPercentToValue,
   speedValueToPercent,
@@ -161,6 +162,8 @@ export class HumidifierDevice extends GoveeDeviceBase {
       processCommands(
         params.commands,
         {
+          '0501': (hexParts) => this.handleSpeedExternalUpdate(hexParts),
+          '0502': (hexParts) => this.handleSpeedExternalUpdate(hexParts),
           '1b00': () => this.handleNightLightUpdate('off'),
           '1b01': () => this.handleNightLightUpdate('on'),
         },
@@ -168,6 +171,20 @@ export class HumidifierDevice extends GoveeDeviceBase {
           this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
         },
       );
+    }
+  }
+
+  private handleSpeedExternalUpdate(hexParts: string[]): void {
+    const speedByte = getTwoItemPosition(hexParts, 3);
+    const speedValue = Number.parseInt(speedByte, 16);
+    if (speedValue < 1 || speedValue > MAX_SPEED) {
+      return;
+    }
+    const newPercent = speedValueToPercent(speedValue, MAX_SPEED);
+    if (this.cacheSpeed !== newPercent) {
+      this.cacheSpeed = newPercent;
+      this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
+      this.accessory.log(`${platformLang.curSpeed} [${speedValue}]`);
     }
   }
 

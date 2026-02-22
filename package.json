@@ -2,7 +2,7 @@
   "name": "@mp-consulting/homebridge-govee",
   "displayName": "Govee",
   "type": "module",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Homebridge plugin to integrate Govee devices into HomeKit.",
   "author": {
     "name": "Mickael Palma",
@@ -44,6 +44,8 @@
     "build": "rimraf ./dist && tsc && cp -r src/connection/cert dist/connection/ && node scripts/generate-ui-models.js",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "npm run lint -- --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "prepublishOnly": "npm run lint && npm run build",
     "watch": "npm run build && npm link && nodemon"
   },
@@ -53,9 +55,7 @@
     "axios": "^1.13.2",
     "fakegato-history": "^0.6.7",
     "node-persist": "^4.0.4",
-    "node-rsa": "^1.1.1",
-    "p-queue": "^9.0.1",
-    "pem": "^1.14.8"
+    "p-queue": "^9.0.1"
   },
   "optionalDependencies": {
     "@stoprocent/bluetooth-hci-socket": "^2.2.3",
@@ -66,8 +66,6 @@
     "@types/aws-iot-device-sdk": "^2.2.8",
     "@types/node": "^24.10.1",
     "@types/node-persist": "^3.1.8",
-    "@types/node-rsa": "^1.1.4",
-    "@types/pem": "^1.14.4",
     "eslint": "^9.39.1",
     "homebridge": "^2.0.0-beta.55",
     "homebridge-config-ui-x": "^4.6.7",
@@ -75,6 +73,7 @@
     "rimraf": "^6.1.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.46.4"
+    "typescript-eslint": "^8.46.4",
+    "vitest": "^4.0.18"
   }
 }

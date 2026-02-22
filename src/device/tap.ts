@@ -93,6 +93,11 @@ export class TapDevice extends GoveeDeviceBase {
   }
 
   externalUpdate(params: ExternalUpdateParams): void {
+    // Ignore external updates during the debounce window after an internal command
+    if (this.updateTimeout) {
+      return;
+    }
+
     if (params.state && params.state !== this.cacheState) {
       this.cacheState = params.state;
       this._service.updateCharacteristic(this.hapChar.Active, this.cacheState === 'on' ? 1 : 0);

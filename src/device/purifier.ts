@@ -96,6 +96,11 @@ export class PurifierDevice extends GoveeDeviceBase {
   }
 
   externalUpdate(params: ExternalUpdateParams): void {
+    // Ignore external updates during the debounce window after an internal command
+    if (this.updateTimeout) {
+      return;
+    }
+
     // Check to see if the provided state is different from the cached state
     if (params.state && params.state !== this.cacheState) {
       this.cacheState = params.state;

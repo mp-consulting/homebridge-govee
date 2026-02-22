@@ -19,7 +19,8 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
   private cacheTemp = 20;
   private cacheHeat: 'on' | 'off' = 'off';
 
-  // Polling interval
+  // Polling
+  private initTimeout?: ReturnType<typeof setTimeout>;
   private intervalPoll?: ReturnType<typeof setInterval>;
 
   // Update timeout
@@ -95,17 +96,11 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
     }) as unknown as import('../types.js').EveHistoryService;
 
     // Set up an interval to get regular temperature updates
-    setTimeout(() => {
+    this.initTimeout = setTimeout(() => {
+      this.initTimeout = undefined;
       this.getTemperature();
       this.intervalPoll = setInterval(() => this.getTemperature(), 120000);
     }, 5000);
-
-    // Stop the intervals on Homebridge shutdown
-    this.platform.api.on('shutdown', () => {
-      if (this.intervalPoll) {
-        clearInterval(this.intervalPoll);
-      }
-    });
 
     // Output the customised options to the log
     this.logInitOptions({
@@ -306,6 +301,17 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
   externalUpdate(_params: ExternalUpdateParams): void {
     // This device type doesn't receive external updates for state
     // State is controlled by temperature threshold logic
+  }
+
+  override destroy(): void {
+    if (this.initTimeout) {
+      clearTimeout(this.initTimeout);
+      this.initTimeout = undefined;
+    }
+    if (this.intervalPoll) {
+      clearInterval(this.intervalPoll);
+      this.intervalPoll = undefined;
+    }
   }
 }
 

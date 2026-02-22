@@ -72,6 +72,10 @@ export default class LANClient {
         const strMessage = msg.toString();
         try {
           const message: LANMessage = JSON.parse(strMessage);
+          if (!message?.msg?.cmd) {
+            this.log.debug('[LAN] Ignoring malformed message (missing msg.cmd): %s', strMessage);
+            return;
+          }
           const command = message.msg.cmd;
 
           switch (command) {
@@ -198,6 +202,7 @@ export default class LANClient {
       this.sender.send(stateCommand, devicePort, device.ip, (err) => {
         if (err) {
           reject(err);
+          return;
         }
         resolve();
       });
@@ -225,7 +230,13 @@ export default class LANClient {
       this.sender.send(command, devicePort, foundDevice.ip, async (err) => {
         if (err) {
           if (!foundDevice.isManual) {
-            this.lanDevices.splice(foundDeviceId, 1);
+            // Re-find the device index since the array may have changed
+            const currentIndex = this.lanDevices.findIndex(
+              value => value.device === accessory.context.gvDeviceId,
+            );
+            if (currentIndex !== -1) {
+              this.lanDevices.splice(currentIndex, 1);
+            }
             accessory.logDebugWarn(`[LAN] ${platformLang.lanDevRemoved}`);
           }
           reject(err);
@@ -245,13 +256,13 @@ export default class LANClient {
 
   startStatusPolling(): void {
     this.statusPolling = setInterval(async () => {
-      this.lanDevices.forEach(async (device) => {
+      for (const device of this.lanDevices) {
         try {
           await this.sendDeviceStateRequest(device);
         } catch (err) {
           this.log.warn('[%s] [LAN] %s %s.', device.device, platformLang.lanReqError, parseError(err as Error));
         }
-      });
+      }
     }, (this.config.lanRefreshTime || 30) * 1000);
   }
 

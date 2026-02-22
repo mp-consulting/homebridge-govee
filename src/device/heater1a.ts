@@ -164,7 +164,7 @@ export class Heater1aDevice extends GoveeDeviceBase {
     // Update the active characteristic
     if (params.state && params.state !== this.cacheState) {
       this.cacheState = params.state;
-      this._service.updateCharacteristic(this.hapChar.Active, this.cacheState === 'on');
+      this._service.updateCharacteristic(this.hapChar.Active, this.cacheState === 'on' ? 1 : 0);
       this.accessory.log(`${platformLang.curState} [${this.cacheState}]`);
     }
 

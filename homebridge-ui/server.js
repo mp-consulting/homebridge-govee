@@ -51,11 +51,11 @@ class GoveeUiServer extends HomebridgePluginUiServer {
       const devices = await goveeGetDevices(loginResult.token, loginResult.clientId);
 
       return {
-        devices: devices.map(device => ({
+        devices: Array.isArray(devices) ? devices.map(device => ({
           deviceId: device.device,
           deviceName: device.deviceName,
           model: device.sku,
-        })),
+        })) : [],
       };
     } catch (err) {
       const message = err.response?.data?.message || err.message || 'Discovery failed';
@@ -100,8 +100,8 @@ class GoveeUiServer extends HomebridgePluginUiServer {
         return { devices: [] };
       }
 
-      const devices = JSON.parse(storedData);
-      return { devices: devices || [] };
+      const devices = typeof storedData === 'string' ? JSON.parse(storedData) : storedData;
+      return { devices: Array.isArray(devices) ? devices : [] };
     } catch (err) {
       console.error('Failed to get cached devices:', err);
       return { devices: [] };

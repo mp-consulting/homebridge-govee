@@ -98,6 +98,11 @@ export class SensorMonitorDevice extends GoveeDeviceBase {
         // Known non-data functions, ignore
         break;
       default: {
+        // Validate hex parts have enough data for temp/humidity/air quality
+        if (hexParts.length < 21) {
+          this.accessory.logDebug(`${platformLang.newScene}: [${deviceFunction}] [insufficient data: ${hexParts.length} parts]`);
+          break;
+        }
         const tempInCen = Math.round((hexToDecimal(`0x${deviceFunction}`) +
             (this.accessory.context.offTemp as number || 0) / 100) / 10) / 10;
 

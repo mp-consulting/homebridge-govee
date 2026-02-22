@@ -5,6 +5,16 @@ export default tseslint.config(
   {
     ignores: ['dist/**', 'homebridge-ui/public/models.js'],
   },
+  // Base recommended configs (must come before custom rules so overrides work)
+  eslint.configs.recommended,
+  ...tseslint.configs.recommended,
+  // Test file configuration
+  {
+    files: ['src/**/*.test.ts'],
+    rules: {
+      '@typescript-eslint/no-use-before-define': 'off',
+    },
+  },
   {
     rules: {
       'quotes': ['error', 'single'],
@@ -78,6 +88,4 @@ export default tseslint.config(
       },
     },
   },
-  eslint.configs.recommended,
-  ...tseslint.configs.recommended,
 );

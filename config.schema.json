@@ -39,11 +39,17 @@
         "default": false,
         "description": "If enabled, device state changes will not be logged."
       },
+      "debug": {
+        "title": "Debug Logging",
+        "type": "boolean",
+        "default": false,
+        "description": "If enabled, verbose debug logging will be output to the Homebridge log."
+      },
       "httpRefreshTime": {
         "title": "HTTP Refresh Time (seconds)",
         "type": "integer",
-        "minimum": 60,
-        "default": 60,
+        "minimum": 30,
+        "default": 30,
         "description": "How often to poll the Govee API for device updates."
       },
       "awsDisable": {
@@ -673,7 +679,8 @@
       "items": [
         "ignoreMatter",
         "disableDeviceLogging",
-        "colourSafeMode"
+        "colourSafeMode",
+        "debug"
       ]
     },
     {

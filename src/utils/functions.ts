@@ -1,8 +1,6 @@
 import { Buffer } from 'node:buffer';
+import { execSync } from 'node:child_process';
 import fs from 'node:fs';
-
-import NodeRSA from 'node-rsa';
-import pem from 'pem';
 
 import type { IotCertificate } from '../types.js';
 import { hs2rgb as hs2rgbInternal } from './colour.js';
@@ -91,24 +89,23 @@ export function parseError(err: unknown, hideStack: string[] = []): string {
   return String(err);
 }
 
-export async function pfxToCertAndKey(pfxPath: string, p12Password: string): Promise<IotCertificate> {
-  return new Promise((resolve, reject) => {
-    pem.readPkcs12(fs.readFileSync(pfxPath), { p12Password }, (err, cert) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      try {
-        const key = new NodeRSA(cert.key);
-        resolve({
-          cert: cert.cert,
-          key: key.exportKey('pkcs8'),
-        });
-      } catch (error) {
-        reject(error);
-      }
-    });
-  });
+export function pfxToCertAndKey(pfxPath: string, p12Password: string): IotCertificate {
+  const pfxBuffer = fs.readFileSync(pfxPath);
+  const env = { ...process.env, PFX_PASS: p12Password };
+
+  // Extract the private key in PEM format using openssl (password via env to avoid shell injection)
+  const key = execSync(
+    'openssl pkcs12 -in /dev/stdin -nocerts -nodes -passin env:PFX_PASS',
+    { input: pfxBuffer, env, timeout: 10000, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] },
+  );
+
+  // Extract the certificate in PEM format using openssl
+  const cert = execSync(
+    'openssl pkcs12 -in /dev/stdin -clcerts -nokeys -passin env:PFX_PASS',
+    { input: pfxBuffer, env, timeout: 10000, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] },
+  );
+
+  return { cert, key };
 }
 
 export function sleep(ms: number): Promise<void> {
@@ -220,5 +217,26 @@ export function generateNightLightCode(
 export function generateNightLightOffCode(): string {
   const hexValues = [NIGHT_LIGHT_CMD, NIGHT_LIGHT_TYPE, NIGHT_LIGHT_OFF];
   return generateCodeFromHexValues(hexValues) as string;
+}
+
+/**
+ * Create a debounced async guard.
+ * Returns a function that, when called, waits `delayMs` then returns `true`
+ * only if no subsequent call was made during the wait.
+ *
+ * Usage:
+ *   private debounceBrightness = createDebouncedGuard(350);
+ *   async internalBrightnessUpdate(value: number) {
+ *     if (!await this.debounceBrightness()) return;
+ *     // ... proceed with update
+ *   }
+ */
+export function createDebouncedGuard(delayMs: number): () => Promise<boolean> {
+  let counter = 0;
+  return async () => {
+    const id = ++counter;
+    await sleep(delayMs);
+    return id === counter;
+  };
 }
 

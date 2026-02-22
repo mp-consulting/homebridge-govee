@@ -4,6 +4,7 @@ import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '..
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
 import {
+  getTwoItemPosition,
   processCommands,
   speedPercentToValue,
   speedValueToPercent,
@@ -214,9 +215,46 @@ export class PurifierH7120Device extends GoveeDeviceBase {
     }
 
     if (params.commands) {
-      processCommands(params.commands, {}, (command, hexString) => {
-        this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
-      });
+      processCommands(
+        params.commands,
+        {
+          '0501': (hexParts) => this.handleSpeedExternalUpdate(hexParts),
+          '0502': (hexParts) => this.handleSpeedExternalUpdate(hexParts),
+          '1000': (hexParts) => this.handleLockExternalUpdate(hexParts),
+          '1001': (hexParts) => this.handleLockExternalUpdate(hexParts),
+        },
+        (command, hexString) => {
+          this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
+        },
+      );
+    }
+  }
+
+  private handleSpeedExternalUpdate(hexParts: string[]): void {
+    const speedByte = getTwoItemPosition(hexParts, 3);
+    const speedByteMap: Record<string, number> = {
+      '01': 25,
+      '02': 50,
+      '03': 75,
+      '04': 100,
+    };
+    const newSpeed = speedByteMap[speedByte];
+    if (newSpeed === undefined) {
+      return;
+    }
+    if (this.cacheSpeed !== newSpeed) {
+      this.cacheSpeed = newSpeed;
+      this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
+      this.accessory.log(`${platformLang.curSpeed} [${this.cacheSpeed}%]`);
+    }
+  }
+
+  private handleLockExternalUpdate(hexParts: string[]): void {
+    const newLock: 'on' | 'off' = getTwoItemPosition(hexParts, 3) === '01' ? 'on' : 'off';
+    if (this.cacheLock !== newLock) {
+      this.cacheLock = newLock;
+      this._service.updateCharacteristic(this.hapChar.LockPhysicalControls, this.cacheLock === 'on' ? 1 : 0);
+      this.accessory.log(`${platformLang.curLock} [${this.cacheLock}]`);
     }
   }
 }

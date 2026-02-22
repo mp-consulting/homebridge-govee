@@ -9,24 +9,6 @@ import { isValidPeripheral } from '../utils/validation.js';
 
 process.env.NOBLE_REPORT_ALL_HCI_EVENTS = '1';
 
-process.on('uncaughtException', (err) => {
-  if (err.message && err.message.includes('BLEManager')) {
-    console.error('[BLE] native ble crash detected:', err.message);
-    console.error('[BLE] this is a known issue with Noble on some macos systems, ble functionality may be limited.');
-  } else {
-    throw err;
-  }
-});
-
-process.on('unhandledRejection', (reason) => {
-  if (reason && reason.toString().includes('BLEManager')) {
-    console.error('[BLE] unhandled ble rejection:', reason);
-    console.error('[BLE] this is a known issue with Noble on some macos systems, ble functionality may be limited.');
-  } else {
-    throw reason;
-  }
-});
-
 const H5075_UUID = 'ec88';
 const H5101_UUID = '0001';
 const CONTROL_CHARACTERISTIC_UUID = '000102030405060708090a0b0c0d1910';
@@ -157,6 +139,18 @@ export default class BLEClient {
       this.btClient.on('scanStop', this.eventHandlers.scanStop);
       this.btClient.on('warning', this.eventHandlers.warning);
       this.btClient.on('discover', this.eventHandlers.discover);
+
+      // Handle Noble-specific errors without installing global process handlers
+      this.btClient.on('error', (err: Error) => {
+        if (this.isShuttingDown) {
+          return;
+        }
+        if (err.message && err.message.includes('BLEManager')) {
+          this.log.warn('[BLE] native ble error detected: %s. BLE functionality may be limited.', err.message);
+        } else {
+          this.log.warn('[BLE] adapter error: %s.', err.message);
+        }
+      });
     } catch (err) {
       this.log.warn('[BLE] failed to setup event listeners:', (err as Error).message);
     }
@@ -223,17 +217,20 @@ export default class BLEClient {
       return false;
     }
 
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
       await Promise.race([
         this.btClient.waitForPoweredOnAsync(),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('timeout waiting for bluetooth adapter')), timeout),
-        ),
+        new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('timeout waiting for bluetooth adapter')), timeout);
+        }),
       ]);
       return true;
     } catch (err) {
       this.log.warn('[BLE] failed to power on adapter: %s.', (err as Error).message);
       return false;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
@@ -249,6 +246,7 @@ export default class BLEClient {
     }
 
     const wasScanning = this.isScanning;
+    const savedDiscoverCallback = this.discoverCallback;
     if (wasScanning) {
       accessory.logDebug('pausing sensor scan for device update');
       await this.stopDiscovery();
@@ -299,9 +297,9 @@ export default class BLEClient {
         }
       }
 
-      if (wasScanning && this.discoverCallback) {
+      if (wasScanning && savedDiscoverCallback) {
         setTimeout(() => {
-          this.startDiscovery(this.discoverCallback!).catch((err) =>
+          this.startDiscovery(savedDiscoverCallback).catch((err) =>
             this.log.debug('[BLE] failed to resume scanning: %s.', (err as Error).message),
           );
         }, 1000);
@@ -313,12 +311,17 @@ export default class BLEClient {
     if (!this.btClient) {
       throw new Error('BLE client not initialized');
     }
-    return Promise.race([
-      this.btClient.connectAsync(address),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Connection timeout')), timeout),
-      ),
-    ]);
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        this.btClient.connectAsync(address),
+        new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('Connection timeout')), timeout);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 
   private async writeWithTimeout(
@@ -326,12 +329,17 @@ export default class BLEClient {
     buffer: Buffer,
     timeout: number,
   ): Promise<void> {
-    return Promise.race([
-      characteristic.writeAsync(buffer, true),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Write timeout')), timeout),
-      ),
-    ]);
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        characteristic.writeAsync(buffer, true),
+        new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('Write timeout')), timeout);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 
   private prepareCommandBuffer(params: BLEParams): Buffer {

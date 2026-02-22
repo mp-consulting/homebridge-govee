@@ -78,6 +78,16 @@ Configure the plugin using the Homebridge UI or by editing your `config.json`:
 - **Appliances**: Heaters, humidifiers, purifiers, fans, and more
 - **Other**: Kettles, ice makers, and various smart home devices
 
+### Development
+
+```shell
+npm run build        # Clean build (compile TS, copy certs, generate UI models)
+npm run lint         # Lint with zero warnings
+npm test             # Run unit tests (Vitest)
+npm run test:watch   # Run tests in watch mode
+npm run watch        # Build, link, and run with nodemon
+```
+
 ### Architecture
 
 The plugin uses a modular architecture:

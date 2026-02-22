@@ -9,6 +9,9 @@ function twosComplement(n: number, w = 16): number {
 }
 
 export function decodeH5074Values(streamUpdate: string): DecodedSensorValues {
+  if (streamUpdate.length < 16) {
+    throw new Error(`H5074 stream too short: ${streamUpdate.length} chars (need 16)`);
+  }
   const temp_lsb = streamUpdate
     .substring(8, 10)
     .concat(streamUpdate.substring(6, 8));
@@ -31,6 +34,9 @@ export function decodeH5074Values(streamUpdate: string): DecodedSensorValues {
 }
 
 export function decodeH5075Values(streamUpdate: string): DecodedSensorValues {
+  if (streamUpdate.length < 14) {
+    throw new Error(`H5075 stream too short: ${streamUpdate.length} chars (need 14)`);
+  }
   let encodedData = Number.parseInt(streamUpdate.substring(6, 12), 16);
 
   let tempIsNegative = false;
@@ -56,6 +62,9 @@ export function decodeH5075Values(streamUpdate: string): DecodedSensorValues {
 }
 
 export function decodeH5101Values(streamUpdate: string): DecodedSensorValues {
+  if (streamUpdate.length < 16) {
+    throw new Error(`H5101 stream too short: ${streamUpdate.length} chars (need 16)`);
+  }
   let encodedData = Number.parseInt(streamUpdate.substring(8, 14), 16);
 
   let tempIsNegative = false;
@@ -81,6 +90,9 @@ export function decodeH5101Values(streamUpdate: string): DecodedSensorValues {
 }
 
 export function decodeH5179Values(streamUpdate: string): DecodedSensorValues {
+  if (streamUpdate.length < 22) {
+    throw new Error(`H5179 stream too short: ${streamUpdate.length} chars (need 22)`);
+  }
   const temp_lsb = streamUpdate
     .substring(14, 16)
     .concat(streamUpdate.substring(16, 18));

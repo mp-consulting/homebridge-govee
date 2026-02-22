@@ -177,7 +177,7 @@ export class Heater1bDevice extends GoveeDeviceBase {
 
       await this.sendDeviceUpdate({
         cmd: 'ptReal',
-        value: objectToChoose[this.cacheTemp],
+        value: objectToChoose[this.cacheTarg],
       });
 
       this.cacheMode = newMode;
@@ -319,7 +319,7 @@ export class Heater1bDevice extends GoveeDeviceBase {
     // Update the active characteristic
     if (params.state && params.state !== this.cacheState) {
       this.cacheState = params.state;
-      this._service.updateCharacteristic(this.hapChar.Active, this.cacheState === 'on');
+      this._service.updateCharacteristic(this.hapChar.Active, this.cacheState === 'on' ? 1 : 0);
       this.accessory.log(`${platformLang.curState} [${this.cacheState}]`);
 
       // Fan state should also match

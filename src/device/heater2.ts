@@ -5,15 +5,14 @@ import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
 import { hs2rgb, rgb2hs } from '../utils/colour.js';
 import {
+  createDebouncedGuard,
   farToCen,
   generateCodeFromHexValues,
-  generateRandomString,
   getTwoItemPosition,
   hasProperty,
   hexToDecimal,
   nearestHalf,
   processCommands,
-  sleep,
 } from '../utils/functions.js';
 import {
   HEATER2_SWING_CODES,
@@ -48,9 +47,9 @@ export class Heater2Device extends GoveeDeviceBase {
   private cacheHue = 0;
   private cacheSat = 0;
 
-  // Debounce keys
-  private updateKeyBright = '';
-  private updateKeyColour = '';
+  // Debounce guards
+  private debounceBright = createDebouncedGuard(DEBOUNCE_BRIGHTNESS_MS);
+  private debounceColour = createDebouncedGuard(DEBOUNCE_COLOR_MS);
 
   constructor(platform: GoveePlatform, accessory: GoveePlatformAccessoryWithControl) {
     super(platform, accessory);
@@ -400,10 +399,7 @@ export class Heater2Device extends GoveeDeviceBase {
   private async internalBrightnessUpdate(value: number): Promise<void> {
     try {
       // Debounce
-      const updateKey = generateRandomString(5);
-      this.updateKeyBright = updateKey;
-      await sleep(DEBOUNCE_BRIGHTNESS_MS);
-      if (updateKey !== this.updateKeyBright) {
+      if (!await this.debounceBright()) {
         return;
       }
 
@@ -445,10 +441,7 @@ export class Heater2Device extends GoveeDeviceBase {
   private async internalColourUpdate(value: number): Promise<void> {
     try {
       // Debounce
-      const updateKey = generateRandomString(5);
-      this.updateKeyColour = updateKey;
-      await sleep(DEBOUNCE_COLOR_MS);
-      if (updateKey !== this.updateKeyColour) {
+      if (!await this.debounceColour()) {
         return;
       }
 

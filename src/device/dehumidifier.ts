@@ -3,7 +3,7 @@ import type { GoveePlatform } from '../platform.js';
 import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
-import { processCommands, speedPercentToValue, speedValueToPercent } from '../utils/functions.js';
+import { getTwoItemPosition, processCommands, speedPercentToValue, speedValueToPercent } from '../utils/functions.js';
 import { HUMIDIFIER_H7140_SPEED_CODES } from '../catalog/index.js';
 
 /**
@@ -102,11 +102,28 @@ export class DehumidifierDevice extends GoveeDeviceBase {
     if (params.commands) {
       processCommands(
         params.commands,
-        {},
+        {
+          '0501': (hexParts) => this.handleSpeedExternalUpdate(hexParts),
+          '0502': (hexParts) => this.handleSpeedExternalUpdate(hexParts),
+        },
         (command, hexString) => {
           this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
         },
       );
+    }
+  }
+
+  private handleSpeedExternalUpdate(hexParts: string[]): void {
+    const speedByte = getTwoItemPosition(hexParts, 3);
+    const speedValue = Number.parseInt(speedByte, 16);
+    if (speedValue < 1 || speedValue > MAX_SPEED) {
+      return;
+    }
+    const newPercent = speedValueToPercent(speedValue, MAX_SPEED);
+    if (this.cacheSpeed !== newPercent) {
+      this.cacheSpeed = newPercent;
+      this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
+      this.accessory.log(`${platformLang.curSpeed} [${speedValue}]`);
     }
   }
 }

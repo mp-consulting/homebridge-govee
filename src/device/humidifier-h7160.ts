@@ -5,12 +5,11 @@ import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
 import { hs2rgb, rgb2hs } from '../utils/colour.js';
 import {
+  createDebouncedGuard,
   generateCodeFromHexValues,
-  generateRandomString,
   getTwoItemPosition,
   hexToDecimal,
   processCommands,
-  sleep,
   speedPercentToValue,
   speedValueToPercent,
 } from '../utils/functions.js';
@@ -46,9 +45,9 @@ export class HumidifierH7160Device extends GoveeDeviceBase {
   private cacheHue = 0;
   private cacheSat = 0;
 
-  // Debounce keys
-  private updateKeyBright?: string;
-  private updateKeyColour?: string;
+  // Debounce guards
+  private debounceBright = createDebouncedGuard(350);
+  private debounceColour = createDebouncedGuard(300);
 
   constructor(platform: GoveePlatform, accessory: GoveePlatformAccessoryWithControl) {
     super(platform, accessory);
@@ -186,10 +185,7 @@ export class HumidifierH7160Device extends GoveeDeviceBase {
   private async internalBrightnessUpdate(value: number): Promise<void> {
     try {
       // Debounce when sliding brightness
-      const updateKeyBright = generateRandomString(5);
-      this.updateKeyBright = updateKeyBright;
-      await sleep(350);
-      if (updateKeyBright !== this.updateKeyBright) {
+      if (!await this.debounceBright()) {
         return;
       }
 
@@ -229,10 +225,7 @@ export class HumidifierH7160Device extends GoveeDeviceBase {
   private async internalColourUpdate(value: number): Promise<void> {
     try {
       // Debounce when sliding colour wheel
-      const updateKeyColour = generateRandomString(5);
-      this.updateKeyColour = updateKeyColour;
-      await sleep(300);
-      if (updateKeyColour !== this.updateKeyColour) {
+      if (!await this.debounceColour()) {
         return;
       }
 

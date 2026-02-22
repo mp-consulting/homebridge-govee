@@ -393,7 +393,8 @@ export interface EveCharacteristicUUIDs {
 // ============================================================================
 
 export interface DeviceController {
-  externalUpdate(params: DeviceStateUpdate): void;
+  externalUpdate(params: DeviceStateUpdate): void | Promise<void>;
+  destroy?(): void;
 }
 
 // ============================================================================
@@ -436,7 +437,6 @@ export interface HTTPClient {
   login(): Promise<HTTPLoginResult>;
   logout(): Promise<void>;
   getDevices(isSync?: boolean): Promise<GoveeHTTPDeviceInfo[]>;
-  getTapToRuns(): Promise<unknown[]>;
   getLeakDeviceWarning(deviceId: string, deviceSku: string): Promise<unknown[]>;
 }
 
