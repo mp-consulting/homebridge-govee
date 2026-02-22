@@ -53,13 +53,15 @@ export class PurifierH7126BaseDevice extends GoveeDeviceBase {
     });
     this.cacheState = this._service.getCharacteristic(this.hapChar.Active).value === 1 ? 'on' : 'off';
 
-    // Target state (manual only)
-    this._service.getCharacteristic(this.hapChar.TargetAirPurifierState).updateValue(1);
+    // Target state (manual only - no auto mode on these models)
+    this._service.getCharacteristic(this.hapChar.TargetAirPurifierState)
+      .setProps({ validValues: [0] })
+      .updateValue(0);
 
     // Rotation speed (3 speeds)
     this._service
       .getCharacteristic(this.hapChar.RotationSpeed)
-      .setProps({ minStep: 25, validValues: [0, 33, 66, 99] })
+      .setProps({ minStep: 33, validValues: [0, 33, 66, 99] })
       .onSet(async (value) => this.internalSpeedUpdate(value as number));
     this.cacheSpeed = this._service.getCharacteristic(this.hapChar.RotationSpeed).value as number;
 

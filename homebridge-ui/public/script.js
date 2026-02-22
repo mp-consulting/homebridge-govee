@@ -1,6 +1,13 @@
 // modelCategories and getDeviceTypeFromModel are loaded from models.js
 // which is auto-generated from src/utils/constants.ts during build
 
+function escapeHtml(str) {
+  if (typeof str !== 'string') {
+    return String(str ?? '');
+  }
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
 // Device type configurations
 const deviceTypes = {
   lightDevices: {
@@ -159,7 +166,7 @@ function renderDeviceField(type, index, field, value) {
         <label class="form-label" for="${fieldId}">${field.label}${field.required ? ' *' : ''}</label>
         <input type="${field.type}" class="form-control form-control-sm device-field" id="${fieldId}"
           data-type="${type}" data-index="${index}" data-field="${field.id}"
-          value="${value || ''}" ${field.min !== undefined ? `min="${field.min}"` : ''}
+          value="${escapeHtml(value || '')}" ${field.min !== undefined ? `min="${field.min}"` : ''}
           ${field.max !== undefined ? `max="${field.max}"` : ''}>
       </div>`;
   }
@@ -193,7 +200,7 @@ function renderDevice(type, index, device) {
     <div class="card device-card mb-2 ${isIgnored ? 'ignored' : ''}" id="${type}_${index}_card">
       <div class="card-body py-2">
         <div class="d-flex justify-content-between align-items-center mb-2">
-          <strong>${displayName}</strong>
+          <strong>${escapeHtml(displayName)}</strong>
           <button class="btn btn-outline-danger btn-sm" onclick="removeDevice('${type}', ${index})">Remove</button>
         </div>
         ${fieldsHtml}
@@ -492,14 +499,14 @@ function removeDevice(type, index) {
 
       if (response.success) {
         homebridge.toast.success('Connection successful!');
-        loginResult.innerHTML = `<div class="alert alert-success">${response.message}</div>`;
+        loginResult.innerHTML = `<div class="alert alert-success">${escapeHtml(response.message)}</div>`;
       } else {
         homebridge.toast.warning(response.message || 'Connection failed');
-        loginResult.innerHTML = `<div class="alert alert-warning">${response.message || 'Connection failed'}</div>`;
+        loginResult.innerHTML = `<div class="alert alert-warning">${escapeHtml(response.message || 'Connection failed')}</div>`;
       }
     } catch (err) {
       homebridge.toast.error(err.message || 'Connection failed');
-      loginResult.innerHTML = `<div class="alert alert-danger">${err.message || 'Connection failed'}</div>`;
+      loginResult.innerHTML = `<div class="alert alert-danger">${escapeHtml(err.message || 'Connection failed')}</div>`;
     } finally {
       spinner.classList.add('d-none');
       btn.disabled = false;
@@ -602,12 +609,12 @@ function removeDevice(type, index) {
 
           html += `<li class="list-group-item d-flex justify-content-between align-items-center">
             <div>
-              <strong>${device.deviceName || 'Unknown'}</strong><br>
-              <small class="text-muted">Model: ${model || 'Unknown'}</small>
-              <span class="badge bg-primary ms-2">${typeName}</span>
+              <strong>${escapeHtml(device.deviceName || 'Unknown')}</strong><br>
+              <small class="text-muted">Model: ${escapeHtml(model || 'Unknown')}</small>
+              <span class="badge bg-primary ms-2">${escapeHtml(typeName)}</span>
             </div>
             <div class="text-end">
-              <code class="user-select-all">${deviceId}</code>
+              <code class="user-select-all">${escapeHtml(deviceId)}</code>
             </div>
           </li>`;
         }
@@ -642,7 +649,7 @@ function removeDevice(type, index) {
       }
     } catch (err) {
       homebridge.toast.error(err.message || 'Discovery failed');
-      deviceList.innerHTML = `<div class="alert alert-danger">Error: ${err.message || 'Unknown error'}</div>`;
+      deviceList.innerHTML = `<div class="alert alert-danger">Error: ${escapeHtml(err.message || 'Unknown error')}</div>`;
     } finally {
       spinner.classList.add('d-none');
       btn.disabled = false;
@@ -706,14 +713,14 @@ function removeDevice(type, index) {
 
       if (response.success) {
         homebridge.toast.success('Cache cleared successfully!');
-        resultDiv.innerHTML = `<div class="alert alert-success">${response.message}</div>`;
+        resultDiv.innerHTML = `<div class="alert alert-success">${escapeHtml(response.message)}</div>`;
       } else {
         homebridge.toast.warning(response.message || 'Cache partially cleared');
-        resultDiv.innerHTML = `<div class="alert alert-warning">${response.message || 'Cache partially cleared'}</div>`;
+        resultDiv.innerHTML = `<div class="alert alert-warning">${escapeHtml(response.message || 'Cache partially cleared')}</div>`;
       }
     } catch (err) {
       homebridge.toast.error(err.message || 'Failed to clear cache');
-      resultDiv.innerHTML = `<div class="alert alert-danger">${err.message || 'Failed to clear cache'}</div>`;
+      resultDiv.innerHTML = `<div class="alert alert-danger">${escapeHtml(err.message || 'Failed to clear cache')}</div>`;
     } finally {
       spinner.classList.add('d-none');
       btn.disabled = false;

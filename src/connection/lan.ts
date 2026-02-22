@@ -202,6 +202,7 @@ export default class LANClient {
       this.sender.send(stateCommand, devicePort, device.ip, (err) => {
         if (err) {
           reject(err);
+          return;
         }
         resolve();
       });
@@ -229,7 +230,13 @@ export default class LANClient {
       this.sender.send(command, devicePort, foundDevice.ip, async (err) => {
         if (err) {
           if (!foundDevice.isManual) {
-            this.lanDevices.splice(foundDeviceId, 1);
+            // Re-find the device index since the array may have changed
+            const currentIndex = this.lanDevices.findIndex(
+              value => value.device === accessory.context.gvDeviceId,
+            );
+            if (currentIndex !== -1) {
+              this.lanDevices.splice(currentIndex, 1);
+            }
             accessory.logDebugWarn(`[LAN] ${platformLang.lanDevRemoved}`);
           }
           reject(err);

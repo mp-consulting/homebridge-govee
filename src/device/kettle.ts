@@ -81,7 +81,7 @@ export class KettleDevice extends GoveeDeviceBase {
 
     // Add a switch service for Black Tea/Boil
     this.service4 = this.accessory.getService('Black Tea/Boil');
-    if (deviceConf.hideModeBlackTeaBoil) {
+    if (deviceConf.hideModeBlackTea) {
       if (this.service4) {
         this.accessory.removeService(this.service4);
         this.service4 = undefined;

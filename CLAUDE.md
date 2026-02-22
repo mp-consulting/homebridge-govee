@@ -10,12 +10,15 @@ Homebridge plugin (`@mp-consulting/homebridge-govee`) that integrates Govee smar
 - **Runtime**: Node.js ^20.18.0 || ^22.10.0 || ^24.0.0
 - **Platform**: Homebridge ^1.8.0 || ^2.0.0-beta
 - **Linting**: ESLint 9 flat config with typescript-eslint
+- **Testing**: Vitest (co-located `*.test.ts` files alongside source)
 
 ## Commands
 
 - `npm run build` — Clean `dist/`, compile TypeScript, copy certs, generate UI models
 - `npm run lint` — Lint with zero warnings allowed
 - `npm run lint:fix` — Auto-fix lint issues
+- `npm test` — Run unit tests with Vitest
+- `npm run test:watch` — Run tests in watch mode
 - `npm run watch` — Build, link, and run with nodemon (auto-recompiles on `src/` changes, launches homebridge from `test/hbConfig/`)
 
 ## Project Structure
@@ -91,4 +94,4 @@ When making user-facing changes (features, bug fixes, device support, config cha
 - The `src/connection/cert/` directory contains AWS IoT root CA cert and is copied to `dist/` at build time
 - `homebridge-ui/` uses plain JavaScript (not TypeScript) — it is excluded from `tsconfig.json`
 - `scripts/generate-ui-models.js` auto-generates `homebridge-ui/public/models.js` from the catalog at build time
-- No test runner is configured; validation is done via lint + build + manual testing with homebridge
+- Unit tests use Vitest with co-located `*.test.ts` files; test files are excluded from the TypeScript build via `tsconfig.json`

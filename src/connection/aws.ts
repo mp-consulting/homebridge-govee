@@ -49,7 +49,6 @@ export default class AWSClient {
 
     this.device.on('reconnect', () => {
       platform.log.debug('[AWS] %s.', platformLang.awsEventReconnect);
-      this.connected = true;
     });
 
     this.device.on('offline', () => {
@@ -180,5 +179,14 @@ export default class AWSClient {
         },
       );
     });
+  }
+
+  disconnect(): void {
+    try {
+      this.device.end(false);
+      this.connected = false;
+    } catch {
+      // Ignore errors during disconnect
+    }
   }
 }

@@ -44,6 +44,8 @@
     "build": "rimraf ./dist && tsc && cp -r src/connection/cert dist/connection/ && node scripts/generate-ui-models.js",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "npm run lint -- --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "prepublishOnly": "npm run lint && npm run build",
     "watch": "npm run build && npm link && nodemon"
   },
@@ -71,6 +73,7 @@
     "rimraf": "^6.1.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.46.4"
+    "typescript-eslint": "^8.46.4",
+    "vitest": "^4.0.18"
   }
 }

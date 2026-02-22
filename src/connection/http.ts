@@ -97,7 +97,7 @@ export default class HTTPClient {
       });
 
       this.token = res.data.client.token;
-      this.tokenTTR = ttrRes.data.data.token;
+      this.tokenTTR = ttrRes.data?.data?.token;
 
       this.log.debug('[HTTP] %s. AccountId: %s', platformLang.loginSuccess, res.data.client.accountId);
 

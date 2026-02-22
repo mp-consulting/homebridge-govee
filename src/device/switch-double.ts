@@ -11,10 +11,10 @@ import { platformLang } from '../utils/index.js';
  * Command values:
  * - 51: Both ON
  * - 48: Both OFF
- * - 34: Switch 1 ON
- * - 32: Switch 1 OFF
- * - 17: Switch 2 ON
- * - 16: Switch 2 OFF
+ * - 17: Switch 1 ON (channel 1)
+ * - 16: Switch 1 OFF (channel 1)
+ * - 34: Switch 2 ON (channel 2)
+ * - 32: Switch 2 OFF (channel 2)
  */
 export class SwitchDoubleDevice extends GoveeDeviceBase {
   private _service1!: Service;
@@ -91,13 +91,13 @@ export class SwitchDoubleDevice extends GoveeDeviceBase {
       }
 
       // Calculate command value
-      // Switch 1: 34 = ON, 32 = OFF
-      // Switch 2: 17 = ON, 16 = OFF
+      // Switch 1: 17 = ON, 16 = OFF (channel 1)
+      // Switch 2: 34 = ON, 32 = OFF (channel 2)
       let commandValue: number;
       if (switchNum === 1) {
-        commandValue = value ? 34 : 32;
-      } else {
         commandValue = value ? 17 : 16;
+      } else {
+        commandValue = value ? 34 : 32;
       }
 
       // Send the request to the platform sender function

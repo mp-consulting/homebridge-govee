@@ -217,17 +217,20 @@ export default class BLEClient {
       return false;
     }
 
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
       await Promise.race([
         this.btClient.waitForPoweredOnAsync(),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('timeout waiting for bluetooth adapter')), timeout),
-        ),
+        new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('timeout waiting for bluetooth adapter')), timeout);
+        }),
       ]);
       return true;
     } catch (err) {
       this.log.warn('[BLE] failed to power on adapter: %s.', (err as Error).message);
       return false;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
@@ -243,6 +246,7 @@ export default class BLEClient {
     }
 
     const wasScanning = this.isScanning;
+    const savedDiscoverCallback = this.discoverCallback;
     if (wasScanning) {
       accessory.logDebug('pausing sensor scan for device update');
       await this.stopDiscovery();
@@ -293,9 +297,9 @@ export default class BLEClient {
         }
       }
 
-      if (wasScanning && this.discoverCallback) {
+      if (wasScanning && savedDiscoverCallback) {
         setTimeout(() => {
-          this.startDiscovery(this.discoverCallback!).catch((err) =>
+          this.startDiscovery(savedDiscoverCallback).catch((err) =>
             this.log.debug('[BLE] failed to resume scanning: %s.', (err as Error).message),
           );
         }, 1000);
@@ -307,12 +311,17 @@ export default class BLEClient {
     if (!this.btClient) {
       throw new Error('BLE client not initialized');
     }
-    return Promise.race([
-      this.btClient.connectAsync(address),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Connection timeout')), timeout),
-      ),
-    ]);
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        this.btClient.connectAsync(address),
+        new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('Connection timeout')), timeout);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 
   private async writeWithTimeout(
@@ -320,12 +329,17 @@ export default class BLEClient {
     buffer: Buffer,
     timeout: number,
   ): Promise<void> {
-    return Promise.race([
-      characteristic.writeAsync(buffer, true),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Write timeout')), timeout),
-      ),
-    ]);
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        characteristic.writeAsync(buffer, true),
+        new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('Write timeout')), timeout);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 
   private prepareCommandBuffer(params: BLEParams): Buffer {
