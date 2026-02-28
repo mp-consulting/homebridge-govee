@@ -1,42 +1,34 @@
-name: CI — Build, Lint, Test
+name: CI
 
 on: [push, pull_request]
 
 jobs:
   build:
+    name: Node ${{ matrix.node-version }}
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
-        # Node.js 24.x excluded: native BLE modules (@stoprocent/noble) have C++ compilation
-        # issues with V8's C++20 requires constraints in Node.js 24
         node-version: [20.x, 22.x]
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v6
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Lint the project
+      - name: Lint
         run: npm run lint
 
-      - name: Run tests
-        run: npm test
-
-      - name: Build the project
+      - name: Build
         run: npm run build
 
-      - name: List, audit, fix outdated dependencies and build again
-        run: |
-          npm list --outdated
-          npm audit || true  # ignore failures
-          npm audit fix || true
-          npm list --outdated
-          npm run build
+      - name: Test
+        run: npm test
