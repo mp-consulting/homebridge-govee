@@ -7,6 +7,8 @@ import type {
   PlatformAccessory,
   PlatformConfig,
 } from 'homebridge';
+import type PQueue from 'p-queue';
+import type { LocalStorage } from 'node-persist';
 
 // ============================================================================
 // Configuration Types
@@ -416,9 +418,9 @@ export interface GoveePlatform extends DynamicPlatformPlugin {
   lanClient: LANClient | false;
   awsClient: AWSClient | false;
   bleClient: BLEClient | false;
-  queue: import('p-queue').default;
+  queue: PQueue;
   storageClientData: boolean;
-  storageData?: import('node-persist').LocalStorage;
+  storageData?: LocalStorage;
 
   sendDeviceUpdate(accessory: GoveePlatformAccessory, params: DeviceUpdateParams): Promise<void>;
   receiveDeviceUpdate(accessory: GoveePlatformAccessory, params: DeviceStateUpdate): void;

@@ -777,58 +777,58 @@ export class GoveePlatform implements DynamicPlatformPlugin {
     const data: { awsParams?: AWSParams; bleParams?: BLEParams; lanParams?: LANParams } = {};
 
     switch (params.cmd) {
-    case 'state':
-      data.awsParams = { cmd: 'turn', data: { val: params.value === 'on' ? 1 : 0 } };
-      data.bleParams = { cmd: 0x01, data: params.value === 'on' ? 0x1 : 0x0 };
-      data.lanParams = { cmd: 'turn', data: { value: params.value === 'on' ? 1 : 0 } };
-      break;
-    case 'brightness': {
-      const val = params.value as number;
-      data.awsParams = { cmd: 'brightness', data: { val: Math.round(val * 2.54) } };
-      data.bleParams = { cmd: 0x04, data: Math.floor((val / 100) * 0xff) };
-      data.lanParams = { cmd: 'brightness', data: { value: val } };
-      break;
-    }
-    case 'color': {
-      const rgb = params.value as { r: number; g: number; b: number };
-      data.awsParams = { cmd: 'colorwc', data: { color: rgb, colorTemInKelvin: 0 } };
-      data.bleParams = { cmd: 0x05, data: [0x02, rgb.r, rgb.g, rgb.b] };
-      data.lanParams = { cmd: 'colorwc', data: { color: rgb, colorTemInKelvin: 0 } };
-      break;
-    }
-    case 'colorTem': {
-      const kelvin = params.value as number;
-      const [r, g, b] = k2rgb(kelvin);
-      data.awsParams = { cmd: 'colorwc', data: { color: { r, g, b }, colorTemInKelvin: kelvin } };
-      data.bleParams = { cmd: 0x05, data: [0x02, 0xff, 0xff, 0xff, 0x01, r, g, b] };
-      data.lanParams = { cmd: 'colorwc', data: { color: { r, g, b }, colorTemInKelvin: kelvin } };
-      break;
-    }
-    case 'stateOutlet':
-    case 'stateHumi':
-      data.awsParams = { cmd: 'turn', data: { val: params.value === 'on' || params.value === 1 ? 1 : 0 } };
-      break;
-    case 'stateDual':
-      data.awsParams = { cmd: 'turn', data: { val: params.value } };
-      break;
-    case 'ptReal': {
-      const code = params.value as string;
-      data.awsParams = { cmd: 'ptReal', data: { command: [code] } };
-      data.bleParams = { cmd: 'ptReal', data: base64ToHex(code) };
-      break;
-    }
-    case 'rgbScene': {
-      const [awsCode, bleCode] = params.value as [string, string | undefined];
-      if (awsCode) {
-        data.awsParams = { cmd: 'ptReal', data: { command: awsCode.split(',') } };
+      case 'state':
+        data.awsParams = { cmd: 'turn', data: { val: params.value === 'on' ? 1 : 0 } };
+        data.bleParams = { cmd: 0x01, data: params.value === 'on' ? 0x1 : 0x0 };
+        data.lanParams = { cmd: 'turn', data: { value: params.value === 'on' ? 1 : 0 } };
+        break;
+      case 'brightness': {
+        const val = params.value as number;
+        data.awsParams = { cmd: 'brightness', data: { val: Math.round(val * 2.54) } };
+        data.bleParams = { cmd: 0x04, data: Math.floor((val / 100) * 0xff) };
+        data.lanParams = { cmd: 'brightness', data: { value: val } };
+        break;
       }
-      if (bleCode) {
-        data.bleParams = { cmd: 'ptReal', data: bleCode };
+      case 'color': {
+        const rgb = params.value as { r: number; g: number; b: number };
+        data.awsParams = { cmd: 'colorwc', data: { color: rgb, colorTemInKelvin: 0 } };
+        data.bleParams = { cmd: 0x05, data: [0x02, rgb.r, rgb.g, rgb.b] };
+        data.lanParams = { cmd: 'colorwc', data: { color: rgb, colorTemInKelvin: 0 } };
+        break;
       }
-      break;
-    }
-    default:
-      throw new Error('Invalid command');
+      case 'colorTem': {
+        const kelvin = params.value as number;
+        const [r, g, b] = k2rgb(kelvin);
+        data.awsParams = { cmd: 'colorwc', data: { color: { r, g, b }, colorTemInKelvin: kelvin } };
+        data.bleParams = { cmd: 0x05, data: [0x02, 0xff, 0xff, 0xff, 0x01, r, g, b] };
+        data.lanParams = { cmd: 'colorwc', data: { color: { r, g, b }, colorTemInKelvin: kelvin } };
+        break;
+      }
+      case 'stateOutlet':
+      case 'stateHumi':
+        data.awsParams = { cmd: 'turn', data: { val: params.value === 'on' || params.value === 1 ? 1 : 0 } };
+        break;
+      case 'stateDual':
+        data.awsParams = { cmd: 'turn', data: { val: params.value } };
+        break;
+      case 'ptReal': {
+        const code = params.value as string;
+        data.awsParams = { cmd: 'ptReal', data: { command: [code] } };
+        data.bleParams = { cmd: 'ptReal', data: base64ToHex(code) };
+        break;
+      }
+      case 'rgbScene': {
+        const [awsCode, bleCode] = params.value as [string, string | undefined];
+        if (awsCode) {
+          data.awsParams = { cmd: 'ptReal', data: { command: awsCode.split(',') } };
+        }
+        if (bleCode) {
+          data.bleParams = { cmd: 'ptReal', data: bleCode };
+        }
+        break;
+      }
+      default:
+        throw new Error('Invalid command');
     }
 
     if (accessory.context.useLanControl && data.lanParams && this.lanClient) {

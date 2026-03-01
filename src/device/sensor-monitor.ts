@@ -1,6 +1,6 @@
 import type { Service } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
-import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
+import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams, EveHistoryService } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformConsts, platformLang } from '../utils/index.js';
 import {
@@ -68,7 +68,7 @@ export class SensorMonitorDevice extends GoveeDeviceBase {
     // Pass the accessory to Fakegato to set up with Eve
     this.accessory.eveService = new this.platform.eveService('custom', this.accessory, {
       log: () => {},
-    }) as unknown as import('../types.js').EveHistoryService;
+    }) as unknown as EveHistoryService;
 
     // Output the customised options to the log
     this.logInitOptions({ lowBattThreshold: this.lowBattThreshold });
@@ -85,87 +85,87 @@ export class SensorMonitorDevice extends GoveeDeviceBase {
       const deviceFunction = `${getTwoItemPosition(hexParts, 1)}${getTwoItemPosition(hexParts, 2)}`;
 
       switch (deviceFunction) {
-      case '0000':
-      case '0003':
-      case '0100':
-      case '0101':
-      case '0102':
-      case '0103':
-      case '331a':
-      case '3315':
-      case 'aa0d':
-      case 'aa0e':
+        case '0000':
+        case '0003':
+        case '0100':
+        case '0101':
+        case '0102':
+        case '0103':
+        case '331a':
+        case '3315':
+        case 'aa0d':
+        case 'aa0e':
         // Known non-data functions, ignore
-        break;
-      default: {
-        // Validate hex parts have enough data for temp/humidity/air quality
-        if (hexParts.length < 21) {
-          this.accessory.logDebug(`${platformLang.newScene}: [${deviceFunction}] [insufficient data: ${hexParts.length} parts]`);
           break;
-        }
-        const tempInCen = Math.round((hexToDecimal(`0x${deviceFunction}`) +
+        default: {
+        // Validate hex parts have enough data for temp/humidity/air quality
+          if (hexParts.length < 21) {
+            this.accessory.logDebug(`${platformLang.newScene}: [${deviceFunction}] [insufficient data: ${hexParts.length} parts]`);
+            break;
+          }
+          const tempInCen = Math.round((hexToDecimal(`0x${deviceFunction}`) +
             (this.accessory.context.offTemp as number || 0) / 100) / 10) / 10;
 
-        // Update temperature
-        if (tempInCen !== this.cacheTemp) {
-          this.cacheTemp = tempInCen;
-          this.tempService.updateCharacteristic(this.hapChar.CurrentTemperature, this.cacheTemp);
-          if (this.accessory.eveService) {
-            this.accessory.eveService.addEntry({ temp: this.cacheTemp });
+          // Update temperature
+          if (tempInCen !== this.cacheTemp) {
+            this.cacheTemp = tempInCen;
+            this.tempService.updateCharacteristic(this.hapChar.CurrentTemperature, this.cacheTemp);
+            if (this.accessory.eveService) {
+              this.accessory.eveService.addEntry({ temp: this.cacheTemp });
+            }
+            this.accessory.log(`${platformLang.curTemp} [${this.cacheTemp}°C / ${cenToFar(tempInCen)}°F]`);
+            this.updateCache();
           }
-          this.accessory.log(`${platformLang.curTemp} [${this.cacheTemp}°C / ${cenToFar(tempInCen)}°F]`);
-          this.updateCache();
-        }
 
-        // Update humidity
-        const humiHex = `${getTwoItemPosition(hexParts, 10)}${getTwoItemPosition(hexParts, 11)}`;
-        const humiDec = Math.round(hexToDecimal(`0x${humiHex}`) / 100) +
+          // Update humidity
+          const humiHex = `${getTwoItemPosition(hexParts, 10)}${getTwoItemPosition(hexParts, 11)}`;
+          const humiDec = Math.round(hexToDecimal(`0x${humiHex}`) / 100) +
             (this.accessory.context.offHumi as number || 0) / 100;
-        if (humiDec !== this.cacheHumi) {
-          this.cacheHumi = humiDec;
-          this.humiService.updateCharacteristic(this.hapChar.CurrentRelativeHumidity, this.cacheHumi);
-          if (this.accessory.eveService) {
-            this.accessory.eveService.addEntry({ humidity: this.cacheHumi });
+          if (humiDec !== this.cacheHumi) {
+            this.cacheHumi = humiDec;
+            this.humiService.updateCharacteristic(this.hapChar.CurrentRelativeHumidity, this.cacheHumi);
+            if (this.accessory.eveService) {
+              this.accessory.eveService.addEntry({ humidity: this.cacheHumi });
+            }
+            this.accessory.log(`${platformLang.curHumi} [${this.cacheHumi}%]`);
           }
-          this.accessory.log(`${platformLang.curHumi} [${this.cacheHumi}%]`);
+
+          // Update air quality
+          const qualHex = `${getTwoItemPosition(hexParts, 19)}${getTwoItemPosition(hexParts, 20)}`;
+          const qualDec = hexToDecimal(`0x${qualHex}`);
+          if (qualDec !== this.cacheAir) {
+            this.cacheAir = qualDec;
+            this.airService.updateCharacteristic(this.hapChar.PM2_5Density, this.cacheAir);
+            this.accessory.log(`${platformLang.curPM25} [${qualDec}µg/m³]`);
+
+            // Map PM2.5 to HomeKit air quality (1-5)
+            let newQual: string;
+            let hapValue: number;
+            if (this.cacheAir <= 12) {
+              newQual = 'excellent';
+              hapValue = 1;
+            } else if (this.cacheAir <= 35) {
+              newQual = 'good';
+              hapValue = 2;
+            } else if (this.cacheAir <= 75) {
+              newQual = 'fair';
+              hapValue = 3;
+            } else if (this.cacheAir <= 115) {
+              newQual = 'inferior';
+              hapValue = 4;
+            } else {
+              newQual = 'poor';
+              hapValue = 5;
+            }
+
+            if (this.cacheAirQual !== newQual) {
+              this.cacheAirQual = newQual;
+              this.airService.updateCharacteristic(this.hapChar.AirQuality, hapValue);
+              this.accessory.log(`${platformLang.curAirQual} [${newQual}]`);
+            }
+          }
+          break;
         }
-
-        // Update air quality
-        const qualHex = `${getTwoItemPosition(hexParts, 19)}${getTwoItemPosition(hexParts, 20)}`;
-        const qualDec = hexToDecimal(`0x${qualHex}`);
-        if (qualDec !== this.cacheAir) {
-          this.cacheAir = qualDec;
-          this.airService.updateCharacteristic(this.hapChar.PM2_5Density, this.cacheAir);
-          this.accessory.log(`${platformLang.curPM25} [${qualDec}µg/m³]`);
-
-          // Map PM2.5 to HomeKit air quality (1-5)
-          let newQual: string;
-          let hapValue: number;
-          if (this.cacheAir <= 12) {
-            newQual = 'excellent';
-            hapValue = 1;
-          } else if (this.cacheAir <= 35) {
-            newQual = 'good';
-            hapValue = 2;
-          } else if (this.cacheAir <= 75) {
-            newQual = 'fair';
-            hapValue = 3;
-          } else if (this.cacheAir <= 115) {
-            newQual = 'inferior';
-            hapValue = 4;
-          } else {
-            newQual = 'poor';
-            hapValue = 5;
-          }
-
-          if (this.cacheAirQual !== newQual) {
-            this.cacheAirQual = newQual;
-            this.airService.updateCharacteristic(this.hapChar.AirQuality, hapValue);
-            this.accessory.log(`${platformLang.curAirQual} [${newQual}]`);
-          }
-        }
-        break;
-      }
       }
     });
   }

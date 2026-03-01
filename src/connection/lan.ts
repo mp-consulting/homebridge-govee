@@ -79,69 +79,69 @@ export default class LANClient {
           const command = message.msg.cmd;
 
           switch (command) {
-          case commands.scan: {
-            this.latestDeviceScanTimestamp = Date.now();
-            const deviceData = message.msg.data;
+            case commands.scan: {
+              this.latestDeviceScanTimestamp = Date.now();
+              const deviceData = message.msg.data;
 
-            if (!deviceData.device) {
-              return;
-            }
+              if (!deviceData.device) {
+                return;
+              }
 
-            const existingIndex = this.lanDevices.findIndex(
-              value => value.device === deviceData.device,
-            );
-
-            if (existingIndex === -1) {
-              this.log.debug(
-                '[LAN] %s [isNew=true,isManual=false] [%s] [%s].',
-                platformLang.lanFoundDevice,
-                strMessage,
-                JSON.stringify(rinfo),
+              const existingIndex = this.lanDevices.findIndex(
+                value => value.device === deviceData.device,
               );
-              this.lanDevices.push({
-                device: deviceData.device,
-                ip: deviceData.ip || rinfo.address,
-                sku: deviceData.sku as string | undefined,
-              });
 
-              platform.receiveUpdateLAN(deviceData.device, {}, deviceData.ip || rinfo.address);
-            } else if (this.lanDevices[existingIndex].isPendingDiscovery) {
-              this.lanDevices[existingIndex] = {
-                device: deviceData.device,
-                ip: deviceData.ip || rinfo.address,
-                sku: deviceData.sku as string | undefined,
-                isManual: true,
-              };
-              this.log.debug(
-                '[LAN] %s [isNew=true,isManual=true] [%s] [%s].',
-                platformLang.lanFoundDevice,
-                strMessage,
-                JSON.stringify(rinfo),
-              );
-              platform.receiveUpdateLAN(deviceData.device, {}, deviceData.ip || rinfo.address);
-            } else {
-              this.log.debug(
-                '[LAN] %s [isNew=false] [%s] [%s].',
-                platformLang.lanFoundDevice,
-                strMessage,
-                JSON.stringify(rinfo),
-              );
-            }
-            break;
-          }
-          case commands.deviceStatus: {
-            const deviceAddress = rinfo.address;
-            const foundDeviceId = this.lanDevices.find(value => value.ip === deviceAddress);
+              if (existingIndex === -1) {
+                this.log.debug(
+                  '[LAN] %s [isNew=true,isManual=false] [%s] [%s].',
+                  platformLang.lanFoundDevice,
+                  strMessage,
+                  JSON.stringify(rinfo),
+                );
+                this.lanDevices.push({
+                  device: deviceData.device,
+                  ip: deviceData.ip || rinfo.address,
+                  sku: deviceData.sku as string | undefined,
+                });
 
-            if (foundDeviceId) {
-              platform.receiveUpdateLAN(foundDeviceId.device, message.msg.data, deviceAddress);
-            } else {
-              this.log.warn('[LAN] %s [%s].', platformLang.lanUnkDevice, deviceAddress);
+                platform.receiveUpdateLAN(deviceData.device, {}, deviceData.ip || rinfo.address);
+              } else if (this.lanDevices[existingIndex].isPendingDiscovery) {
+                this.lanDevices[existingIndex] = {
+                  device: deviceData.device,
+                  ip: deviceData.ip || rinfo.address,
+                  sku: deviceData.sku as string | undefined,
+                  isManual: true,
+                };
+                this.log.debug(
+                  '[LAN] %s [isNew=true,isManual=true] [%s] [%s].',
+                  platformLang.lanFoundDevice,
+                  strMessage,
+                  JSON.stringify(rinfo),
+                );
+                platform.receiveUpdateLAN(deviceData.device, {}, deviceData.ip || rinfo.address);
+              } else {
+                this.log.debug(
+                  '[LAN] %s [isNew=false] [%s] [%s].',
+                  platformLang.lanFoundDevice,
+                  strMessage,
+                  JSON.stringify(rinfo),
+                );
+              }
+              break;
             }
-            break;
-          }
-          default:
-            break;
+            case commands.deviceStatus: {
+              const deviceAddress = rinfo.address;
+              const foundDeviceId = this.lanDevices.find(value => value.ip === deviceAddress);
+
+              if (foundDeviceId) {
+                platform.receiveUpdateLAN(foundDeviceId.device, message.msg.data, deviceAddress);
+              } else {
+                this.log.warn('[LAN] %s [%s].', platformLang.lanUnkDevice, deviceAddress);
+              }
+              break;
+            }
+            default:
+              break;
           }
         } catch (err) {
           this.log('[LAN] %s [%s] [%s].', platformLang.lanParseError, strMessage, parseError(err as Error));

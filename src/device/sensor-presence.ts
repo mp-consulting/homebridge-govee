@@ -51,19 +51,19 @@ export class SensorPresenceDevice extends GoveeDeviceBase {
       const deviceFunction = `${getTwoItemPosition(hexParts, 1)}${getTwoItemPosition(hexParts, 2)}`;
 
       switch (deviceFunction) {
-      case 'aa01': {
+        case 'aa01': {
         // Occupancy detected
-        const newState = getTwoItemPosition(hexParts, 3) === '01' ? 1 : 0;
-        if (newState !== this.cacheOccupancy) {
-          this.cacheOccupancy = newState;
-          this._service.updateCharacteristic(this.hapChar.OccupancyDetected, this.cacheOccupancy);
-          this.accessory.log(`${platformLang.curOcc} [${this.cacheOccupancy === 1 ? 'yes' : 'no'}]`);
+          const newState = getTwoItemPosition(hexParts, 3) === '01' ? 1 : 0;
+          if (newState !== this.cacheOccupancy) {
+            this.cacheOccupancy = newState;
+            this._service.updateCharacteristic(this.hapChar.OccupancyDetected, this.cacheOccupancy);
+            this.accessory.log(`${platformLang.curOcc} [${this.cacheOccupancy === 1 ? 'yes' : 'no'}]`);
+          }
+          break;
         }
-        break;
-      }
-      default:
-        this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
-        break;
+        default:
+          this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
+          break;
       }
     });
   }

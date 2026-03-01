@@ -1,6 +1,6 @@
 import type { Service } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
-import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
+import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams, EveHistoryService } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
 import { generateRandomString, hasProperty, parseError } from '../utils/functions.js';
@@ -95,7 +95,7 @@ export class CoolerSingleDevice extends GoveeDeviceBase {
     // Pass the accessory to Fakegato to set up with Eve
     this.accessory.eveService = new this.platform.eveService('custom', this.accessory, {
       log: () => {},
-    }) as unknown as import('../types.js').EveHistoryService;
+    }) as unknown as EveHistoryService;
 
     // Set up an interval to get regular temperature updates
     this.initTimeout = setTimeout(() => {

@@ -49,9 +49,9 @@ export class TemplateDevice extends GoveeDeviceBase {
         const deviceFunction = `${getTwoItemPosition(hexParts, 1)}${getTwoItemPosition(hexParts, 2)}`;
 
         switch (deviceFunction) {
-        default:
-          this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
-          break;
+          default:
+            this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
+            break;
         }
       }
     }

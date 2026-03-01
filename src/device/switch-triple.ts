@@ -90,15 +90,15 @@ export class SwitchTripleDevice extends GoveeDeviceBase {
       // Switch 3: 68 = ON, 64 = OFF
       let commandValue: number;
       switch (switchNum) {
-      case 1:
-        commandValue = value ? 17 : 16;
-        break;
-      case 2:
-        commandValue = value ? 34 : 32;
-        break;
-      case 3:
-        commandValue = value ? 68 : 64;
-        break;
+        case 1:
+          commandValue = value ? 17 : 16;
+          break;
+        case 2:
+          commandValue = value ? 34 : 32;
+          break;
+        case 3:
+          commandValue = value ? 68 : 64;
+          break;
       }
 
       // Send the request to the platform sender function
@@ -124,25 +124,25 @@ export class SwitchTripleDevice extends GoveeDeviceBase {
 
   private getServiceByNum(num: 1 | 2 | 3): Service {
     switch (num) {
-    case 1: return this._service1;
-    case 2: return this._service2;
-    case 3: return this._service3;
+      case 1: return this._service1;
+      case 2: return this._service2;
+      case 3: return this._service3;
     }
   }
 
   private getCacheByNum(num: 1 | 2 | 3): 'on' | 'off' {
     switch (num) {
-    case 1: return this.cacheState1;
-    case 2: return this.cacheState2;
-    case 3: return this.cacheState3;
+      case 1: return this.cacheState1;
+      case 2: return this.cacheState2;
+      case 3: return this.cacheState3;
     }
   }
 
   private setCacheByNum(num: 1 | 2 | 3, value: 'on' | 'off'): void {
     switch (num) {
-    case 1: this.cacheState1 = value; break;
-    case 2: this.cacheState2 = value; break;
-    case 3: this.cacheState3 = value; break;
+      case 1: this.cacheState1 = value; break;
+      case 2: this.cacheState2 = value; break;
+      case 3: this.cacheState3 = value; break;
     }
   }
 

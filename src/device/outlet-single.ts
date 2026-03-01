@@ -1,6 +1,6 @@
 import type { Service } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
-import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
+import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams, EveHistoryService } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
 import {
@@ -60,7 +60,7 @@ export class OutletSingleDevice extends GoveeDeviceBase {
       // Pass the accessory to Fakegato to set up with Eve
       this.accessory.eveService = new this.platform.eveService('switch', this.accessory, {
         log: () => {},
-      }) as unknown as import('../types.js').EveHistoryService;
+      }) as unknown as EveHistoryService;
     }
 
     // Output the customised options to the log
@@ -97,7 +97,7 @@ export class OutletSingleDevice extends GoveeDeviceBase {
     // Pass the accessory to Fakegato to set up with Eve
     this.accessory.eveService = new this.platform.eveService('energy', this.accessory, {
       log: () => {},
-    }) as unknown as import('../types.js').EveHistoryService;
+    }) as unknown as EveHistoryService;
   }
 
   private async internalStateUpdate(value: boolean): Promise<void> {
@@ -185,14 +185,14 @@ export class OutletSingleDevice extends GoveeDeviceBase {
       const deviceFunction = `${getTwoItemPosition(hexParts, 1)}${getTwoItemPosition(hexParts, 2)}`;
 
       switch (deviceFunction) {
-      case 'aa19': {
+        case 'aa19': {
         // Power readings
-        this.handlePowerReadings(hexParts);
-        break;
-      }
-      default:
-        this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
-        break;
+          this.handlePowerReadings(hexParts);
+          break;
+        }
+        default:
+          this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
+          break;
       }
     }
   }
