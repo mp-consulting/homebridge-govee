@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hs2rgb, rgb2hs, k2rgb, m2hs } from './colour.js';
+import { hs2rgb, rgb2hs, k2rgb, m2hs } from '../../src/utils/colour.js';
 
 describe('hs2rgb', () => {
   it('converts pure red (hue=0, sat=100)', () => {

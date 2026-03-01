@@ -21,7 +21,7 @@ import {
   generateNightLightOffCode,
   createDebouncedGuard,
   generateRandomString,
-} from './functions.js';
+} from '../../src/utils/functions.js';
 
 describe('base64ToHex / hexToBase64', () => {
   it('roundtrips correctly', () => {

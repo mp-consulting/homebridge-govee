@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateClientId } from './govee-api.js';
+import { generateClientId } from '../../src/utils/govee-api.js';
 
 describe('generateClientId', () => {
   it('starts with "hb" prefix', () => {

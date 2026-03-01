@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import platformConsts from './constants.js';
+import platformConsts from '../../src/utils/constants.js';
 
 describe('model arrays', () => {
   const allCategories = Object.keys(platformConsts.models) as (keyof typeof platformConsts.models)[];

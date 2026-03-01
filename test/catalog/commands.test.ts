@@ -3,7 +3,7 @@ import {
   getAirQualityFromPM25,
   getAirQualityLabelFromPM25,
   PM25_THRESHOLDS,
-} from './commands.js';
+} from '../../src/catalog/commands.js';
 
 describe('getAirQualityFromPM25', () => {
   it('returns 1 (excellent) for PM2.5 <= 12', () => {

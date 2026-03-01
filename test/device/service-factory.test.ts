@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getSpeedValidValues, getSpeedStepSize } from './service-factory.js';
+import { getSpeedValidValues, getSpeedStepSize } from '../../src/device/service-factory.js';
 
 describe('getSpeedValidValues', () => {
   it('generates correct values for maxSpeed=3', () => {

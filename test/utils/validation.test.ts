@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer';
 import { describe, it, expect } from 'vitest';
-import { isHt5074, isHt5075, isHt5101, isHt5179, isValidPeripheral } from './validation.js';
+import { isHt5074, isHt5075, isHt5101, isHt5179, isValidPeripheral } from '../../src/utils/validation.js';
 
 describe('isHt5074', () => {
   it('returns true for valid H5074 hex (includes 88ec, length 18)', () => {

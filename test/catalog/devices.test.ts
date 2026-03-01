@@ -6,7 +6,7 @@ import {
   getSpeedConfig,
   getAllModels,
   getModelsByCategory,
-} from './devices.js';
+} from '../../src/catalog/devices.js';
 
 describe('getDeviceDefinition', () => {
   it('returns a definition for a known model', () => {

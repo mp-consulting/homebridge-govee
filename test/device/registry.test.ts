@@ -11,8 +11,8 @@ import {
   getModelDefinition,
   modelHasCapability,
   getModelSpeedConfig,
-} from './registry.js';
-import type { DeviceHandlerClass } from './registry.js';
+} from '../../src/device/registry.js';
+import type { DeviceHandlerClass } from '../../src/device/registry.js';
 
 // Initialize the model mappings once before all tests
 beforeAll(() => {

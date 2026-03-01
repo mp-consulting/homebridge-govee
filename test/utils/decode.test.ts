@@ -5,7 +5,7 @@ import {
   decodeH5101Values,
   decodeH5179Values,
   decodeAny,
-} from './decode.js';
+} from '../../src/utils/decode.js';
 
 describe('decodeH5074Values', () => {
   it('decodes a known positive temperature stream', () => {
