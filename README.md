@@ -9,6 +9,8 @@ Homebridge plugin to integrate Govee devices into HomeKit
 
 </span>
 
+> Originally based on [homebridge-govee](https://github.com/homebridge-plugins/homebridge-govee) by [Ben Potter](https://github.com/bwp91), licensed under the MIT License. This fork has been substantially rewritten by [MP Consulting](https://github.com/mp-consulting).
+
 ### Plugin Information
 
 - This plugin allows you to view and control your Govee devices within HomeKit. The plugin:
@@ -103,8 +105,12 @@ The plugin uses a modular architecture:
 
 ### Credits
 
-- Based on the original [homebridge-govee](https://github.com/homebridge-plugins/homebridge-govee) plugin
+- Based on the original [homebridge-govee](https://github.com/homebridge-plugins/homebridge-govee) plugin by [Ben Potter (bwp91)](https://github.com/bwp91), licensed under the MIT License
 - To the creators/contributors of [Homebridge](https://homebridge.io) who make this plugin possible
+
+### License
+
+This project is licensed under the [MIT License](LICENSE). The original work is copyright (c) 2021-2024 Ben Potter (bwp91). Modifications and additions are copyright (c) 2025 Mickael Palma (MP Consulting). See the [LICENSE](LICENSE) file for full details.
 
 ### Disclaimer
 
