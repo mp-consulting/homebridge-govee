@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.6] - 2026-03-03
+
+### Fixed
+
+- **BLE Refresh Time Config**: Aligned `config.schema.json` minimum (now 60) and default (now 300) for `bleRefreshTime` with the runtime-enforced values in constants, preventing the UI from accepting values the plugin would reject
+
 ## [1.0.5] - 2026-02-22
 
 ### Added

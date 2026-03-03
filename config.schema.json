@@ -67,8 +67,8 @@
       "bleRefreshTime": {
         "title": "BLE Refresh Time (seconds)",
         "type": "integer",
-        "minimum": 15,
-        "default": 30,
+        "minimum": 60,
+        "default": 300,
         "description": "How often to scan for BLE sensor readings."
       },
       "bleControlInterval": {
