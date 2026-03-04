@@ -1,7 +1,5 @@
 import { Buffer } from 'node:buffer';
 import { execSync } from 'node:child_process';
-import fs from 'node:fs';
-
 import type { IotCertificate } from '../types.js';
 import { hs2rgb as hs2rgbInternal } from './colour.js';
 
@@ -90,19 +88,19 @@ export function parseError(err: unknown, hideStack: string[] = []): string {
 }
 
 export function pfxToCertAndKey(pfxPath: string, p12Password: string): IotCertificate {
-  const pfxBuffer = fs.readFileSync(pfxPath);
   const env = { ...process.env, PFX_PASS: p12Password };
+  const quotedPath = pfxPath.replaceAll("'", "'\\''");
 
   // Extract the private key in PEM format using openssl (password via env to avoid shell injection)
   const key = execSync(
-    'openssl pkcs12 -in /dev/stdin -nocerts -nodes -passin env:PFX_PASS',
-    { input: pfxBuffer, env, timeout: 10000, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] },
+    `openssl pkcs12 -in '${quotedPath}' -nocerts -nodes -passin env:PFX_PASS`,
+    { env, timeout: 10000, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] },
   );
 
   // Extract the certificate in PEM format using openssl
   const cert = execSync(
-    'openssl pkcs12 -in /dev/stdin -clcerts -nokeys -passin env:PFX_PASS',
-    { input: pfxBuffer, env, timeout: 10000, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] },
+    `openssl pkcs12 -in '${quotedPath}' -clcerts -nokeys -passin env:PFX_PASS`,
+    { env, timeout: 10000, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] },
   );
 
   return { cert, key };

@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import { execSync } from 'node:child_process';
 import { describe, it, expect, vi } from 'vitest';
 import {
   base64ToHex,
@@ -10,6 +11,7 @@ import {
   nearestHalf,
   parseDeviceId,
   parseError,
+  pfxToCertAndKey,
   speedPercentToValue,
   speedValueToPercent,
   generateCodeFromHexValues,
@@ -22,6 +24,12 @@ import {
   createDebouncedGuard,
   generateRandomString,
 } from '../../src/utils/functions.js';
+
+vi.mock('node:child_process', () => ({
+  execSync: vi.fn(),
+}));
+
+const mockedExecSync = vi.mocked(execSync);
 
 describe('base64ToHex / hexToBase64', () => {
   it('roundtrips correctly', () => {
@@ -423,6 +431,69 @@ describe('createDebouncedGuard', () => {
     expect(await a).toBe(true);
     expect(await b).toBe(true);
     vi.useRealTimers();
+  });
+});
+
+describe('pfxToCertAndKey', () => {
+  afterEach(() => {
+    mockedExecSync.mockReset();
+  });
+
+  it('returns cert and key from openssl output', () => {
+    mockedExecSync
+      .mockReturnValueOnce('-----BEGIN PRIVATE KEY-----\nKEY\n-----END PRIVATE KEY-----\n')
+      .mockReturnValueOnce('-----BEGIN CERTIFICATE-----\nCERT\n-----END CERTIFICATE-----\n');
+
+    const result = pfxToCertAndKey('/path/to/govee.pfx', 'secret');
+
+    expect(result.key).toContain('PRIVATE KEY');
+    expect(result.cert).toContain('CERTIFICATE');
+  });
+
+  it('passes the file path directly to openssl (not /dev/stdin)', () => {
+    mockedExecSync.mockReturnValue('');
+
+    pfxToCertAndKey('/path/to/govee.pfx', 'secret');
+
+    expect(mockedExecSync).toHaveBeenCalledTimes(2);
+    const keyCmd = mockedExecSync.mock.calls[0][0] as string;
+    const certCmd = mockedExecSync.mock.calls[1][0] as string;
+
+    expect(keyCmd).toContain("-in '/path/to/govee.pfx'");
+    expect(keyCmd).not.toContain('/dev/stdin');
+    expect(certCmd).toContain("-in '/path/to/govee.pfx'");
+    expect(certCmd).not.toContain('/dev/stdin');
+  });
+
+  it('uses -nocerts -nodes for key extraction and -clcerts -nokeys for cert', () => {
+    mockedExecSync.mockReturnValue('');
+
+    pfxToCertAndKey('/path/to/govee.pfx', 'secret');
+
+    const keyCmd = mockedExecSync.mock.calls[0][0] as string;
+    const certCmd = mockedExecSync.mock.calls[1][0] as string;
+
+    expect(keyCmd).toContain('-nocerts -nodes');
+    expect(certCmd).toContain('-clcerts -nokeys');
+  });
+
+  it('passes password via PFX_PASS env variable', () => {
+    mockedExecSync.mockReturnValue('');
+
+    pfxToCertAndKey('/path/to/govee.pfx', 'my-password');
+
+    const opts = mockedExecSync.mock.calls[0][1] as Record<string, unknown>;
+    expect((opts.env as Record<string, string>).PFX_PASS).toBe('my-password');
+    expect((mockedExecSync.mock.calls[0][0] as string)).toContain('-passin env:PFX_PASS');
+  });
+
+  it('escapes single quotes in the file path', () => {
+    mockedExecSync.mockReturnValue('');
+
+    pfxToCertAndKey("/path/it's/govee.pfx", 'secret');
+
+    const keyCmd = mockedExecSync.mock.calls[0][0] as string;
+    expect(keyCmd).toContain("/path/it'\\''s/govee.pfx");
   });
 });
 

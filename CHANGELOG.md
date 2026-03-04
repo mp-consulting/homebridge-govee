@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.7] - 2026-03-04
+
+### Fixed
+
+- **HTTP Client Certificate**: Fix PFX certificate extraction failing on Synology NAS and other systems without `/dev/stdin` by passing the file path directly to OpenSSL instead of piping through stdin
+
+### Added
+
+- **Tests**: Added tests for `pfxToCertAndKey` function
+
 ## [1.0.6] - 2026-03-03
 
 ### Fixed
