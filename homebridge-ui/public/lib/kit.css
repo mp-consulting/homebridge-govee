@@ -1,0 +1,253 @@
+/* @mp-consulting/homebridge-ui-kit v1.0.0 */
+
+/* ── Design tokens ──────────────────────────────────────────────────────────
+   CSS custom properties used throughout the design system.
+   Override these in your plugin's styles.css to customize per-plugin.
+   ────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Brand */
+  --mp-primary: #4f46e5;
+  --mp-primary-rgb: 79, 70, 229;
+  --mp-primary-hover: #4338ca;
+  --mp-primary-subtle: rgba(79, 70, 229, 0.12);
+
+  /* Status */
+  --mp-status-online: #10b981;
+  --mp-status-online-glow: rgba(16, 185, 129, 0.35);
+  --mp-status-offline: #ef4444;
+  --mp-status-checking: #94a3b8;
+
+  /* Surfaces */
+  --mp-surface: rgba(255, 255, 255, 0.03);
+  --mp-border: rgba(255, 255, 255, 0.08);
+
+  /* Shape */
+  --mp-radius: 0.5rem;
+  --mp-shadow-hover: 0 0.5rem 1rem rgba(0, 0, 0, 0.3);
+}
+
+/* ── Bootstrap 5 overrides ──────────────────────────────────────────────────
+   Remap Bootstrap components to use brand tokens.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* Primary button */
+.btn-primary {
+  --bs-btn-bg: var(--mp-primary);
+  --bs-btn-border-color: var(--mp-primary);
+  --bs-btn-hover-bg: var(--mp-primary-hover);
+  --bs-btn-hover-border-color: var(--mp-primary-hover);
+  --bs-btn-active-bg: var(--mp-primary-hover);
+  --bs-btn-active-border-color: var(--mp-primary-hover);
+  --bs-btn-focus-shadow-rgb: var(--mp-primary-rgb);
+}
+
+/* Primary spinner */
+.spinner-border.text-primary,
+.spinner-grow.text-primary {
+  color: var(--mp-primary) !important;
+}
+
+/* ── Components ─────────────────────────────────────────────────────────────
+   Reusable UI components used across all Homebridge plugins.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* ── Plugin header ──────────────────────────────────────── */
+
+.mp-header {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.mp-header-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.mp-header-title {
+  font-size: 1.375rem;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.mp-header-subtitle {
+  font-size: 0.875rem;
+  color: var(--bs-secondary-color);
+  margin: 0;
+}
+
+/* ── Status indicator dot ───────────────────────────────── */
+
+.mp-status {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.mp-status-online {
+  background-color: var(--mp-status-online);
+  box-shadow: 0 0 5px var(--mp-status-online-glow);
+}
+
+.mp-status-offline {
+  background-color: var(--mp-status-offline);
+}
+
+.mp-status-checking {
+  background-color: var(--mp-status-checking);
+  animation: mp-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes mp-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* ── Device card ────────────────────────────────────────── */
+
+.mp-device-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  cursor: pointer;
+}
+
+.mp-device-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--mp-shadow-hover) !important;
+}
+
+/* ── Settings surface card ──────────────────────────────── */
+
+.mp-settings-card {
+  background: var(--mp-surface);
+  border: 1px solid var(--mp-border) !important;
+  border-radius: var(--mp-radius);
+}
+
+/* ── Empty state ────────────────────────────────────────── */
+
+.mp-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.mp-empty-state-icon {
+  font-size: 2.5rem;
+  color: var(--bs-secondary-color);
+  margin-bottom: 0.75rem;
+  line-height: 1;
+}
+
+.mp-empty-state-title {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--bs-secondary-color);
+  margin: 0 0 0.25rem;
+}
+
+.mp-empty-state-hint {
+  font-size: 0.8125rem;
+  color: var(--bs-secondary-color);
+  margin: 0;
+  opacity: 0.7;
+}
+
+/* ── Loading state ──────────────────────────────────────── */
+
+.mp-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1.5rem;
+  gap: 0.75rem;
+  color: var(--bs-secondary-color);
+  font-size: 0.875rem;
+}
+
+/* ── Nav tabs ───────────────────────────────────────────── */
+
+.mp-tabs {
+  border-bottom: 1px solid var(--mp-border);
+}
+
+.mp-tabs .nav-link {
+  color: var(--bs-secondary-color);
+  border: none;
+  padding: 0.75rem 1.25rem;
+  font-weight: 500;
+}
+
+.mp-tabs .nav-link:hover {
+  color: var(--bs-body-color);
+  border: none;
+}
+
+.mp-tabs .nav-link.active {
+  color: var(--mp-primary);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid var(--mp-primary);
+}
+
+/* ── Metadata label ─────────────────────────────────────── */
+
+.mp-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--bs-secondary-color);
+}
+
+/* ── View toggling ──────────────────────────────────────── */
+
+.mp-view {
+  display: none;
+}
+
+.mp-view.active {
+  display: block;
+}
+
+/* ── Support footer ─────────────────────────────────────── */
+
+.mp-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  padding-top: 1.5rem;
+  margin-top: 2rem;
+  border-top: 1px solid var(--mp-border);
+  font-size: 0.8125rem;
+  color: var(--bs-secondary-color);
+}
+
+.mp-footer a {
+  color: var(--bs-secondary-color);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition: color 0.15s ease;
+}
+
+.mp-footer a:hover {
+  color: var(--mp-primary);
+}
+
+.mp-footer-sep {
+  color: var(--mp-border);
+  user-select: none;
+}

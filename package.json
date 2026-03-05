@@ -2,18 +2,14 @@
   "name": "@mp-consulting/homebridge-govee",
   "displayName": "Govee",
   "type": "module",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Homebridge plugin to integrate Govee devices into HomeKit.",
-  "author": {
-    "name": "Mickael Palma",
-    "email": "mickael.palma@mac.com"
-  },
+  "author": "MP Consulting",
   "license": "MIT",
   "funding": {
     "type": "paypal",
     "url": "https://paypal.me/mickaelpalma"
   },
-  "homepage": "https://github.com/mp-consulting/homebridge-govee",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mp-consulting/homebridge-govee.git"
@@ -37,18 +33,20 @@
     "server": "homebridge-ui/server.js"
   },
   "engines": {
-    "node": "^20.18.0 || ^22.10.0 || ^24.0.0",
+    "node": "^20.0.0 || ^22.0.0 || ^24.0.0",
     "homebridge": "^1.8.0 || ^2.0.0-beta.0"
   },
   "scripts": {
-    "build": "rimraf ./dist && tsc && cp -r src/connection/cert dist/connection/ && node scripts/generate-ui-models.js",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "npm run lint -- --fix",
+    "watch": "npm run build && npm link && nodemon",
+    "copy:ui-kit": "mkdir -p homebridge-ui/public/lib && cp node_modules/@mp-consulting/homebridge-ui-kit/dist/kit.css homebridge-ui/public/lib/ && cp node_modules/@mp-consulting/homebridge-ui-kit/dist/kit.js homebridge-ui/public/lib/",
+    "build": "npm run copy:ui-kit && rimraf ./dist && tsc && cp -r src/connection/cert dist/connection/ && node scripts/generate-ui-models.js",
+    "prepublishOnly": "npm run lint && npm run build",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "prepublishOnly": "npm run lint && npm run build",
-    "watch": "npm run build && npm link && nodemon"
+    "test:ui": "vitest --ui"
   },
   "dependencies": {
     "@homebridge/plugin-ui-utils": "^2.1.2",
@@ -64,6 +62,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "@mp-consulting/homebridge-ui-kit": "^1.0.0",
     "@types/aws-iot-device-sdk": "^2.2.8",
     "@types/node": "^24.0.0",
     "@types/node-persist": "^3.1.8",

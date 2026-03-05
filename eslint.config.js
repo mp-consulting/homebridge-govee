@@ -4,7 +4,7 @@ import tseslint from 'typescript-eslint';
 export default tseslint.config(
   // Ignores
   {
-    ignores: ['dist/**', 'node_modules/**', 'homebridge-ui/public/models.js'],
+    ignores: ['dist/**', 'node_modules/**', 'homebridge-ui/public/models.js', 'homebridge-ui/public/lib/**'],
   },
   // Base recommended configs
   eslint.configs.recommended,
@@ -71,6 +71,7 @@ export default tseslint.config(
         confirm: 'readonly',
         modelCategories: 'readonly',
         getDeviceTypeFromModel: 'readonly',
+        MpKit: 'readonly',
       },
     },
     rules: {

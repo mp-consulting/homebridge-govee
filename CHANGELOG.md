@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.8] - 2026-03-05
+
+### Changed
+
+- **Config UI**: Migrated to `@mp-consulting/homebridge-ui-kit` design system (Bootstrap 5.3, Bootstrap Icons)
+- **Config UI**: Replaced emoji icons with Bootstrap Icons throughout device accordion
+- **Config UI**: Redesigned layout — 3 tabs (Devices, Settings, Tools) instead of 4; Settings and Connection tabs merged; Discover Devices moved to the top of the Devices tab
+- **Config UI**: Device list now shows compact rows with Edit/Remove buttons; clicking Edit opens a 2-column form with Settings and Advanced tabs
+- **Config UI**: Device accordion sections auto-expand when they have devices configured; count badge turns blue when non-zero
+- **Config UI**: Connection settings (AWS IoT, LAN, BLE) displayed in a 3-column side-by-side layout
+- **Config UI**: Added dark/light mode theme detection from system preference and Homebridge user settings
+- **package.json**: Harmonized author, funding, engines, and scripts with other repos
+
 ## [1.0.7] - 2026-03-04
 
 ### Fixed

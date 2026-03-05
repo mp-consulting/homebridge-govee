@@ -135,14 +135,15 @@ const deviceTypes = {
 };
 
 let pluginConfig = { platform: 'Govee', name: 'Govee' };
+const editingState = {}; // { lightDevices: 0, ... } — tracks which device index is open per type
 
 function renderDeviceField(type, index, field, value) {
   const fieldId = `${type}_${index}_${field.id}`;
-  let html = '';
+  let inner = '';
 
   if (field.type === 'checkbox') {
-    html = `
-      <div class="form-check form-switch mb-2">
+    inner = `
+      <div class="form-check form-switch mt-1">
         <input class="form-check-input device-field" type="checkbox" id="${fieldId}"
           data-type="${type}" data-index="${index}" data-field="${field.id}"
           ${value ? 'checked' : ''}>
@@ -152,59 +153,85 @@ function renderDeviceField(type, index, field, value) {
     const options = field.options.map(opt =>
       `<option value="${opt.value}" ${value === opt.value ? 'selected' : ''}>${opt.label}</option>`,
     ).join('');
-    html = `
-      <div class="mb-2">
-        <label class="form-label" for="${fieldId}">${field.label}</label>
-        <select class="form-select form-select-sm device-field" id="${fieldId}"
-          data-type="${type}" data-index="${index}" data-field="${field.id}">
-          ${options}
-        </select>
-      </div>`;
+    inner = `
+      <label class="form-label" for="${fieldId}">${field.label}</label>
+      <select class="form-select form-select-sm device-field" id="${fieldId}"
+        data-type="${type}" data-index="${index}" data-field="${field.id}">
+        ${options}
+      </select>`;
   } else {
-    html = `
-      <div class="mb-2">
-        <label class="form-label" for="${fieldId}">${field.label}${field.required ? ' *' : ''}</label>
-        <input type="${field.type}" class="form-control form-control-sm device-field" id="${fieldId}"
-          data-type="${type}" data-index="${index}" data-field="${field.id}"
-          value="${escapeHtml(value || '')}" ${field.min !== undefined ? `min="${field.min}"` : ''}
-          ${field.max !== undefined ? `max="${field.max}"` : ''}>
-      </div>`;
+    inner = `
+      <label class="form-label" for="${fieldId}">${field.label}${field.required ? ' *' : ''}</label>
+      <input type="${field.type}" class="form-control form-control-sm device-field" id="${fieldId}"
+        data-type="${type}" data-index="${index}" data-field="${field.id}"
+        value="${escapeHtml(value || '')}" ${field.min !== undefined ? `min="${field.min}"` : ''}
+        ${field.max !== undefined ? `max="${field.max}"` : ''}>`;
   }
-  return html;
+  return `<div class="col-md-6">${inner}</div>`;
 }
 
-function renderDevice(type, index, device) {
-  const config = deviceTypes[type];
+function renderDeviceRow(type, index, device) {
   const isIgnored = device.ignoreDevice;
   const displayName = device.label || device.deviceId || 'New Device';
+  const deviceId = device.deviceId || '';
 
+  return `
+    <div class="device-row d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+      <div class="flex-grow-1 min-w-0 me-2 ${isIgnored ? 'opacity-50' : ''}">
+        <div class="fw-medium">${escapeHtml(displayName)}${isIgnored ? ' <span class="badge bg-secondary ms-1">Ignored</span>' : ''}</div>
+        ${deviceId ? `<code class="small text-muted">${escapeHtml(deviceId)}</code>` : ''}
+      </div>
+      <div class="d-flex gap-1 flex-shrink-0">
+        <button class="btn btn-outline-primary btn-sm" onclick="editDevice('${type}', ${index})">
+          <i class="bi bi-pencil"></i>
+        </button>
+        <button class="btn btn-outline-danger btn-sm" onclick="removeDevice('${type}', ${index})">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+    </div>`;
+}
+
+function renderDeviceEditForm(type, index, device) {
+  const config = deviceTypes[type];
   const basicFields = config.fields.filter(f => !f.advanced);
   const advancedFields = config.fields.filter(f => f.advanced);
+  const displayName = device.label || device.deviceId || 'New Device';
+  const hasAdvanced = advancedFields.length > 0;
 
-  let fieldsHtml = basicFields.map(f => renderDeviceField(type, index, f, device[f.id])).join('');
+  const basicHtml = `<div class="row g-3">${basicFields.map(f => renderDeviceField(type, index, f, device[f.id])).join('')}</div>`;
 
-  if (advancedFields.length > 0) {
-    const advancedHtml = advancedFields.map(f => renderDeviceField(type, index, f, device[f.id])).join('');
-    fieldsHtml += `
-      <div class="mt-2">
-        <a class="btn btn-link btn-sm p-0" data-bs-toggle="collapse" href="#${type}_${index}_advanced">
-          Advanced Settings
-        </a>
-        <div class="collapse mt-2" id="${type}_${index}_advanced">
-          ${advancedHtml}
-        </div>
+  let bodyHtml;
+  if (hasAdvanced) {
+    const advancedHtml = `<div class="row g-3">${advancedFields.map(f => renderDeviceField(type, index, f, device[f.id])).join('')}</div>`;
+    const basicId = `${type}_${index}_basic_pane`;
+    const advId = `${type}_${index}_adv_pane`;
+    bodyHtml = `
+      <ul class="nav nav-tabs mb-3" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#${basicId}" type="button">Settings</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#${advId}" type="button">Advanced</button>
+        </li>
+      </ul>
+      <div class="tab-content">
+        <div class="tab-pane fade show active" id="${basicId}">${basicHtml}</div>
+        <div class="tab-pane fade" id="${advId}">${advancedHtml}</div>
       </div>`;
+  } else {
+    bodyHtml = basicHtml;
   }
 
   return `
-    <div class="card device-card mb-2 ${isIgnored ? 'ignored' : ''}" id="${type}_${index}_card">
-      <div class="card-body py-2">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <strong>${escapeHtml(displayName)}</strong>
-          <button class="btn btn-outline-danger btn-sm" onclick="removeDevice('${type}', ${index})">Remove</button>
-        </div>
-        ${fieldsHtml}
+    <div class="card" id="${type}_${index}_card">
+      <div class="card-header d-flex justify-content-between align-items-center py-2">
+        <span class="fw-semibold">${escapeHtml(displayName)}</span>
+        <button class="btn btn-sm btn-outline-secondary" onclick="cancelEdit('${type}')">
+          <i class="bi bi-arrow-left me-1"></i>Back
+        </button>
       </div>
+      <div class="card-body">${bodyHtml}</div>
     </div>`;
 }
 
@@ -213,15 +240,29 @@ function renderDeviceList(type) {
   const container = document.getElementById(`${type}List`);
   const countBadge = document.getElementById(`${type}Count`);
 
-  if (devices.length === 0) {
-    container.innerHTML = '<p class="text-muted">No devices configured.</p>';
+  if (editingState[type] !== undefined) {
+    const index = editingState[type];
+    container.innerHTML = renderDeviceEditForm(type, index, devices[index] || {});
+  } else if (devices.length === 0) {
+    container.innerHTML = '<p class="text-muted small mb-0">No devices configured.</p>';
   } else {
-    container.innerHTML = devices.map((device, index) => renderDevice(type, index, device)).join('');
+    container.innerHTML = `<div class="device-list-items">${devices.map((d, i) => renderDeviceRow(type, i, d)).join('')}</div>`;
+    // Auto-expand accordion section when it has devices
+    const collapseEl = document.getElementById(`${type}Collapse`);
+    if (collapseEl && !collapseEl.classList.contains('show')) {
+      collapseEl.classList.add('show');
+      const btn = collapseEl.closest('.accordion-item')?.querySelector('.accordion-button');
+      if (btn) {
+        btn.classList.remove('collapsed');
+        btn.setAttribute('aria-expanded', 'true');
+      }
+    }
   }
 
   countBadge.textContent = devices.length;
+  countBadge.className = `badge me-2 ${devices.length > 0 ? 'bg-primary' : 'bg-secondary'}`;
 
-  // Add event listeners for field changes
+  // Add event listeners for field changes (only relevant in edit mode)
   container.querySelectorAll('.device-field').forEach(field => {
     field.addEventListener('change', handleDeviceFieldChange);
     field.addEventListener('input', handleDeviceFieldChange);
@@ -257,20 +298,15 @@ function handleDeviceFieldChange(event) {
     }
   }
 
-  // Update card appearance if ignoreDevice changed
-  if (fieldName === 'ignoreDevice') {
-    const card = document.getElementById(`${type}_${index}_card`);
-    if (card) {
-      card.classList.toggle('ignored', field.checked);
-    }
-  }
 }
 
 function addDevice(type) {
   if (!pluginConfig[type]) {
     pluginConfig[type] = [];
   }
+  const newIndex = pluginConfig[type].length;
   pluginConfig[type].push({ deviceId: '' });
+  editingState[type] = newIndex;
   renderDeviceList(type);
 }
 
@@ -280,8 +316,19 @@ function removeDevice(type, index) {
     if (pluginConfig[type].length === 0) {
       delete pluginConfig[type];
     }
+    delete editingState[type];
     renderDeviceList(type);
   }
+}
+
+function editDevice(type, index) {
+  editingState[type] = index;
+  renderDeviceList(type);
+}
+
+function cancelEdit(type) {
+  delete editingState[type];
+  renderDeviceList(type);
 }
 
 (async () => {
@@ -290,6 +337,20 @@ function removeDevice(type, index) {
   if (!homebridge) {
     console.error('Homebridge UI utils not available');
     return;
+  }
+
+  // Confirm theme via getUserSettings
+  try {
+    const settings = await homebridge.getUserSettings();
+    const scheme = settings.colorScheme;
+    if (scheme === 'dark' || scheme === 'light') {
+      document.documentElement.dataset.bsTheme = scheme;
+    } else if (scheme === 'auto') {
+      document.documentElement.dataset.bsTheme =
+        window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+  } catch {
+    // getUserSettings not available in older versions
   }
 
   // Initialize Bootstrap tooltips
@@ -624,24 +685,10 @@ function removeDevice(type, index) {
         if (addedCount > 0) {
           homebridge.toast.success(`Added ${addedCount} device(s). Click "Save Configuration" to persist.`);
 
-          // Switch to Devices tab and expand first accordion with devices
+          // Switch to Devices tab (accordion sections auto-expand via renderDeviceList)
           const devicesTab = document.getElementById('devices-tab');
           if (devicesTab) {
-            const tab = new bootstrap.Tab(devicesTab);
-            tab.show();
-
-            // Expand the first accordion that has devices
-            setTimeout(() => {
-              for (const type of Object.keys(deviceTypes)) {
-                if (pluginConfig[type] && pluginConfig[type].length > 0) {
-                  const collapseEl = document.getElementById(`${type}Collapse`);
-                  if (collapseEl) {
-                    new bootstrap.Collapse(collapseEl, { toggle: true });
-                    break;
-                  }
-                }
-              }
-            }, 100);
+            new bootstrap.Tab(devicesTab).show();
           }
         } else {
           homebridge.toast.info(`Found ${devices.length} device(s). All already configured.`);
@@ -730,4 +777,6 @@ function removeDevice(type, index) {
   // Make functions globally available
   window.addDevice = addDevice;
   window.removeDevice = removeDevice;
+  window.editDevice = editDevice;
+  window.cancelEdit = cancelEdit;
 })();
