@@ -402,6 +402,43 @@ const purifierH712C: DeviceModelDefinition = {
 };
 
 // ============================================================================
+// Dehumidifier Device Definitions
+// ============================================================================
+
+const dehumidifierH7150: DeviceModelDefinition = {
+  model: 'H7150',
+  name: 'Govee Smart Dehumidifier',
+  category: 'dehumidifier',
+  capabilities: {
+    onOff: true,
+    speed: createSpeedCapability(8, HUMIDIFIER_H7140_SPEED_CODES),
+  },
+  services: [
+    { type: 'Fan', primary: true },
+  ],
+  commands: {
+    state: { cmd: 'stateHumi' },
+    speed: { cmd: 'ptReal', indexedCodes: HUMIDIFIER_H7140_SPEED_CODES },
+  },
+  externalCommands: [
+    { prefix: '0501', handler: 'speed', valuePosition: 3 },
+    { prefix: '0502', handler: 'speed', valuePosition: 3 },
+  ],
+};
+
+const dehumidifierH7151: DeviceModelDefinition = {
+  ...dehumidifierH7150,
+  model: 'H7151',
+  name: 'Govee Smart Dehumidifier H7151',
+};
+
+const dehumidifierH7152: DeviceModelDefinition = {
+  ...dehumidifierH7150,
+  model: 'H7152',
+  name: 'Govee Smart Dehumidifier Max H7152',
+};
+
+// ============================================================================
 // Device Catalog
 // ============================================================================
 
@@ -419,6 +456,10 @@ const deviceDefinitions: DeviceModelDefinition[] = [
   humidifierH7148,
   humidifierH7149,
   humidifierH714E,
+  // Dehumidifiers
+  dehumidifierH7150,
+  dehumidifierH7151,
+  dehumidifierH7152,
   // Purifiers
   purifierH7120,
   purifierH7121,
