@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.12] - 2026-03-30
+
+### Changed
+
+- **Dependencies**: Add `class-validator` as a direct dependency for `homebridge-config-ui-x` compatibility
+- **Node.js**: Standardize `.tool-versions` to Node 20.22.2
+
 ## [1.0.11] - 2026-03-30
 
 ### Fixed
