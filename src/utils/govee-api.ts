@@ -3,8 +3,8 @@ import crypto from 'node:crypto';
 import axios from 'axios';
 
 // Shared Govee API constants — used by both HTTPClient and the homebridge-ui server
-export const GOVEE_APP_VERSION = '5.6.01';
-export const GOVEE_USER_AGENT = `GoveeHome/${GOVEE_APP_VERSION} (com.ihoment.GoVeeSensor; build:2; iOS 16.5.0) Alamofire/5.6.4`;
+export const GOVEE_APP_VERSION = '6.8.01';
+export const GOVEE_USER_AGENT = `GoveeHome/${GOVEE_APP_VERSION} (com.ihoment.GoVeeSensor; build:2; iOS 18.3.0) Alamofire/5.10.2`;
 
 export const GOVEE_API_URLS = {
   login: 'https://app2.govee.com/account/rest/account/v1/login',
@@ -54,6 +54,13 @@ export async function goveeLogin(username: string, password: string): Promise<Go
   const res = await axios({
     url: GOVEE_API_URLS.login,
     method: 'post',
+    headers: {
+      'appVersion': GOVEE_APP_VERSION,
+      'clientId': clientId,
+      'clientType': 1,
+      'timestamp': Date.now(),
+      'User-Agent': GOVEE_USER_AGENT,
+    },
     data: {
       email: username,
       password: password,

@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.10] - 2026-03-30
+
+### Changed
+
+- **Govee API**: Updated app version to 6.8.01 and user agent to iOS 18.3.0 / Alamofire 5.10.2
+- **Govee API**: Added required headers (appVersion, clientId, clientType, timestamp) to login request
+- **Dependencies**: Updated all dependencies including major upgrades to ESLint 10, TypeScript 6, and @types/node 25
+
+### Fixed
+
+- **Lint**: Resolved `no-useless-assignment` errors introduced by ESLint 10
+
 ## [1.0.9] - 2026-03-26
 
 ### Changed

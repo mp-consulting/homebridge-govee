@@ -53,7 +53,7 @@ export function rgb2hs(r: number | string, g: number | string, b: number | strin
   const max = Math.max(rNum, gNum, bNum);
   const delta = max - min;
   let h = 0;
-  let s = 0;
+  let s;
 
   if (max === 0) {
     s = 0;

@@ -139,7 +139,7 @@ const editingState = {}; // { lightDevices: 0, ... } — tracks which device ind
 
 function renderDeviceField(type, index, field, value) {
   const fieldId = `${type}_${index}_${field.id}`;
-  let inner = '';
+  let inner;
 
   if (field.type === 'checkbox') {
     inner = `
