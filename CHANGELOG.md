@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **HTTP Client**: Replace OpenSSL shell-out with `node-forge` for PFX certificate parsing, fixing RC2-40-CBC failures on OpenSSL 3+ (#5)
 - **Lint**: Resolved `no-useless-assignment` errors introduced by ESLint 10
 
 ## [1.0.9] - 2026-03-26

@@ -1,5 +1,6 @@
 import { Buffer } from 'node:buffer';
-import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import forge from 'node-forge';
 import type { IotCertificate } from '../types.js';
 import { hs2rgb as hs2rgbInternal } from './colour.js';
 
@@ -88,22 +89,26 @@ export function parseError(err: unknown, hideStack: string[] = []): string {
 }
 
 export function pfxToCertAndKey(pfxPath: string, p12Password: string): IotCertificate {
-  const env = { ...process.env, PFX_PASS: p12Password };
-  const quotedPath = pfxPath.replaceAll("'", "'\\''");
+  const pfxBuffer = readFileSync(pfxPath);
+  const p12Der = forge.util.createBuffer(pfxBuffer.toString('binary'));
+  const p12 = forge.pkcs12.pkcs12FromAsn1(forge.asn1.fromDer(p12Der), p12Password);
 
-  // Extract the private key in PEM format using openssl (password via env to avoid shell injection)
-  const key = execSync(
-    `openssl pkcs12 -in '${quotedPath}' -nocerts -nodes -passin env:PFX_PASS`,
-    { env, timeout: 10000, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] },
-  );
+  const keyBags = p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag });
+  const keyBag = keyBags[forge.pki.oids.pkcs8ShroudedKeyBag]?.[0];
+  if (!keyBag?.key) {
+    throw new Error('No private key found in PFX file');
+  }
 
-  // Extract the certificate in PEM format using openssl
-  const cert = execSync(
-    `openssl pkcs12 -in '${quotedPath}' -clcerts -nokeys -passin env:PFX_PASS`,
-    { env, timeout: 10000, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] },
-  );
+  const certBags = p12.getBags({ bagType: forge.pki.oids.certBag });
+  const certBag = certBags[forge.pki.oids.certBag]?.[0];
+  if (!certBag?.cert) {
+    throw new Error('No certificate found in PFX file');
+  }
 
-  return { cert, key };
+  return {
+    key: forge.pki.privateKeyToPem(keyBag.key),
+    cert: forge.pki.certificateToPem(certBag.cert),
+  };
 }
 
 export function sleep(ms: number): Promise<void> {
