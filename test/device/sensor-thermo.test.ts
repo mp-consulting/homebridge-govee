@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { SensorThermoDevice } from '../../src/device/sensor-thermo.js';
 import { SensorMonitorDevice } from '../../src/device/sensor-monitor.js';
 
@@ -67,7 +67,9 @@ function createMocks() {
     config: {},
     deviceConf: { 'test-device-id': {} },
     log: { info: vi.fn(), warn: vi.fn(), debug: vi.fn() },
-    eveService: class { addEntry() {} },
+    eveService: class {
+      addEntry() {}
+    },
     storageClientData: null,
   };
 
