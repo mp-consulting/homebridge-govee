@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.13] - 2026-04-04
+
+### Fixed
+
+- **HomeKit**: Set TemperatureSensor as primary service so HomeKit tile shows temperature
+
+### Changed
+
+- **Node.js**: Add Node.js 24.x support to CI matrix and standardize engines to `^20.18.0 || ^22.10.0 || ^24.0.0`
+
 ## [1.0.12] - 2026-03-30
 
 ### Changed
