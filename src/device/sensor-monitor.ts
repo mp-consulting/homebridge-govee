@@ -45,6 +45,7 @@ export class SensorMonitorDevice extends GoveeDeviceBase {
     // Add the Temperature service
     this.tempService = this.accessory.getService(this.hapServ.TemperatureSensor)
       || this.accessory.addService(this.hapServ.TemperatureSensor);
+    this.tempService.setPrimaryService(true);
     this.cacheTemp = this.tempService.getCharacteristic(this.hapChar.CurrentTemperature).value as number;
     this.updateCache();
 

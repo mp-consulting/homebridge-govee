@@ -50,6 +50,7 @@ export class SensorThermoDevice extends GoveeDeviceBase {
     // Add the temperature service if it doesn't already exist
     this.tempService = this.accessory.getService(this.hapServ.TemperatureSensor)
       || this.accessory.addService(this.hapServ.TemperatureSensor);
+    this.tempService.setPrimaryService(true);
     this.cacheTemp = this.tempService.getCharacteristic(this.hapChar.CurrentTemperature).value as number;
 
     // Add the battery service if it doesn't already exist
