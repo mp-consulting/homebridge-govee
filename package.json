@@ -33,7 +33,7 @@
     "server": "homebridge-ui/server.js"
   },
   "engines": {
-    "node": "^20.0.0 || ^22.0.0 || ^24.0.0",
+    "node": "^20.18.0 || ^22.10.0 || ^24.0.0",
     "homebridge": "^1.8.0 || ^2.0.0-beta.0"
   },
   "scripts": {
