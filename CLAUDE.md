@@ -51,6 +51,7 @@ config.schema.json      # Homebridge plugin configuration schema
 - **Device registry**: Models are mapped to categories, categories to handler classes. `registry.ts` provides `createDeviceInstance()` which instantiates the correct handler.
 - **Device handlers**: Each extends `GoveeDeviceBase` and implements `init()` and `externalUpdate()`. They register HomeKit services/characteristics in `init()`.
 - **Catalog-driven**: Device capabilities (speeds, temperatures, commands) are defined declaratively in `src/catalog/` and consumed by device handlers.
+- **Custom UI**: Uses Homebridge custom UI framework (`homebridge-ui/`) for plugin configuration management
 
 ## Code Style
 
