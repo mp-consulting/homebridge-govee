@@ -3,7 +3,7 @@ import axios, { type AxiosError } from 'axios';
 import type { GoveeHTTPDeviceInfo, GoveeLogging, GoveePluginConfig, HTTPLoginResult } from '../types.js';
 import platformConsts from '../utils/constants.js';
 import { parseError, sleep } from '../utils/functions.js';
-import { GOVEE_API_URLS, goveeHeaders } from '../utils/govee-api.js';
+import { buildLoginFailureError, GOVEE_API_URLS, goveeHeaders } from '../utils/govee-api.js';
 import platformLang from '../utils/lang-en.js';
 
 interface HTTPPlatformRef {
@@ -75,13 +75,19 @@ export default class HTTPClient {
       this.log.debug('[HTTP] Login response status: %s', res.status);
 
       if (!res.data) {
-        this.log.debug('[HTTP] Login response has no data');
-        throw new Error(platformLang.noToken);
+        this.log.debug('[HTTP] Login response has no data (HTTP %s)', res.status);
+        throw buildLoginFailureError(res);
       }
 
       if (!res.data.client || !res.data.client.token) {
-        this.log.debug('[HTTP] Login response missing client/token. Message: %s', res.data.message || 'none');
-        throw new Error(res.data.message || platformLang.noToken);
+        let body: string;
+        try {
+          body = JSON.stringify(res.data);
+        } catch {
+          body = String(res.data);
+        }
+        this.log.debug('[HTTP] Login response missing client/token (HTTP %s). Body: %s', res.status, body);
+        throw buildLoginFailureError(res);
       }
 
       this.log.debug('[HTTP] Primary login successful, fetching TTR token...');

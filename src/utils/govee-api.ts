@@ -33,6 +33,51 @@ export function generateClientId(username: string): string {
   return `hb${hash.substring(0, hash.length - 2)}`;
 }
 
+const MAX_BODY_PREVIEW = 400;
+
+/**
+ * Build a diagnostic error for a login response that came back without an
+ * account token. Govee sometimes returns HTTP 200 with a body that is not the
+ * expected `{ client: { token } }` shape — e.g. when the account needs
+ * attention in the Govee Home app (an email-verification code or accepting
+ * updated terms), or when the account is served by a regional backend this
+ * plugin does not target. The old generic "no token received" message hid all
+ * of that; this surfaces the HTTP status and the raw body so the failure is
+ * actually diagnosable from the config UI and the Homebridge log.
+ */
+export function buildLoginFailureError(res: { status?: number; data?: unknown }): Error {
+  const status = res?.status;
+  const data = res?.data as Record<string, unknown> | undefined;
+
+  const serverMessage = typeof data?.message === 'string' && data.message
+    ? data.message
+    : typeof data?.msg === 'string' && data.msg
+      ? data.msg
+      : undefined;
+
+  if (serverMessage) {
+    return new Error(`Govee login failed: ${serverMessage}${status ? ` (HTTP ${status})` : ''}`);
+  }
+
+  let bodyPreview: string;
+  try {
+    bodyPreview = data === undefined ? '(empty body)' : JSON.stringify(data);
+  } catch {
+    bodyPreview = String(data);
+  }
+  if (bodyPreview.length > MAX_BODY_PREVIEW) {
+    bodyPreview = `${bodyPreview.slice(0, MAX_BODY_PREVIEW)}…`;
+  }
+
+  return new Error(
+    `Govee login failed - the server returned ${status ? `HTTP ${status}` : 'a response'} without an account token. `
+    + 'This usually means the account needs attention in the Govee Home app (e.g. an email-verification code or '
+    + 'accepting updated terms), or the account is served by a region this plugin does not yet support. '
+    + 'If you only control devices over Bluetooth or LAN, this cloud login is not required and your devices will still work. '
+    + `Server response: ${bodyPreview}`,
+  );
+}
+
 /**
  * Build standard Govee API headers
  */
@@ -70,7 +115,7 @@ export async function goveeLogin(username: string, password: string): Promise<Go
   });
 
   if (!res.data || !res.data.client || !res.data.client.token) {
-    throw new Error(res.data?.message || 'Login failed - no token received');
+    throw buildLoginFailureError(res);
   }
 
   return {
