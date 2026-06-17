@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.15] - 2026-06-17
+
+### Fixed
+
+- **Opaque "Login failed - no token received" error** (#7): When the Govee server returns HTTP 200 without the expected account-token shape (and without an error message), both the config UI "Test Connection" and the runtime login showed a generic "no token received" message with nothing to diagnose. The error now leads with any message the server did provide, and otherwise reports the HTTP status plus a truncated copy of the raw response body. It also notes that this cloud login is not required for Bluetooth- or LAN-only setups, so those devices keep working even when it fails. The runtime login additionally logs the raw response body at debug level.
+
 ## [1.0.14] - 2026-04-17
 
 ### Changed
