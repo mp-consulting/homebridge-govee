@@ -358,7 +358,7 @@ function cancelEdit(type) {
   tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
 
   // Field mappings
-  const textFields = ['username', 'password'];
+  const textFields = ['username', 'password', 'code'];
   const numberFields = ['httpRefreshTime', 'lanRefreshTime', 'lanScanInterval', 'bleRefreshTime', 'bleControlInterval'];
   const booleanFields = ['ignoreMatter', 'disableDeviceLogging', 'colourSafeMode', 'awsDisable', 'lanDisable', 'bleDisable'];
 
@@ -541,6 +541,7 @@ function cancelEdit(type) {
 
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
+    const code = document.getElementById('code').value.trim();
 
     if (!username || !password) {
       homebridge.toast.warning('Please enter your credentials first.');
@@ -556,14 +557,24 @@ function cancelEdit(type) {
       const response = await homebridge.request('/test-login', {
         username: username,
         password: password,
+        code: code || undefined,
       });
 
       if (response.success) {
         homebridge.toast.success('Connection successful!');
         loginResult.innerHTML = `<div class="alert alert-success">${escapeHtml(response.message)}</div>`;
+      } else if (response.twoFactorRequired) {
+        // Govee just emailed a one-time code. Surface it as an actionable prompt
+        // and focus the code field rather than showing a failure.
+        homebridge.toast.info('Verification code sent to your email.');
+        loginResult.innerHTML = `<div class="alert alert-info">${escapeHtml(response.message)}</div>`;
+        document.getElementById('code').focus();
       } else {
         homebridge.toast.warning(response.message || 'Connection failed');
         loginResult.innerHTML = `<div class="alert alert-warning">${escapeHtml(response.message || 'Connection failed')}</div>`;
+        if (response.twoFactorInvalid) {
+          document.getElementById('code').focus();
+        }
       }
     } catch (err) {
       homebridge.toast.error(err.message || 'Connection failed');
@@ -582,6 +593,7 @@ function cancelEdit(type) {
 
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
+    const code = document.getElementById('code').value.trim();
 
     if (!username || !password) {
       homebridge.toast.warning('Please enter your credentials first.');
@@ -597,6 +609,7 @@ function cancelEdit(type) {
       const response = await homebridge.request('/discover', {
         username: username,
         password: password,
+        code: code || undefined,
       });
       const devices = response.devices || [];
 

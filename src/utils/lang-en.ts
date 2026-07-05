@@ -101,6 +101,8 @@ export interface PlatformLang {
   loginSuccess: string;
   logoutFail: string;
   needHTTPClient: string;
+  twoFARequired: string;
+  twoFACodeInvalid: string;
   newScene: string;
   noCreds: string;
   noConnMethod: string;
@@ -229,6 +231,8 @@ const platformLang: PlatformLang = {
   loginSuccess: 'login successful',
   logoutFail: 'could not log out of Govee account as',
   needHTTPClient: 'requires HTTP client',
+  twoFARequired: 'Govee needs to verify this login. A verification code has been emailed to your Govee account address - enter it in the plugin\'s "Verification Code" field and restart Homebridge. If you only use Bluetooth or LAN, this cloud login is optional and your devices will still work.',
+  twoFACodeInvalid: 'the Govee verification code was not accepted - re-check the code from your email, or clear the code field to have a new one sent',
   newScene: 'new scene code',
   noCreds: 'username and/or password not provided',
   noConnMethod: 'no connection method available, see https://shorturl.at/eCN04 for more info',

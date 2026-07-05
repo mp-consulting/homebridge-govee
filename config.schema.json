@@ -27,6 +27,11 @@
           "type": "password"
         }
       },
+      "code": {
+        "title": "Verification Code",
+        "type": "string",
+        "description": "Only needed the first time this plugin logs in (or after Govee flags a new device). If the connection test reports that a code was emailed to you, paste the code from that email here, then test again. Once login succeeds you can leave it in place; it is ignored on subsequent logins."
+      },
       "ignoreMatter": {
         "title": "Ignore Matter Devices",
         "type": "boolean",

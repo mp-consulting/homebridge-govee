@@ -108,6 +108,7 @@ export interface GoveePluginConfig extends PlatformConfig {
   name: string;
   username?: string;
   password?: string;
+  code?: string;
   ignoreMatter?: boolean;
   disableDeviceLogging?: boolean;
   httpRefreshTime?: number;

@@ -40,14 +40,14 @@ class GoveeUiServer extends HomebridgePluginUiServer {
   }
 
   async discoverDevices(payload) {
-    const { username, password } = payload || {};
+    const { username, password, code } = payload || {};
 
     if (!username || !password) {
       throw new RequestError('Username and password are required', { status: 400 });
     }
 
     try {
-      const loginResult = await goveeLogin(username, password);
+      const loginResult = await goveeLogin(username, password, code);
       const devices = await goveeGetDevices(loginResult.token, loginResult.clientId);
 
       return {
@@ -64,22 +64,27 @@ class GoveeUiServer extends HomebridgePluginUiServer {
   }
 
   async testLogin(payload) {
-    const { username, password } = payload;
+    const { username, password, code } = payload;
 
     if (!username || !password) {
       throw new RequestError('Username and password are required', { status: 400 });
     }
 
     try {
-      const loginResult = await goveeLogin(username, password);
+      const loginResult = await goveeLogin(username, password, code);
       return {
         success: true,
         message: `Login successful. Account ID: ${loginResult.accountId}`,
       };
     } catch (err) {
       const message = err.response?.data?.message || err.message || 'Login failed';
+      // A "new device" 2FA challenge is not a hard failure: a code has just been
+      // emailed and the user needs to enter it. Flag it so the UI can reveal the
+      // verification-code field instead of showing a red error.
       return {
         success: false,
+        twoFactorRequired: err.code === 'GOVEE_2FA_REQUIRED',
+        twoFactorInvalid: err.code === 'GOVEE_2FA_INVALID',
         message: message,
       };
     }

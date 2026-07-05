@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-07-05
+
+### Added
+
+- **New-device email verification (2FA) support** (#7): Govee now challenges logins from an unrecognised client with an emailed one-time code (returned as an HTTP 200 body with app-level status `454`). Previously this surfaced as an opaque login failure and no code was ever sent. The plugin now detects the `454` challenge, asks Govee to email a verification code, and surfaces an actionable message. Enter the code in the new **Verification Code** config field (or `code` in JSON) and log in again; the plugin uses a stable client id, so verification is a one-time step. The config UI "Test Connection" reveals and focuses the code field when a code has been sent.
+
+### Changed
+
+- **Login endpoint**: Migrated account login from `account/rest/account/v1/login` to `account/rest/account/v2/login`, which is what the current Govee app uses and what supports the verification-code flow. The app version/user-agent sent with account requests was bumped to match.
+
 ## [1.0.15] - 2026-06-17
 
 ### Fixed

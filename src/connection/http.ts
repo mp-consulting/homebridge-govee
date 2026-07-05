@@ -3,7 +3,16 @@ import axios, { type AxiosError } from 'axios';
 import type { GoveeHTTPDeviceInfo, GoveeLogging, GoveePluginConfig, HTTPLoginResult } from '../types.js';
 import platformConsts from '../utils/constants.js';
 import { parseError, sleep } from '../utils/functions.js';
-import { buildLoginFailureError, GOVEE_API_URLS, goveeHeaders } from '../utils/govee-api.js';
+import {
+  buildLoginFailureError,
+  GOVEE_API_URLS,
+  GOVEE_STATUS_NEW_DEVICE,
+  goveeHeaders,
+  goveePreAuthHeaders,
+  goveeRequestVerificationCode,
+  GoveeTwoFactorInvalidError,
+  GoveeTwoFactorRequiredError,
+} from '../utils/govee-api.js';
 import platformLang from '../utils/lang-en.js';
 
 interface HTTPPlatformRef {
@@ -30,6 +39,7 @@ export default class HTTPClient {
   private tokenTTR?: string;
   private username: string;
   private clientId: string;
+  private code?: string;
 
   constructor(platform: HTTPPlatformRef) {
     this.log = platform.log;
@@ -37,6 +47,7 @@ export default class HTTPClient {
     this.token = platform.accountToken;
     this.tokenTTR = platform.accountTokenTTR;
     this.username = platform.config.username || '';
+    this.code = platform.config.code || undefined;
 
     let clientSuffix = platform.api.hap.uuid.generate(this.username).replace(/-/g, '');
     clientSuffix = clientSuffix.substring(0, clientSuffix.length - 2);
@@ -61,14 +72,20 @@ export default class HTTPClient {
     try {
       this.log.debug('[HTTP] Attempting login for user: %s', this.username);
 
+      const loginData: Record<string, string> = {
+        email: this.username,
+        password: this.password,
+        client: this.clientId,
+      };
+      if (this.code) {
+        loginData.code = this.code;
+      }
+
       const res = await axios({
         url: GOVEE_API_URLS.login,
         method: 'post',
-        data: {
-          email: this.username,
-          password: this.password,
-          client: this.clientId,
-        },
+        headers: goveePreAuthHeaders(this.clientId),
+        data: loginData,
         timeout: 30000,
       });
 
@@ -77,6 +94,19 @@ export default class HTTPClient {
       if (!res.data) {
         this.log.debug('[HTTP] Login response has no data (HTTP %s)', res.status);
         throw buildLoginFailureError(res);
+      }
+
+      // New-device 2FA challenge: Govee returns HTTP 200 with an app-level 454
+      // status and no token until a one-time email code is confirmed.
+      if (res.data.status === GOVEE_STATUS_NEW_DEVICE) {
+        if (this.code) {
+          this.log.warn('[HTTP] %s', platformLang.twoFACodeInvalid);
+          throw new GoveeTwoFactorInvalidError(platformLang.twoFACodeInvalid);
+        }
+        this.log.debug('[HTTP] Login requires new-device verification; requesting email code.');
+        await goveeRequestVerificationCode(this.username, this.clientId);
+        this.log.warn('[HTTP] %s', platformLang.twoFARequired);
+        throw new GoveeTwoFactorRequiredError(platformLang.twoFARequired);
       }
 
       if (!res.data.client || !res.data.client.token) {

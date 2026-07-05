@@ -58,11 +58,24 @@ Configure the plugin using the Homebridge UI or by editing your `config.json`:
 | `name` | Yes | Display name for the platform |
 | `username` | Yes | Your Govee account email |
 | `password` | Yes | Your Govee account password |
+| `code` | No | One-time email verification code. Only needed the first time the plugin logs in, or when Govee flags a new device (see [New-device verification](#new-device-verification)). |
 | `refreshTime` | No | Interval in seconds to refresh device states (default: 15) |
 | `controlInterval` | No | Minimum interval in milliseconds between commands (default: 500) |
 | `disableAWS` | No | Disable AWS IoT connection (default: false) |
 | `disableLAN` | No | Disable LAN control (default: false) |
 | `disableBLE` | No | Disable Bluetooth control (default: false) |
+
+#### New-device verification
+
+Govee protects accounts by challenging logins from a device it has not seen before with a one-time email code. The first time this plugin logs in (or if Govee later flags it as a new device), you may see a login failure noting that a **verification code has been emailed** to your Govee account address.
+
+To complete the login:
+
+1. Check your email for the code from Govee.
+2. Paste it into the **Verification Code** field (config UI), or add `"code": "1234"` to your JSON config.
+3. Save and restart Homebridge, or click **Test Connection** again in the config UI.
+
+The plugin uses a stable client id derived from your account, so this is a one-time step — you can leave the code in place; it is ignored once login succeeds. If you only control devices over **Bluetooth or LAN**, this cloud login is optional and those devices keep working even if it is not completed.
 
 ### Features
 
