@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.2] - 2026-07-25
+
+### Fixed
+
+- **Thermo-hygrometer and leak sensors never received data** (#8): WiFi thermo-hygrometer sensors (e.g. H5103) and leak sensors initialised but reported 0°C, 0% humidity, and a low-battery warning forever. The periodic HTTP device-list sync that delivers sensor readings (`deviceExt.lastDeviceData` temperature/humidity/online plus `deviceSettings` battery) was never ported from the upstream plugin — the `httpRefreshTime` config option was accepted but unused. The plugin now polls the Govee HTTP API every `httpRefreshTime` seconds (default 30) when any thermo or leak sensors are present and feeds the readings to HomeKit. Raw sensor payloads are logged at debug level to help diagnose unit discrepancies.
+
 ## [1.1.0] - 2026-07-05
 
 ### Added

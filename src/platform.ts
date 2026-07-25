@@ -169,6 +169,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
   private refreshHTTPInterval?: ReturnType<typeof setInterval>;
   private refreshAWSInterval?: ReturnType<typeof setInterval>;
   private awsSyncInProgress = false;
+  private httpSyncInProgress = false;
 
   constructor(log: Logging, config: PlatformConfig, api: API) {
     this.api = api;
@@ -567,6 +568,20 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       this.refreshAWSInterval = setInterval(() => this.goveeAWSSync(), 60000);
     }
 
+    // Leak and thermo-hygrometer sensors only report readings via the HTTP device list,
+    // so poll it periodically if any such devices are initialised
+    if (this.httpClient) {
+      const httpSensorModels = [...platformConsts.models.sensorLeak, ...platformConsts.models.sensorThermo];
+      const hasHttpSensors = [...this.devicesInHB.values()].some(acc => httpSensorModels.includes(acc.context.gvModel));
+      if (hasHttpSensors) {
+        this.goveeHTTPSync();
+        this.refreshHTTPInterval = setInterval(
+          () => this.goveeHTTPSync(),
+          (this.config.httpRefreshTime ?? platformConsts.defaultValues.httpRefreshTime) * 1000,
+        );
+      }
+    }
+
     if (lanDevicesInitialised && this.lanClient) {
       this.lanClient.startDevicesPolling();
       this.lanClient.startStatusPolling();
@@ -745,6 +760,94 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       this.log.info('[%s] %s.', accessory.displayName, platformLang.devRemove);
     } catch (err) {
       this.log.warn('[%s] %s %s.', accessory.displayName, platformLang.devNotRemove, parseError(err));
+    }
+  }
+
+  async goveeHTTPSync(): Promise<void> {
+    if (!this.httpClient) {
+      return;
+    }
+    if (this.httpSyncInProgress) {
+      this.log.debug('[HTTP] Sync already in progress, skipping this cycle');
+      return;
+    }
+    this.httpSyncInProgress = true;
+    try {
+      const devices = await this.httpClient.getDevices();
+      const httpSensorModels = [...platformConsts.models.sensorLeak, ...platformConsts.models.sensorThermo];
+      for (const device of devices.filter(el => httpSensorModels.includes(el.sku))) {
+        try {
+          let deviceId = device.device;
+          if (!deviceId.includes(':')) {
+            deviceId = deviceId.replace(/([a-z0-9]{2})(?=[a-z0-9])/gi, '$&:').toUpperCase();
+          }
+
+          const accessory = this.devicesInHB.get(this.api.hap.uuid.generate(deviceId));
+          if (!accessory) {
+            continue;
+          }
+
+          if (!device.deviceExt?.deviceSettings || !device.deviceExt.lastDeviceData) {
+            continue;
+          }
+
+          let parsedSettings: Record<string, unknown>;
+          let parsedData: Record<string, unknown>;
+          try {
+            parsedSettings = JSON.parse(device.deviceExt.deviceSettings);
+            parsedData = JSON.parse(device.deviceExt.lastDeviceData);
+          } catch {
+            continue;
+          }
+
+          const toReturn: ExternalUpdateParams = { source: 'HTTP' };
+          if (platformConsts.models.sensorLeak.includes(device.sku)) {
+            accessory.logDebug?.(`[HTTP] raw sensor data: ${JSON.stringify({ ...parsedData, ...parsedSettings })}`);
+
+            // A leak is considered detected if any unread leakage alert messages exist
+            let hasUnreadLeak = false;
+            if ((parsedData.lastTime as number) > 0) {
+              const msgs = await this.httpClient.getLeakDeviceWarning(deviceId, device.sku) as Array<Record<string, unknown>>;
+              accessory.logDebug?.(`[HTTP] raw messages: ${JSON.stringify(msgs)}`);
+              hasUnreadLeak = msgs.some(
+                msg => !msg.read && String(msg.message).toLowerCase().replaceAll(/\s+/g, '').startsWith('leakagealert'),
+              );
+            }
+
+            if (hasProperty(parsedSettings, 'battery')) {
+              toReturn.battery = parsedSettings.battery as number;
+            }
+            toReturn.leakDetected = hasUnreadLeak;
+            if (hasProperty(parsedData, 'online')) {
+              toReturn.online = !!(parsedData.gwonline && parsedData.online);
+            }
+          } else {
+            // Thermo-hygrometer sensors report readings in hundredths, converted by the device handler
+            accessory.logDebug?.(`[HTTP] raw sensor data: ${JSON.stringify(parsedData)}`);
+
+            if (hasProperty(parsedSettings, 'battery')) {
+              toReturn.battery = parsedSettings.battery as number;
+            }
+            if (hasProperty(parsedData, 'tem')) {
+              toReturn.temperature = parsedData.tem as number;
+            }
+            if (hasProperty(parsedData, 'hum')) {
+              toReturn.humidity = parsedData.hum as number;
+            }
+            if (hasProperty(parsedData, 'online')) {
+              toReturn.online = parsedData.online as boolean;
+            }
+          }
+
+          this.receiveDeviceUpdate(accessory, toReturn);
+        } catch (err) {
+          this.log.warn('[%s] %s %s.', device.deviceName, platformLang.devNotRef, parseError(err));
+        }
+      }
+    } catch (err) {
+      this.log.warn('[HTTP] %s %s.', platformLang.syncFail, parseError(err));
+    } finally {
+      this.httpSyncInProgress = false;
     }
   }
 
