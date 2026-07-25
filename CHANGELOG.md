@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-07-25
+
+### Added
+
+- **H5310 Pool Temperature Sensor support** (upstream issue homebridge-plugins/homebridge-govee#1271): the H5310 (connected via an H5044 WiFi gateway) is now recognised as a thermo-hygrometer sensor and reports temperature via the HTTP device-list sync. Govee's `65535` sentinel value ("no reading / sensor not fitted") is now filtered out for temperature, humidity, and PM2.5, so models without a humidity sensor (like the H5310) no longer report a bogus 100% humidity.
+- **Device picker pre-fills LAN IP addresses** (upstream issue homebridge-plugins/homebridge-govee#1323): devices discovered on the local network now have their IP address stored alongside the cached device list, and the config UI pre-fills `customIPAddress` on light devices when auto-adding them (and fills it in on existing entries that have none). Useful for cross-VLAN setups where mDNS/multicast discovery is unreliable.
+
+### Fixed
+
+- **H5106 Air Quality Monitor showing 0° temperature** (upstream issues homebridge-plugins/homebridge-govee#1322, #1296): the H5106 relied solely on AWS push messages for readings, which can stop arriving or change format. Air quality monitors are now included in the periodic HTTP device-list sync and read temperature, humidity, and PM2.5 directly from `lastDeviceData`, with the same offset handling as thermo sensors.
+- **Login no longer fails when Govee's community API is down** (upstream issue homebridge-plugins/homebridge-govee#1270): the secondary community-API login (which only provides the optional TTR token) was performed inline with the main login, so a community-API outage broke the whole plugin. It is now best-effort — a failure is logged at debug level and login continues without the token.
+
+### Changed
+
+- **H7142 humidifier diagnostics** (upstream issue homebridge-plugins/homebridge-govee#1294): unparsed humidity payload variants (opcode `1001` with a non-`00` check byte — the cause of "humidity stuck at 0%") and auto-mode reports (opcode `0503`, believed to carry the target humidity) are now logged at debug level so device owners can capture the payload formats needed to implement full support (water tank status, target humidity, auto-stop).
+
 ## [1.1.2] - 2026-07-25
 
 ### Fixed

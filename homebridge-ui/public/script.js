@@ -431,15 +431,22 @@ function cancelEdit(type) {
         }
 
         // Check if device already exists in config
-        const exists = pluginConfig[deviceType].some(d => d.deviceId === deviceId);
+        const existing = pluginConfig[deviceType].find(d => d.deviceId === deviceId);
 
-        if (!exists) {
-          // Add device with name as label
-          pluginConfig[deviceType].push({
+        if (!existing) {
+          // Add device with name as label, pre-filling the LAN IP when known
+          const entry = {
             deviceId: deviceId,
             label: deviceName,
-          });
+          };
+          if (device.ip && deviceType === 'lightDevices') {
+            entry.customIPAddress = device.ip;
+          }
+          pluginConfig[deviceType].push(entry);
           addedCount++;
+        } else if (device.ip && deviceType === 'lightDevices' && !existing.customIPAddress) {
+          // Fill in the discovered LAN IP on existing entries that don't have one set
+          existing.customIPAddress = device.ip;
         }
       }
 

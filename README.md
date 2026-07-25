@@ -60,6 +60,7 @@ Configure the plugin using the Homebridge UI or by editing your `config.json`:
 | `password` | Yes | Your Govee account password |
 | `code` | No | One-time email verification code. Only needed the first time the plugin logs in, or when Govee flags a new device (see [New-device verification](#new-device-verification)). |
 | `refreshTime` | No | Interval in seconds to refresh device states (default: 15) |
+| `httpRefreshTime` | No | Interval in seconds to poll the Govee HTTP API for sensor readings (thermo-hygrometers, leak sensors, air quality monitors) (default: 30) |
 | `controlInterval` | No | Minimum interval in milliseconds between commands (default: 500) |
 | `disableAWS` | No | Disable AWS IoT connection (default: false) |
 | `disableLAN` | No | Disable LAN control (default: false) |
@@ -85,11 +86,15 @@ The plugin uses a stable client id derived from your account, so this is a one-t
 - **LAN**: Local network control (faster, no internet required for supported devices)
 - **BLE**: Bluetooth control for nearby devices
 
+#### Device Discovery
+
+The config UI can discover the devices on your Govee account and add them to the configuration automatically — no need to type device IDs by hand. Devices found on the local network also have their **LAN IP address pre-filled** (`customIPAddress`), which helps when Homebridge and your devices are on different VLANs and multicast discovery is unreliable.
+
 #### Supported Device Types
 
 - **Lights**: LED strips, bulbs, and other lighting devices
 - **Switches**: Smart plugs and outlets
-- **Sensors**: Temperature, humidity, leak detectors, presence sensors
+- **Sensors**: Temperature, humidity, air quality monitors, leak detectors, presence sensors
 - **Appliances**: Heaters, humidifiers, purifiers, fans, and more
 - **Other**: Kettles, ice makers, and various smart home devices
 

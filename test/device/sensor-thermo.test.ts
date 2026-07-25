@@ -13,6 +13,7 @@ function createMockService() {
   return {
     setPrimaryService: vi.fn(),
     addCharacteristic: vi.fn(),
+    updateCharacteristic: vi.fn(),
     getCharacteristic: vi.fn((char: string) => {
       if (!characteristics.has(char)) {
         characteristics.set(char, createMockCharacteristic());
@@ -117,5 +118,39 @@ describe('SensorMonitorDevice', () => {
     const humiService = services.get('HumiditySensor');
     expect(humiService).toBeDefined();
     expect(humiService!.setPrimaryService).not.toHaveBeenCalled();
+  });
+
+  it('applies direct HTTP readings (hundredths) to temperature, humidity, and PM2.5', () => {
+    const { platform, accessory, services } = createMocks();
+    const device = new SensorMonitorDevice(platform as any, accessory as any);
+    device.init();
+
+    device.externalUpdate({ source: 'HTTP', temperature: 2410, humidity: 4870, pm25: 6, online: true });
+
+    expect(services.get('TemperatureSensor')!.updateCharacteristic)
+      .toHaveBeenCalledWith('CurrentTemperature', 24.1);
+    expect(services.get('HumiditySensor')!.updateCharacteristic)
+      .toHaveBeenCalledWith('CurrentRelativeHumidity', 49);
+    expect(services.get('AirQualitySensor')!.updateCharacteristic)
+      .toHaveBeenCalledWith('PM2_5Density', 6);
+    expect(services.get('AirQualitySensor')!.updateCharacteristic)
+      .toHaveBeenCalledWith('AirQuality', 1);
+  });
+
+  it('does not update characteristics when HTTP readings are unchanged', () => {
+    const { platform, accessory, services } = createMocks();
+    const device = new SensorMonitorDevice(platform as any, accessory as any);
+    device.init();
+
+    device.externalUpdate({ source: 'HTTP', temperature: 2410, humidity: 4870, pm25: 6 });
+    services.get('TemperatureSensor')!.updateCharacteristic.mockClear();
+    services.get('HumiditySensor')!.updateCharacteristic.mockClear();
+    services.get('AirQualitySensor')!.updateCharacteristic.mockClear();
+
+    device.externalUpdate({ source: 'HTTP', temperature: 2410, humidity: 4870, pm25: 6 });
+
+    expect(services.get('TemperatureSensor')!.updateCharacteristic).not.toHaveBeenCalled();
+    expect(services.get('HumiditySensor')!.updateCharacteristic).not.toHaveBeenCalled();
+    expect(services.get('AirQualitySensor')!.updateCharacteristic).not.toHaveBeenCalled();
   });
 });

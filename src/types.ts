@@ -450,7 +450,7 @@ export interface HTTPLoginResult {
   iot: string;
   iotPass: string;
   token: string;
-  tokenTTR: string;
+  tokenTTR?: string;
   topic: string;
 }
 

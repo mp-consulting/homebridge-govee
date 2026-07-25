@@ -7,6 +7,7 @@ import {
   base64ToHex,
   cenToFar,
   getTwoItemPosition,
+  hasProperty,
   hexToDecimal,
   hexToTwoItems,
   parseError,
@@ -27,6 +28,7 @@ export class SensorMonitorDevice extends GoveeDeviceBase {
   private cacheHumi = 50;
   private cacheAir = 0;
   private cacheAirQual = 'unknown';
+  private cacheOnline = true;
 
   constructor(platform: GoveePlatform, accessory: GoveePlatformAccessoryWithControl) {
     super(platform, accessory);
@@ -78,6 +80,45 @@ export class SensorMonitorDevice extends GoveeDeviceBase {
   }
 
   externalUpdate(params: ExternalUpdateParams): void {
+    // Check to see if the provided online status is different from the cache value
+    if (hasProperty(params, 'online') && this.cacheOnline !== params.online) {
+      this.cacheOnline = params.online!;
+      this.updateOnlineStatus(this.cacheOnline);
+    }
+
+    // Direct readings from the HTTP device list sync (values in hundredths, except PM2.5)
+    if (hasProperty(params, 'temperature')) {
+      const offTemp = (this.accessory.context.offTemp as number) ?? 0;
+      const newTemp = (params.temperature! + offTemp) / 100;
+      if (newTemp !== this.cacheTemp) {
+        this.cacheTemp = newTemp;
+        this.tempService.updateCharacteristic(this.hapChar.CurrentTemperature, this.cacheTemp);
+        if (this.accessory.eveService) {
+          this.accessory.eveService.addEntry({ temp: this.cacheTemp });
+        }
+        this.accessory.log(`${platformLang.curTemp} [${this.cacheTemp}°C / ${cenToFar(this.cacheTemp)}°F]`);
+        this.updateCache();
+      }
+    }
+
+    if (hasProperty(params, 'humidity')) {
+      const offHumi = (this.accessory.context.offHumi as number) ?? 0;
+      let newHumi = (params.humidity! + offHumi) / 100;
+      newHumi = Math.max(Math.min(Math.round(newHumi), 100), 0);
+      if (newHumi !== this.cacheHumi) {
+        this.cacheHumi = newHumi;
+        this.humiService.updateCharacteristic(this.hapChar.CurrentRelativeHumidity, this.cacheHumi);
+        if (this.accessory.eveService) {
+          this.accessory.eveService.addEntry({ humidity: this.cacheHumi });
+        }
+        this.accessory.log(`${platformLang.curHumi} [${this.cacheHumi}%]`);
+      }
+    }
+
+    if (hasProperty(params, 'pm25')) {
+      this.updateAirQuality(params.pm25!);
+    }
+
     // Check for command updates
     (params.commands || []).forEach((command: string) => {
       const hexString = base64ToHex(command);
@@ -133,42 +174,45 @@ export class SensorMonitorDevice extends GoveeDeviceBase {
 
           // Update air quality
           const qualHex = `${getTwoItemPosition(hexParts, 19)}${getTwoItemPosition(hexParts, 20)}`;
-          const qualDec = hexToDecimal(`0x${qualHex}`);
-          if (qualDec !== this.cacheAir) {
-            this.cacheAir = qualDec;
-            this.airService.updateCharacteristic(this.hapChar.PM2_5Density, this.cacheAir);
-            this.accessory.log(`${platformLang.curPM25} [${qualDec}µg/m³]`);
-
-            // Map PM2.5 to HomeKit air quality (1-5)
-            let newQual: string;
-            let hapValue: number;
-            if (this.cacheAir <= 12) {
-              newQual = 'excellent';
-              hapValue = 1;
-            } else if (this.cacheAir <= 35) {
-              newQual = 'good';
-              hapValue = 2;
-            } else if (this.cacheAir <= 75) {
-              newQual = 'fair';
-              hapValue = 3;
-            } else if (this.cacheAir <= 115) {
-              newQual = 'inferior';
-              hapValue = 4;
-            } else {
-              newQual = 'poor';
-              hapValue = 5;
-            }
-
-            if (this.cacheAirQual !== newQual) {
-              this.cacheAirQual = newQual;
-              this.airService.updateCharacteristic(this.hapChar.AirQuality, hapValue);
-              this.accessory.log(`${platformLang.curAirQual} [${newQual}]`);
-            }
-          }
+          this.updateAirQuality(hexToDecimal(`0x${qualHex}`));
           break;
         }
       }
     });
+  }
+
+  private updateAirQuality(pm25: number): void {
+    if (pm25 !== this.cacheAir) {
+      this.cacheAir = pm25;
+      this.airService.updateCharacteristic(this.hapChar.PM2_5Density, this.cacheAir);
+      this.accessory.log(`${platformLang.curPM25} [${pm25}µg/m³]`);
+    }
+
+    // Map PM2.5 to HomeKit air quality (1-5)
+    let newQual: string;
+    let hapValue: number;
+    if (this.cacheAir <= 12) {
+      newQual = 'excellent';
+      hapValue = 1;
+    } else if (this.cacheAir <= 35) {
+      newQual = 'good';
+      hapValue = 2;
+    } else if (this.cacheAir <= 75) {
+      newQual = 'fair';
+      hapValue = 3;
+    } else if (this.cacheAir <= 115) {
+      newQual = 'inferior';
+      hapValue = 4;
+    } else {
+      newQual = 'poor';
+      hapValue = 5;
+    }
+
+    if (this.cacheAirQual !== newQual) {
+      this.cacheAirQual = newQual;
+      this.airService.updateCharacteristic(this.hapChar.AirQuality, hapValue);
+      this.accessory.log(`${platformLang.curAirQual} [${newQual}]`);
+    }
   }
 
   private async updateCache(): Promise<void> {

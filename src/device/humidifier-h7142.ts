@@ -299,7 +299,7 @@ export class HumidifierH7142Device extends GoveeDeviceBase {
           '1b01': (hexParts) => this.handleNightLightUpdate('on', hexParts),
           // Ignored commands
           '0502': () => {}, // custom mode
-          '0503': () => {}, // auto mode
+          '0503': (hexParts) => this.handleAutoModeUpdate(hexParts),
           '1100': () => {}, // timer
           '1101': () => {}, // timer
           '1300': () => {}, // scheduling
@@ -347,7 +347,18 @@ export class HumidifierH7142Device extends GoveeDeviceBase {
         this.humiService.updateCharacteristic(this.hapChar.CurrentRelativeHumidity, this.cacheHumi);
         this.accessory.log(`${platformLang.curHumi} [${this.cacheHumi}%]`);
       }
+    } else {
+      // Humidity arrives in a variant we don't parse yet — log it so device owners can
+      // report the payload format (upstream issue #1294: humidity stuck at 0%)
+      this.accessory.logDebugWarn(`unparsed humidity payload [1001] [${hexParts.join('')}]`);
     }
+  }
+
+  private handleAutoModeUpdate(hexParts: string[]): void {
+    // Auto mode: byte 4 is believed to hold the target humidity — log for verification
+    // before exposing target humidity control (upstream issue #1294)
+    const targetHumi = hexToDecimal(getTwoItemPosition(hexParts, 4));
+    this.accessory.logDebug(`auto mode reported [target ~${targetHumi}%] [${hexParts.join('')}]`);
   }
 
   private handleDisplayUpdate(newDisplay: 'on' | 'off'): void {

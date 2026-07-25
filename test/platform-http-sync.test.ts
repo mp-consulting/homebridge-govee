@@ -123,6 +123,53 @@ describe('goveeHTTPSync', () => {
     });
   });
 
+  it('filters out 65535 sentinel readings (e.g. H5310 with no humidity sensor)', async () => {
+    const platform = createPlatformMock([{
+      device: '03:55:01:25:00:00:00:0E:FF:FF:00:4F:FF:FF:00:3B',
+      sku: 'H5310',
+      deviceName: 'Pool Temp',
+      deviceExt: {
+        deviceSettings: JSON.stringify({ battery: 100 }),
+        lastDeviceData: JSON.stringify({ tem: 2850, hum: 65535, online: true }),
+      },
+    }], ['03:55:01:25:00:00:00:0E:FF:FF:00:4F:FF:FF:00:3B']);
+
+    await sync.call(platform);
+
+    const [, params] = platform.receiveDeviceUpdate.mock.calls[0];
+    expect(params).toEqual({
+      source: 'HTTP',
+      battery: 100,
+      temperature: 2850,
+      online: true,
+    });
+    expect(params).not.toHaveProperty('humidity');
+  });
+
+  it('includes air quality monitors and passes pm25 readings', async () => {
+    const platform = createPlatformMock([{
+      device: 'AA:BB:CC:DD:EE:FF:00:11',
+      sku: 'H5106',
+      deviceName: 'Air Monitor',
+      deviceExt: {
+        deviceSettings: JSON.stringify({}),
+        lastDeviceData: JSON.stringify({ tem: 2410, hum: 4870, pm25: 6, online: true }),
+      },
+    }], ['AA:BB:CC:DD:EE:FF:00:11']);
+
+    await sync.call(platform);
+
+    expect(platform.receiveDeviceUpdate).toHaveBeenCalledTimes(1);
+    const [, params] = platform.receiveDeviceUpdate.mock.calls[0];
+    expect(params).toEqual({
+      source: 'HTTP',
+      temperature: 2410,
+      humidity: 4870,
+      pm25: 6,
+      online: true,
+    });
+  });
+
   it('does not run concurrent syncs', async () => {
     const platform = createPlatformMock([]);
     platform.httpSyncInProgress = true;

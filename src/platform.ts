@@ -392,7 +392,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
         try {
           await this.storageData.setItem(
             'Govee_All_Devices_temp',
-            `${this.accountTopic}:::${data.token}:::${this.config.username}:::${this.accountId}:::${this.iotEndpoint}:::${this.iotPass}:::${data.tokenTTR}`,
+            `${this.accountTopic}:::${data.token}:::${this.config.username}:::${this.accountId}:::${this.iotEndpoint}:::${this.iotPass}:::${data.tokenTTR ?? ''}`,
           );
         } catch (e) {
           this.log.warn('[HTTP] %s %s.', platformLang.accTokenStoreErr, parseError(e));
@@ -465,6 +465,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
         deviceName: string;
         model: string;
         deviceType: DeviceTypeKey;
+        ip?: string;
       }> = [];
 
       // Process HTTP devices
@@ -477,7 +478,11 @@ export class GoveePlatform implements DynamicPlatformPlugin {
         const deviceName = httpDevice.deviceName as string;
         const deviceType = getDeviceTypeFromModel(model);
 
-        allDevices.push({ deviceId, deviceName, model, deviceType });
+        // Include the LAN IP address if this device was also found on the local network,
+        // so the UI device picker can pre-fill it (useful for cross-VLAN setups)
+        const ip = this.lanDevices.find(el => el.device === deviceId)?.ip as string | undefined;
+
+        allDevices.push({ deviceId, deviceName, model, deviceType, ip });
       }
 
       // Process LAN-only devices
@@ -491,7 +496,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
         const deviceName = this.deviceConf[deviceId]?.label as string || deviceId.replaceAll(':', '');
         const deviceType = getDeviceTypeFromModel(model);
 
-        allDevices.push({ deviceId, deviceName, model, deviceType });
+        allDevices.push({ deviceId, deviceName, model, deviceType, ip: lanDevice.ip as string | undefined });
       }
 
       // Store for UI to read
@@ -568,10 +573,14 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       this.refreshAWSInterval = setInterval(() => this.goveeAWSSync(), 60000);
     }
 
-    // Leak and thermo-hygrometer sensors only report readings via the HTTP device list,
-    // so poll it periodically if any such devices are initialised
+    // Leak, thermo-hygrometer, and air quality monitor sensors report readings via the
+    // HTTP device list, so poll it periodically if any such devices are initialised
     if (this.httpClient) {
-      const httpSensorModels = [...platformConsts.models.sensorLeak, ...platformConsts.models.sensorThermo];
+      const httpSensorModels = [
+        ...platformConsts.models.sensorLeak,
+        ...platformConsts.models.sensorThermo,
+        ...platformConsts.models.sensorMonitor,
+      ];
       const hasHttpSensors = [...this.devicesInHB.values()].some(acc => httpSensorModels.includes(acc.context.gvModel));
       if (hasHttpSensors) {
         this.goveeHTTPSync();
@@ -774,7 +783,11 @@ export class GoveePlatform implements DynamicPlatformPlugin {
     this.httpSyncInProgress = true;
     try {
       const devices = await this.httpClient.getDevices();
-      const httpSensorModels = [...platformConsts.models.sensorLeak, ...platformConsts.models.sensorThermo];
+      const httpSensorModels = [
+        ...platformConsts.models.sensorLeak,
+        ...platformConsts.models.sensorThermo,
+        ...platformConsts.models.sensorMonitor,
+      ];
       for (const device of devices.filter(el => httpSensorModels.includes(el.sku))) {
         try {
           let deviceId = device.device;
@@ -822,17 +835,23 @@ export class GoveePlatform implements DynamicPlatformPlugin {
               toReturn.online = !!(parsedData.gwonline && parsedData.online);
             }
           } else {
-            // Thermo-hygrometer sensors report readings in hundredths, converted by the device handler
+            // Thermo-hygrometer and air quality sensors report readings in hundredths,
+            // converted by the device handler. A value of 65535 is Govee's sentinel for
+            // "no reading / sensor not fitted" (e.g. the H5310 pool sensor has no
+            // humidity sensor) and must not be forwarded.
             accessory.logDebug?.(`[HTTP] raw sensor data: ${JSON.stringify(parsedData)}`);
 
             if (hasProperty(parsedSettings, 'battery')) {
               toReturn.battery = parsedSettings.battery as number;
             }
-            if (hasProperty(parsedData, 'tem')) {
+            if (hasProperty(parsedData, 'tem') && (parsedData.tem as number) !== 65535) {
               toReturn.temperature = parsedData.tem as number;
             }
-            if (hasProperty(parsedData, 'hum')) {
+            if (hasProperty(parsedData, 'hum') && (parsedData.hum as number) !== 65535) {
               toReturn.humidity = parsedData.hum as number;
+            }
+            if (hasProperty(parsedData, 'pm25') && (parsedData.pm25 as number) !== 65535) {
+              toReturn.pm25 = parsedData.pm25 as number;
             }
             if (hasProperty(parsedData, 'online')) {
               toReturn.online = parsedData.online as boolean;
