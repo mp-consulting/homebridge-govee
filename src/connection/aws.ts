@@ -1,5 +1,5 @@
 import { Buffer } from 'node:buffer';
-import { readFileSync } from 'node:fs';
+import fs, { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import url from 'node:url';
 
@@ -34,13 +34,22 @@ export default class AWSClient {
   constructor(platform: AWSPlatformRef, iotFile: IotCertificate) {
     this.accountTopic = platform.accountTopic;
 
-    this.device = new IotDeviceClass({
-      privateKey: Buffer.from(iotFile.key, 'utf8'),
-      clientCert: Buffer.from(iotFile.cert, 'utf8'),
-      caCert: readFileSync(resolve(dirname, './cert/AmazonRootCA1.pem')),
-      clientId: `AP/${platform.accountId}/${platform.clientId}`,
-      host: platform.iotEndpoint,
-    });
+    // aws-iot-device-sdk's tls-reader calls fs.existsSync() on the keyPath/certPath/caPath
+    // options even when unset, and existsSync(undefined) triggers DEP0187 on Node 24+.
+    // The SDK constructor is synchronous, so shield existsSync just for its duration.
+    const origExistsSync = fs.existsSync;
+    fs.existsSync = ((path?: fs.PathLike) => path !== undefined && origExistsSync(path)) as typeof fs.existsSync;
+    try {
+      this.device = new IotDeviceClass({
+        privateKey: Buffer.from(iotFile.key, 'utf8'),
+        clientCert: Buffer.from(iotFile.cert, 'utf8'),
+        caCert: readFileSync(resolve(dirname, './cert/AmazonRootCA1.pem')),
+        clientId: `AP/${platform.accountId}/${platform.clientId}`,
+        host: platform.iotEndpoint,
+      });
+    } finally {
+      fs.existsSync = origExistsSync;
+    }
 
     this.device.on('close', () => {
       platform.log.debugWarn('[AWS] %s.', platformLang.awsEventClose);

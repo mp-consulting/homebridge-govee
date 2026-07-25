@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2026-07-25
+
+### Fixed
+
+- **`fs.existsSync` deprecation warning (DEP0187) at startup** (#8): the `aws-iot-device-sdk` dependency probes its optional `keyPath`/`certPath`/`caPath` options with `fs.existsSync()` even when they are unset, and passing `undefined` triggers a deprecation warning on Node 24+. The plugin passes its certificates as in-memory buffers, so these path options are never used — `existsSync` is now shielded for the duration of the (synchronous) SDK client construction.
+
 ## [1.2.0] - 2026-07-25
 
 ### Added
