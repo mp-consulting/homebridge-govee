@@ -7,7 +7,7 @@ Homebridge plugin (`@mp-consulting/homebridge-govee`) that integrates Govee smar
 ## Tech Stack
 
 - **Language**: TypeScript (strict mode, ES2022 target, NodeNext modules, ESM)
-- **Runtime**: Node.js ^20.18.0 || ^22.10.0 || ^24.0.0
+- **Runtime**: Node.js ^22.10.0 || ^24.0.0 || ^26.0.0
 - **Platform**: Homebridge ^1.8.0 || ^2.0.0-beta
 - **Linting**: ESLint 9 flat config with typescript-eslint
 - **Testing**: Vitest (co-located `*.test.ts` files alongside source)
