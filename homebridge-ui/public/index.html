@@ -14,7 +14,7 @@
     Bootstrap is served from the plugin itself, not a CDN: the Homebridge UI wraps this
     page in a content-security policy that only allows same-origin styles and scripts, so
     a cdn.jsdelivr.net reference is refused and `bootstrap` never becomes defined. The
-    files are vendored into lib/ by the `copy:ui-kit` build step.
+    files are vendored into lib/ by the `copy:ui-assets` build step.
   -->
   <link rel="stylesheet" href="lib/bootstrap.min.css">
   <link rel="stylesheet" href="lib/bootstrap-icons.min.css">
