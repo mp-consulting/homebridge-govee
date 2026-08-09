@@ -92,7 +92,7 @@ The config UI can discover the devices on your Govee account and add them to the
 
 #### Scenes
 
-Open a light device in the config UI and click **Browse Govee Scenes** to pick scenes from a grid showing the same names and icons as the Govee app. Each scene you choose becomes its own switch in HomeKit, so it can be used in automations and asked for by name.
+Open a light device in the config UI and go to its **Scene Library** tab. Your current selection sits at the top, and the Govee library is laid out below it as a grid showing the same names and icons as the Govee app, with the categories down the side. Each scene you choose becomes its own switch in HomeKit, so it can be used in automations and asked for by name.
 
 - **Where the list comes from.** With your Govee credentials configured, the plugin fetches the scene library Govee publishes for that exact model, including your own **DIY effects**. Without credentials — or if Govee is unreachable — it falls back to a scene catalogue bundled with the plugin, so the picker still works for Bluetooth-only and LAN-only setups. The picker tells you which source it used.
 - **Icons are cached locally.** Scene artwork is proxied and inlined by the plugin's UI server rather than loaded from Govee's CDN, and stored in your config alongside each scene so the list stays recognisable when you come back to it.
@@ -102,13 +102,13 @@ Scenes are stored in the `scenes` array on each light device. The older fixed sl
 
 #### Music Mode
 
-Enable **Music Mode Tile** on a light device to expose music mode as a separate HomeKit tile:
+On a light device's **Music Mode** tab, turn on **Add a Music tile to HomeKit** to expose music mode as a separate HomeKit tile:
 
 - **On/Off** switches the light into music mode.
 - **Brightness** is the microphone sensitivity, adjustable live.
 - **Colour** sets the music colour, when **Auto Colour** is turned off.
 
-Choose the effect (Rhythm, Energic, Rolling, Spectrum) in the config. Older Govee lights use an earlier version of the music command — if the tile does nothing, switch **Protocol** to *Legacy* in the Music Mode group of the Scenes & Modes tab.
+Choose the effect (Rhythm, Energic, Rolling, Spectrum) in the config. Older Govee lights use an earlier version of the music command — if the tile does nothing, switch **Protocol** to *Legacy* on the light's **Music Mode** tab.
 
 > Scene, DIY and music support uses the same unofficial endpoints as the Govee app. They can change without notice, and the plugin falls back gracefully when they do.
 

@@ -136,17 +136,91 @@
   gap: 0.5rem;
 }
 
-/* Category names can be long ("House of the Dragon"); keep each tab on one line
-   and let the strip scroll sideways rather than growing three rows tall. */
-.gv-scene-tabs .nav-link {
-  white-space: nowrap;
-  padding-top: 0.4rem;
-  padding-bottom: 0.4rem;
+/* Categories sit in a column beside the grid. Names can be long ("House of the Dragon"),
+   and a horizontal strip had to scroll sideways to reach the later ones. */
+.gv-scene-picker {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+.gv-scene-cats {
+  flex: 0 0 10.5rem;
+  max-width: 10.5rem;
+  flex-direction: column;
+  gap: 0.125rem;
+  max-height: 24rem;
+  overflow-y: auto;
+  /* Must be explicit: `overflow-y: auto` alone would compute overflow-x to `auto` too,
+     so a long category name would give this column a sideways scrollbar. */
+  overflow-x: hidden;
+}
+/* The list item sizes itself to its text rather than stretching to the column, which
+   pushes the whole nav wider than its own box; pin it to the column width so the name
+   inside has a bound to ellipsise against. */
+.gv-scene-cats .nav-item {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.gv-scene-cats .nav-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.35rem 0.6rem;
   font-size: 0.875rem;
+  text-align: left;
+  border-radius: var(--bs-border-radius);
+}
+.gv-scene-cat-name {
+  /* A flex child defaults to min-width: auto, which refuses to shrink below its text and
+     so defeats the ellipsis entirely. Govee ships names like "House of the Dragon". */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gv-scene-cat-count {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.65;
+}
+.gv-scene-picker > .gv-scene-panes { flex: 1 1 auto; min-width: 0; }
+
+/* The plugin settings iframe can be narrower than a phone; below that a 10rem column
+   would leave no room for tiles, so the categories go back to a scrolling strip. */
+@media (max-width: 34rem) {
+  /* `align-items: flex-start` is right for the side-by-side layout but would shrink both
+     children to their content width once the axis turns vertical. */
+  .gv-scene-picker { flex-direction: column; align-items: stretch; }
+  .gv-scene-cats {
+    flex: 0 0 auto;
+    max-width: 100%;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-height: none;
+  }
+  .gv-scene-cats .nav-link { width: auto; }
 }
 
-/* Hold a steady height so switching categories does not resize the dialog */
-.gv-scene-panes { min-height: 18rem; }
+/* The picker now sits inline in the device card rather than in a dialog, so the grid has
+   to be bounded: a 150-scene library would otherwise stretch the settings page far past
+   the point where the selected-scenes panel above it is still reachable. */
+.gv-scene-panes {
+  min-height: 18rem;
+  max-height: 24rem;
+  overflow-y: auto;
+}
+
+/* Tabs across the top of a device card. Slightly tighter than Bootstrap's default,
+   since these sit inside an accordion inside a page-level tab. */
+.gv-device-tabs .nav-link {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.9375rem;
+}
 .gv-scene-tile {
   position: relative;
   display: flex;
