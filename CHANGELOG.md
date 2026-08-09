@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.1] - 2026-08-09
+
+### Fixed
+
+- **Config UI was blank and the scene picker could not open**: Bootstrap and Bootstrap Icons were loaded from `cdn.jsdelivr.net`, which the Homebridge UI's content-security policy refuses — the stylesheets and script were blocked, leaving `bootstrap` undefined, so the tabs did nothing and **Browse Govee Scenes** threw instead of opening. Both are now vendored into the plugin and served from it, alongside the icon font. This affected 1.2.x as well, where it broke the tab strip; 1.3.0 made it fatal, since the scene picker is a Bootstrap modal.
+
 ## [1.3.0] - 2026-08-09
 
 ### Added
