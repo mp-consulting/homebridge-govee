@@ -20,6 +20,40 @@ export interface SceneConfig {
   showAs?: 'default' | 'switch';
 }
 
+/**
+ * A scene, DIY effect or snapshot the user picked in the config UI. Unlike the legacy
+ * fixed slots there is no cap on how many of these a device can have, and each carries
+ * the icon Govee ships for it so the picker can render without re-fetching.
+ */
+export interface SceneSelection {
+  /** Name shown in HomeKit. */
+  name: string;
+  /** Comma-separated base64 command frames. */
+  sceneCode: string;
+  /** Optional BLE override; defaults to `sceneCode`. */
+  bleCode?: string;
+  /** Govee scene id, kept so the UI can re-highlight the selection. */
+  sceneId?: number;
+  /** Which of a scene's effect variants was chosen. */
+  variantId?: number;
+  iconUrl?: string;
+  iconUrlDark?: string;
+  kind?: 'scene' | 'diy';
+  showAs?: 'default' | 'switch';
+}
+
+/** Live music-mode control, exposed as HomeKit characteristics rather than a fixed code. */
+export interface MusicModeConfig {
+  enabled?: boolean;
+  effect?: 'energic' | 'rolling' | 'spectrum' | 'rhythm';
+  sensitivity?: number;
+  autoColour?: boolean;
+  /** Rhythm only: the softer variant. */
+  soft?: boolean;
+  /** Which generation of the Govee music protocol this model speaks. */
+  protocol?: 'modern' | 'legacy';
+}
+
 export interface LightDeviceConfig {
   label?: string;
   deviceId: string;
@@ -31,6 +65,12 @@ export interface LightDeviceConfig {
   awsBrightnessNoScale?: boolean;
   awsColourMode?: 'default' | 'rgb' | 'redgreenblue';
   brightnessStep?: number;
+  /**
+   * Scenes picked from the Govee scene library. Replaces the fixed `scene`/`diyMode`/…
+   * slots below, which are still honoured for existing configs.
+   */
+  scenes?: SceneSelection[];
+  musicModeLive?: MusicModeConfig;
   scene?: SceneConfig;
   sceneTwo?: SceneConfig;
   sceneThree?: SceneConfig;
@@ -170,6 +210,13 @@ export interface GoveeHTTPDeviceInfo {
   deviceName: string;
   versionSoft?: string;
   versionHard?: string;
+  /**
+   * Govee's product-family id. Returned by the device list and required as a query
+   * parameter by the scene, DIY and capability endpoints.
+   */
+  goodsType?: number;
+  pactType?: number;
+  pactCode?: number;
   deviceExt?: {
     extResources?: string;
     deviceSettings?: string;
@@ -193,6 +240,8 @@ export interface LANDevice {
 export interface GoveeAccessoryContext {
   gvDeviceId: string;
   gvModel: string;
+  /** Govee product-family id, needed by the scene/DIY/capability endpoints. */
+  goodsType?: number;
   hasAwsControl: boolean;
   useAwsControl: boolean;
   hasBleControl: boolean;
@@ -269,7 +318,11 @@ export interface AWSParams {
 
 export interface BLEParams {
   cmd: number | string;
-  data: number | string | number[];
+  /**
+   * A `ptReal` command carries base64 frames — a single string, or an ordered list
+   * when the payload spans several frames (scenes, DIY effects).
+   */
+  data: number | string | number[] | string[];
 }
 
 export interface LANParams {

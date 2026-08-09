@@ -275,10 +275,13 @@ export default class BLEClient {
       }
       accessory.logDebug('found control characteristic');
 
-      const finalBuffer = this.prepareCommandBuffer(params);
-      accessory.logDebug(`sending command: ${finalBuffer.toString('hex')}`);
-
-      await this.writeWithTimeout(characteristic, finalBuffer, WRITE_TIMEOUT);
+      // Scenes and DIY effects span several frames that must all be written, in
+      // order, over the same connection before the device will apply them.
+      const buffers = this.prepareCommandBuffers(params);
+      for (const [index, buffer] of buffers.entries()) {
+        accessory.logDebug(`sending frame ${index + 1}/${buffers.length}: ${buffer.toString('hex')}`);
+        await this.writeWithTimeout(characteristic, buffer, WRITE_TIMEOUT);
+      }
       accessory.logDebug('command sent successfully');
     } catch (err) {
       accessory.logWarn(`BLE update failed: ${(err as Error).message}`);
@@ -342,13 +345,14 @@ export default class BLEClient {
     }
   }
 
-  private prepareCommandBuffer(params: BLEParams): Buffer {
+  private prepareCommandBuffers(params: BLEParams): Buffer[] {
     if (params.cmd === 'ptReal') {
-      return Buffer.from(
-        hexToTwoItems(base64ToHex(params.data as string)).map((byte) => Number.parseInt(`0x${byte}`, 16)),
+      const frames = Array.isArray(params.data) ? (params.data as string[]) : [params.data as string];
+      return frames.map((frame) =>
+        Buffer.from(hexToTwoItems(base64ToHex(frame)).map((byte) => Number.parseInt(`0x${byte}`, 16))),
       );
     }
-    return generateCodeFromHexValues([0x33, params.cmd as number, params.data as number], true) as Buffer;
+    return [generateCodeFromHexValues([0x33, params.cmd as number, params.data as number], true) as Buffer];
   }
 
   async startDiscovery(callback: (reading: BLESensorReading) => void): Promise<void> {

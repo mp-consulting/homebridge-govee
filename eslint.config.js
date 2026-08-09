@@ -72,6 +72,7 @@ export default tseslint.config(
         modelCategories: 'readonly',
         getDeviceTypeFromModel: 'readonly',
         MpKit: 'readonly',
+        IntersectionObserver: 'readonly',
       },
     },
     rules: {
@@ -101,6 +102,7 @@ export default tseslint.config(
         clearInterval: 'readonly',
         process: 'readonly',
         fetch: 'readonly',
+        URL: 'readonly',
       },
     },
   },

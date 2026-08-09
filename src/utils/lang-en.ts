@@ -58,6 +58,8 @@ export interface PlatformLang {
   curOcc: string;
   curPM25: string;
   curScene: string;
+  curMusicMode: string;
+  musicModeName: string;
   curSpeed: string;
   curState: string;
   curSwing: string;
@@ -188,6 +190,8 @@ const platformLang: PlatformLang = {
   curOcc: 'current occupancy',
   curPM25: 'current PM2.5',
   curScene: 'current scene',
+  curMusicMode: 'current music mode',
+  musicModeName: 'Music',
   curSpeed: 'current speed',
   curState: 'current state',
   curSwing: 'current swing',
