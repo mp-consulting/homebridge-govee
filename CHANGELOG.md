@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2026-08-09
+
+### Changed
+
+- **The light editor is now three tabs — General, Scene Library and Music Mode.** A light carries three unrelated concerns, and stacking them in one scrolling form (as 1.3.0 did) meant the scene grid pushed everything else off screen. Advanced settings stay in a disclosure, now inside General. The open tab survives a re-render, so picking several scenes in a row no longer bounces you back to the top. Every other device type keeps the single stacked form — they are simple enough to read in one pass.
+- **Every light setting now explains itself.** Each field carries a line of help describing what it actually does and when to touch it, instead of leaving the label to do all the work.
+- **The scene picker is inline, not a dialog.** The Scene Library tab shows the current selection above and the library below it, both on screen at once, so a tile you toggle is seen landing in the selection. Toggling no longer rebuilds the grid, so the open category and scroll position survive. The modal is gone.
+- **Scene categories run down the side** rather than across the top. Names like "House of the Dragon" no longer need a sideways-scrolling strip to reach, and each category shows how many scenes it holds.
+- **Brightness Step is a slider** with a live percentage readout, rather than a bare number box.
+
+### Fixed
+
+- **Adaptive Lighting no longer hides an off switch inside a number.** The setting was a single number in which `-1` silently meant "disable Adaptive Lighting entirely" and anything else was a mired offset — impossible to guess from the UI. It is now a switch plus a **Warmth shift** slider that only appears when it is on. The stored config is unchanged, so existing values keep working, and turning it off and back on restores the shift you had rather than resetting it.
+- **Long scene category names caused horizontal scrolling.** Two causes: `text-overflow: ellipsis` never engaged, because a flex child defaults to `min-width: auto` and so refuses to shrink below its text; and `overflow-y: auto` makes the browser compute `overflow-x` to `auto` as well, so the overflowing name produced a sideways scrollbar. Names are now truncated with the full text on hover.
+
 ## [1.3.1] - 2026-08-09
 
 ### Fixed

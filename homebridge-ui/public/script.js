@@ -11,57 +11,74 @@ function escapeHtml(str) {
 // Device type configurations
 const deviceTypes = {
   lightDevices: {
+    // A light does far more than any other device type, so its editor is split into
+    // tabs. Fields land in `general` unless they name a tab. `mode` gates a whole tab on
+    // what Govee says the hardware supports.
+    tabs: [
+      { id: 'general', title: 'General', icon: 'bi-sliders2' },
+      { id: 'scenes', title: 'Scene Library', icon: 'bi-palette', mode: 'scene' },
+      { id: 'music', title: 'Music Mode', icon: 'bi-music-note-beamed', mode: 'music' },
+    ],
     fields: [
-      { id: 'deviceId', label: 'Device ID', type: 'text', required: true },
-      { id: 'label', label: 'Custom Label', type: 'text' },
-      { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' },
-      { id: 'showAs', label: 'Show As', type: 'select', options: [
-        { value: 'default', label: 'Light (default)' },
-        { value: 'switch', label: 'Switch' },
-      ] },
-      // Everything scene- and mode-related lives in its own tab; see `sections` below.
-      { id: 'scenes', label: 'Scenes', type: 'scenes', section: 'scenes', mode: 'scene' },
+      { id: 'deviceId', label: 'Device ID', type: 'text', required: true,
+        help: 'Govee\'s own identifier for this light. Run Discover Devices on the Tools tab and it is filled in for you.' },
+      { id: 'label', label: 'Custom Label', type: 'text',
+        help: 'Replaces the name HomeKit shows. Leave blank to keep the name set in the Govee app.' },
+      { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox',
+        help: 'Keeps this light out of HomeKit without discarding any of the settings below.' },
+      { id: 'showAs', label: 'Show As', type: 'select',
+        help: 'A Light gets brightness and colour controls. Pick Switch for a light you only ever turn on and off.',
+        options: [
+          { value: 'default', label: 'Light (default)' },
+          { value: 'switch', label: 'Switch' },
+        ] },
       { id: 'musicModeLive.enabled', label: 'Add a Music tile to HomeKit', type: 'checkbox',
-        section: 'scenes', group: 'music', mode: 'music',
-        help: 'On/off runs music mode, brightness is the microphone sensitivity.' },
+        tab: 'music',
+        help: 'Adds a second tile for this light. On/off starts music mode, brightness is the microphone sensitivity, and colour sets the music colour.' },
       { id: 'musicModeLive.effect', label: 'Effect', type: 'iconselect', default: 'rhythm',
-        section: 'scenes', group: 'music', mode: 'music', options: [
+        tab: 'music',
+        help: 'How the light reacts to sound. Rhythm follows the beat, Energic flashes on peaks, Rolling sweeps colour along the strip, and Spectrum maps pitch to colour.',
+        options: [
           { value: 'rhythm', label: 'Rhythm', icon: 'bi-soundwave' },
           { value: 'energic', label: 'Energic', icon: 'bi-lightning-charge' },
           { value: 'rolling', label: 'Rolling', icon: 'bi-water' },
           { value: 'spectrum', label: 'Spectrum', icon: 'bi-bar-chart-line' },
         ] },
       { id: 'musicModeLive.sensitivity', label: 'Default Sensitivity', type: 'range', min: 0, max: 100, step: 5,
-        default: 50, unit: '%', section: 'scenes', group: 'music', mode: 'music' },
-      { id: 'musicModeLive.autoColour', label: 'Auto Colour', type: 'checkbox', section: 'scenes', group: 'music', mode: 'music',
-        help: 'Let the light choose colours. Turn off to set the music colour from HomeKit.' },
-      { id: 'musicModeLive.soft', label: 'Soft Rhythm', type: 'checkbox', section: 'scenes', group: 'music', mode: 'music',
-        help: 'Rhythm only: the gentler of the two styles.' },
-      { id: 'musicModeLive.protocol', label: 'Protocol', type: 'select', section: 'scenes', group: 'music', mode: 'music',
-        help: 'Switch to Legacy if music mode does nothing on an older light.', options: [
+        default: 50, unit: '%', tab: 'music',
+        help: 'How loud a sound must be before the light reacts. This is only the starting value — the tile\'s brightness slider changes it live.' },
+      { id: 'musicModeLive.autoColour', label: 'Auto Colour', type: 'checkbox', tab: 'music',
+        help: 'Let the light pick colours from the music itself. Turn this off to choose the colour yourself, from the tile\'s colour picker.' },
+      { id: 'musicModeLive.soft', label: 'Soft Rhythm', type: 'checkbox', tab: 'music',
+        help: 'Rhythm only: the gentler of its two styles, with slower fades between beats.' },
+      { id: 'musicModeLive.protocol', label: 'Protocol', type: 'select', tab: 'music',
+        help: 'Older lights speak an earlier version of the music command. If the tile appears but does nothing, switch to Legacy.',
+        options: [
           { value: 'modern', label: 'Modern' },
           { value: 'legacy', label: 'Legacy (older lights)' },
         ] },
-      { id: 'customIPAddress', label: 'Custom IP Address', type: 'text', advanced: true },
-      { id: 'customAddress', label: 'Custom BLE Address', type: 'text', advanced: true },
-      { id: 'brightnessStep', label: 'Brightness Step', type: 'number', min: 1, max: 100, advanced: true },
-      { id: 'adaptiveLightingShift', label: 'Adaptive Lighting Shift', type: 'number', advanced: true },
-      { id: 'awsBrightnessNoScale', label: 'AWS Brightness No Scale', type: 'checkbox', advanced: true },
-      { id: 'awsColourMode', label: 'AWS Colour Mode', type: 'select', advanced: true, options: [
-        { value: 'default', label: 'Default' },
-        { value: 'rgb', label: 'RGB' },
-        { value: 'redgreenblue', label: 'Red/Green/Blue' },
-      ] },
+      { id: 'customIPAddress', label: 'Custom IP Address', type: 'text', advanced: true,
+        help: 'Only for LAN control, when the light is not found automatically. Pair it with a DHCP reservation so the address does not move.' },
+      { id: 'customAddress', label: 'Custom BLE Address', type: 'text', advanced: true,
+        help: 'The light\'s Bluetooth MAC address. Only needed when Bluetooth control cannot find the device by name.' },
+      { id: 'brightnessStep', label: 'Brightness Step', type: 'range', min: 1, max: 100, step: 1,
+        default: 1, unit: '%', advanced: true,
+        help: 'Smallest brightness change HomeKit will send. Raise it to stop a dragged slider flooding the light with updates.' },
+      { id: 'adaptiveLightingShift', label: 'Adaptive Lighting', type: 'togglerange', advanced: true,
+        offValue: -1, default: 0, min: 0, max: 500, step: 10, unit: ' mireds',
+        rangeLabel: 'Warmth shift',
+        help: 'Lets HomeKit track the colour temperature to the time of day. Turn it off to keep whatever colour you set.',
+        rangeHelp: 'Biases the curve warmer than Apple\'s. 150 keeps evenings noticeably cosier; 0 follows HomeKit exactly.' },
+      { id: 'awsBrightnessNoScale', label: 'AWS Brightness No Scale', type: 'checkbox', advanced: true,
+        help: 'Sends brightness as 0-100 instead of 0-254. A few models need this, otherwise they jump straight to full brightness.' },
+      { id: 'awsColourMode', label: 'AWS Colour Mode', type: 'select', advanced: true,
+        help: 'Which shape of colour command this model accepts over the cloud connection. Change it only if colours are ignored or come out wrong.',
+        options: [
+          { value: 'default', label: 'Default' },
+          { value: 'rgb', label: 'RGB' },
+          { value: 'redgreenblue', label: 'Red/Green/Blue' },
+        ] },
     ],
-    // Stacked blocks below the main device fields. Fields opt in via `section`.
-    // `showTitle: false` because the Scene Library panel already titles itself.
-    sections: {
-      scenes: { title: 'Scenes & Modes', icon: 'bi-palette', showTitle: false },
-    },
-    // Sub-headings inside a section, in display order.
-    groups: {
-      music: { title: 'Music Mode', icon: 'bi-music-note-beamed' },
-    },
   },
   switchDevices: {
     fields: [
@@ -176,6 +193,12 @@ const editingState = {}; // { lightDevices: 0, ... } — tracks which device ind
 const advancedOpen = {};
 
 /**
+ * Which editor tab is open, per device type, for the same reason: a re-render must not
+ * throw the user back to General while they are picking scenes.
+ */
+const activeTab = {};
+
+/**
  * Govee product identifiers per device id, learned from discovery. The scene, DIY and
  * capability endpoints all need `goodsType`, which is not part of the plugin config.
  */
@@ -238,10 +261,6 @@ function renderDeviceField(type, index, field, value) {
     : '';
   let inner;
 
-  if (field.type === 'scenes') {
-    return renderScenesField(type, index, value);
-  }
-
   if (field.type === 'checkbox') {
     inner = `
       <div class="form-check form-switch mt-1">
@@ -283,6 +302,36 @@ function renderDeviceField(type, index, field, value) {
         data-unit="${escapeHtml(field.unit || '')}"
         min="${field.min ?? 0}" max="${field.max ?? 100}" step="${field.step ?? 1}"
         value="${current}">${help}`;
+  } else if (field.type === 'togglerange') {
+    // One stored number that means two things: a sentinel for "off", or an amount. Split
+    // into the switch and the slider the value actually represents, rather than making
+    // the user know that -1 is magic.
+    const off = field.offValue;
+    const isOn = value === undefined ? field.defaultOn !== false : value !== off;
+    const amount = (value === undefined || value === off) ? (field.default ?? field.min ?? 0) : value;
+    const toggleId = `${fieldId}_on`;
+    const rangeId = `${fieldId}_amount`;
+    inner = `
+      <div class="form-check form-switch mt-1">
+        <input class="form-check-input device-field" type="checkbox" id="${toggleId}"
+          data-type="${type}" data-index="${index}" data-field="${field.id}"
+          data-field-role="toggle" data-off-value="${off}" data-on-value="${amount}"
+          ${isOn ? 'checked' : ''}>
+        <label class="form-check-label" for="${toggleId}">${field.label}</label>
+      </div>${help}
+      <div class="pt-2 ${isOn ? '' : 'd-none'}" data-togglerange-body="${toggleId}">
+        <label class="form-label d-flex justify-content-between align-items-center mb-1" for="${rangeId}">
+          <span class="small">${escapeHtml(field.rangeLabel || field.label)}</span>
+          <output class="badge bg-secondary" id="${rangeId}_out">${amount}${field.unit || ''}</output>
+        </label>
+        <input type="range" class="form-range device-field" id="${rangeId}"
+          data-type="${type}" data-index="${index}" data-field="${field.id}"
+          data-field-role="range" data-toggle-for="${toggleId}"
+          data-unit="${escapeHtml(field.unit || '')}"
+          min="${field.min ?? 0}" max="${field.max ?? 100}" step="${field.step ?? 1}"
+          value="${amount}">
+        ${field.rangeHelp ? `<div class="form-text small">${escapeHtml(field.rangeHelp)}</div>` : ''}
+      </div>`;
   } else if (field.type === 'select') {
     const options = field.options.map(opt =>
       `<option value="${opt.value}" ${value === opt.value ? 'selected' : ''}>${opt.label}</option>`,
@@ -305,11 +354,36 @@ function renderDeviceField(type, index, field, value) {
 }
 
 /**
- * The chosen-scenes panel: a header explaining what a scene becomes in HomeKit, the
- * button that opens the library, and the current selection as icon chips. Sits in the
- * "Scenes & Modes" tab so the whole feature reads as one block.
+ * The Scene Library tab: what is currently selected on top, the library to pick from
+ * below it. Both halves stay on screen, so a tile toggled in the picker is seen landing
+ * in the selection immediately.
  */
-function renderScenesField(type, index, scenes) {
+function renderScenesTab(type, index, device) {
+  return `
+    <div class="gv-field-group">
+      <div id="selectedScenesPanel">${renderSelectedScenes(type, index, device.scenes)}</div>
+    </div>
+    <div class="gv-field-group">
+      <h6 class="gv-field-group-title">
+        <i class="bi bi-grid-3x3-gap me-2"></i>Add from the Govee library
+      </h6>
+      <div id="scenePickerStatus"></div>
+      <div id="scenePickerBody">
+        <div class="text-center py-4"><span class="spinner-border" role="status"></span></div>
+      </div>
+      <div class="d-flex justify-content-between align-items-start gap-3 pt-2">
+        <span class="text-muted small" id="scenePickerCount">0 scenes selected</span>
+        <span class="text-warning small text-end d-none" id="scenePickerWarning"></span>
+      </div>
+    </div>`;
+}
+
+/**
+ * The chosen-scenes panel: a header explaining what a scene becomes in HomeKit, and the
+ * current selection as icon chips. Rendered on its own so a selection change can refresh
+ * just this half, leaving the picker's scroll position and open category alone.
+ */
+function renderSelectedScenes(type, index, scenes) {
   const chosen = Array.isArray(scenes) ? scenes : [];
   const sceneCount = chosen.filter(scene => scene.kind !== 'diy').length;
   const diyCount = chosen.length - sceneCount;
@@ -326,7 +400,7 @@ function renderScenesField(type, index, scenes) {
          <i class="bi bi-palette"></i>
          <p class="mb-1 fw-medium">No scenes selected</p>
          <p class="text-muted small mb-0">
-           Browse the Govee library to add scenes and your own DIY effects.
+           Pick scenes and your own DIY effects from the library below.
            Each one becomes its own switch in HomeKit.
          </p>
        </div>`
@@ -341,25 +415,17 @@ function renderScenesField(type, index, scenes) {
         </div>`).join('')}</div>`;
 
   return `
-    <div class="col-12">
-      <div class="gv-scene-panel">
-        <div class="gv-scene-panel-head">
-          <div class="min-w-0">
-            <div class="fw-semibold"><i class="bi bi-palette me-2"></i>Scene Library</div>
-            <div class="text-muted small">${escapeHtml(summary)}</div>
-          </div>
-          <div class="d-flex gap-2 flex-shrink-0">
-            ${chosen.length > 0 ? `
-              <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearScenes('${type}', ${index})">
-                Clear
-              </button>` : ''}
-            <button type="button" class="btn btn-primary btn-sm" onclick="openScenePicker('${type}', ${index})">
-              <i class="bi bi-grid-3x3-gap me-1"></i>Browse Scenes
-            </button>
-          </div>
+    <div class="gv-scene-panel">
+      <div class="gv-scene-panel-head">
+        <div class="min-w-0">
+          <div class="fw-semibold"><i class="bi bi-check2-square me-2"></i>Selected scenes</div>
+          <div class="text-muted small">${escapeHtml(summary)}</div>
         </div>
-        <div class="gv-scene-panel-body">${body}</div>
+        ${chosen.length > 0 ? `
+          <button type="button" class="btn btn-outline-danger btn-sm flex-shrink-0"
+            onclick="clearScenes('${type}', ${index})">Clear all</button>` : ''}
       </div>
+      <div class="gv-scene-panel-body">${body}</div>
     </div>`;
 }
 
@@ -559,58 +625,124 @@ function renderSectionBlock(def, inner) {
   return `<div class="gv-field-group">${heading}${inner}</div>`;
 }
 
-/**
- * The device editor: a single scrolling form of stacked sections rather than tabs.
- *
- * Everything a device does is visible at once — this card already sits inside an
- * accordion inside a page-level tab, so another layer of tabs made the settings hard
- * to find. Only the rarely-touched Advanced block is collapsed, and its open state is
- * remembered so re-rendering (after picking a scene, say) does not shut it.
- */
-function renderDeviceEditForm(type, index, device) {
-  const config = deviceTypes[type];
-  const applicable = config.fields.filter(f => fieldAppliesToDevice(f, device));
-  const sectionDefs = config.sections || {};
-  const groupDefs = config.groups || {};
-  const displayName = device.label || device.deviceId || 'New Device';
+/** The rarely-touched settings, in a disclosure that remembers whether it was open. */
+function renderAdvancedBlock(type, index, inner) {
+  const collapseId = `${type}_${index}_advanced`;
+  const open = !!advancedOpen[type];
+  return `
+    <div class="gv-field-group">
+      <button class="gv-advanced-toggle ${open ? '' : 'collapsed'}" type="button"
+        data-advanced-toggle="${type}"
+        data-bs-toggle="collapse" data-bs-target="#${collapseId}"
+        aria-expanded="${open}" aria-controls="${collapseId}">
+        <i class="bi bi-chevron-right gv-advanced-chevron"></i>
+        <i class="bi bi-sliders2 me-2"></i>Advanced settings
+      </button>
+      <div class="collapse ${open ? 'show' : ''}" id="${collapseId}">
+        <div class="pt-3">${inner}</div>
+      </div>
+    </div>`;
+}
 
-  const fieldsFor = predicate => applicable.filter(predicate);
+/** Whether a whole tab applies, given what Govee says the device supports. */
+function tabAppliesToDevice(tab, device) {
+  if (!tab.mode) {
+    return true;
+  }
+  const modes = capabilityCache[device.deviceId];
+  return !modes || modes.includes(tab.mode);
+}
+
+/**
+ * The stacked editor: every setting visible at once, used by every device type that is
+ * simple enough to read in one pass.
+ */
+function renderStackedBody(type, index, device, config) {
+  const applicable = config.fields.filter(f => fieldAppliesToDevice(f, device));
+  const groupDefs = config.groups || {};
   const groups = fields => renderFieldGroups(type, index, device, fields, groupDefs);
 
   const blocks = [];
-
-  // The core device fields, unheaded — they are the first thing in the card and need
-  // no label to explain themselves.
-  const mainFields = fieldsFor(f => !f.advanced && !f.section);
+  const mainFields = applicable.filter(f => !f.advanced);
   if (mainFields.length > 0) {
     blocks.push(renderSectionBlock({ showTitle: false }, groups(mainFields)));
   }
 
-  for (const [name, def] of Object.entries(sectionDefs)) {
-    const fields = fieldsFor(f => f.section === name);
-    if (fields.length > 0) {
-      blocks.push(renderSectionBlock(def, groups(fields)));
-    }
+  const advancedFields = applicable.filter(f => f.advanced);
+  if (advancedFields.length > 0) {
+    blocks.push(renderAdvancedBlock(type, index, groups(advancedFields)));
+  }
+  return blocks.join('');
+}
+
+/**
+ * The tabbed editor, used for lights. A light carries three unrelated concerns — how it
+ * appears in HomeKit, its scene library, and music mode — and stacking all of them made
+ * a card long enough that the scene grid pushed everything else off screen.
+ *
+ * The open tab is remembered per device type, because toggling a scene re-renders.
+ */
+function renderTabbedBody(type, index, device, config) {
+  const applicable = config.fields.filter(f => fieldAppliesToDevice(f, device));
+  const groupDefs = config.groups || {};
+  const groups = fields => renderFieldGroups(type, index, device, fields, groupDefs);
+
+  const panes = config.tabs
+    .filter(tab => tabAppliesToDevice(tab, device))
+    .map((tab) => {
+      // The scene tab is not a list of fields; it is two stacked panels.
+      if (tab.id === 'scenes') {
+        return { tab, inner: renderScenesTab(type, index, device) };
+      }
+      const mine = applicable.filter(f => (f.tab || 'general') === tab.id);
+      const plain = mine.filter(f => !f.advanced);
+      const advanced = mine.filter(f => f.advanced);
+      if (plain.length === 0 && advanced.length === 0) {
+        return { tab, inner: '' };
+      }
+      return {
+        tab,
+        inner: (plain.length ? renderSectionBlock({ showTitle: false }, groups(plain)) : '')
+          + (advanced.length ? renderAdvancedBlock(type, index, groups(advanced)) : ''),
+      };
+    })
+    .filter(entry => entry.inner);
+
+  // With only one tab left standing there is nothing to switch between.
+  if (panes.length <= 1) {
+    return panes[0]?.inner || '';
   }
 
-  const advancedFields = fieldsFor(f => f.advanced && !f.section);
-  if (advancedFields.length > 0) {
-    const collapseId = `${type}_${index}_advanced`;
-    const open = !!advancedOpen[type];
-    blocks.push(`
-      <div class="gv-field-group">
-        <button class="gv-advanced-toggle ${open ? '' : 'collapsed'}" type="button"
-          data-advanced-toggle="${type}"
-          data-bs-toggle="collapse" data-bs-target="#${collapseId}"
-          aria-expanded="${open}" aria-controls="${collapseId}">
-          <i class="bi bi-chevron-right gv-advanced-chevron"></i>
-          <i class="bi bi-sliders2 me-2"></i>Advanced settings
-        </button>
-        <div class="collapse ${open ? 'show' : ''}" id="${collapseId}">
-          <div class="pt-3">${groups(advancedFields)}</div>
-        </div>
-      </div>`);
-  }
+  const wanted = activeTab[type];
+  const active = panes.some(p => p.tab.id === wanted) ? wanted : panes[0].tab.id;
+
+  const nav = panes.map(({ tab }) => `
+    <li class="nav-item" role="presentation">
+      <button class="nav-link ${tab.id === active ? 'active' : ''}" type="button" role="tab"
+        data-bs-toggle="tab" data-bs-target="#${type}_${index}_tab_${tab.id}"
+        data-device-tab="${tab.id}" data-device-type="${type}" data-device-index="${index}">
+        <i class="bi ${tab.icon} me-2"></i>${escapeHtml(tab.title)}
+      </button>
+    </li>`).join('');
+
+  const content = panes.map(({ tab, inner }) => `
+    <div class="tab-pane fade ${tab.id === active ? 'show active' : ''}"
+      id="${type}_${index}_tab_${tab.id}" role="tabpanel">${inner}</div>`).join('');
+
+  return `
+    <ul class="nav nav-tabs gv-device-tabs mb-3" role="tablist">${nav}</ul>
+    <div class="tab-content">${content}</div>`;
+}
+
+/**
+ * The device editor card. Lights get tabs; everything else gets one scrolling form.
+ */
+function renderDeviceEditForm(type, index, device) {
+  const config = deviceTypes[type];
+  const displayName = device.label || device.deviceId || 'New Device';
+  const body = config.tabs
+    ? renderTabbedBody(type, index, device, config)
+    : renderStackedBody(type, index, device, config);
 
   return `
     <div class="card" id="${type}_${index}_card">
@@ -620,7 +752,7 @@ function renderDeviceEditForm(type, index, device) {
           <i class="bi bi-arrow-left me-1"></i>Back
         </button>
       </div>
-      <div class="card-body">${blocks.join('')}</div>
+      <div class="card-body">${body}</div>
     </div>`;
 }
 
@@ -664,6 +796,25 @@ function renderDeviceList(type) {
       advancedOpen[toggle.dataset.advancedToggle] = toggle.classList.contains('collapsed');
     });
   });
+
+  // Remember the open editor tab, and load the scene library the first time its tab is
+  // actually shown — tiles in a hidden pane have no size, so icons cannot hydrate there.
+  container.querySelectorAll('[data-device-tab]').forEach(tab => {
+    tab.addEventListener('shown.bs.tab', () => {
+      const { deviceTab, deviceType, deviceIndex } = tab.dataset;
+      activeTab[deviceType] = deviceTab;
+      if (deviceTab === 'scenes') {
+        loadScenePicker(deviceType, Number(deviceIndex));
+      }
+      hydrateSceneIcons(container);
+    });
+  });
+
+  // The Scene Library tab can already be the open one after a re-render.
+  const openTab = container.querySelector('[data-device-tab].active');
+  if (openTab?.dataset.deviceTab === 'scenes') {
+    loadScenePicker(openTab.dataset.deviceType, Number(openTab.dataset.deviceIndex));
+  }
 
   hydrateSceneIcons(container);
 }
@@ -709,6 +860,32 @@ function handleDeviceFieldChange(event) {
   }
 
   const entry = pluginConfig[type][index];
+  const role = field.dataset.fieldRole;
+
+  // The two halves of a `togglerange` write to the same key, so they are handled before
+  // the plain checkbox/range branches below would claim them.
+  if (role === 'toggle') {
+    setFieldValue(entry, fieldName, Number(field.checked ? field.dataset.onValue : field.dataset.offValue));
+    const body = document.querySelector(`[data-togglerange-body="${field.id}"]`);
+    if (body) {
+      body.classList.toggle('d-none', !field.checked);
+    }
+    return;
+  }
+  if (role === 'range') {
+    const amount = parseInt(field.value, 10);
+    setFieldValue(entry, fieldName, isNaN(amount) ? undefined : amount);
+    const output = document.getElementById(`${field.id}_out`);
+    if (output) {
+      output.textContent = `${field.value}${field.dataset.unit || ''}`;
+    }
+    // Remember the amount so switching off and back on restores it rather than the default
+    const toggle = document.getElementById(field.dataset.toggleFor);
+    if (toggle) {
+      toggle.dataset.onValue = field.value;
+    }
+    return;
+  }
 
   if (field.type === 'radio') {
     // Only the newly-selected button of a segmented control carries the value
@@ -791,6 +968,8 @@ async function loadDeviceCapabilities(type, index) {
 function cancelEdit(type) {
   delete editingState[type];
   delete advancedOpen[type];
+  delete activeTab[type];
+  scenePickerTarget = null;
   renderDeviceList(type);
 }
 
@@ -803,7 +982,7 @@ function removeScene(type, index, sceneIndex) {
   if (device.scenes.length === 0) {
     delete device.scenes;
   }
-  renderDeviceList(type);
+  refreshSceneSelection(type, index);
 }
 
 function clearScenes(type, index) {
@@ -812,7 +991,7 @@ function clearScenes(type, index) {
     return;
   }
   delete device.scenes;
-  renderDeviceList(type);
+  refreshSceneSelection(type, index);
 }
 
 // ── Scene picker ───────────────────────────────────────────────────────────
@@ -847,22 +1026,36 @@ function deviceRequestPayload(device) {
   };
 }
 
-async function openScenePicker(type, index) {
+/**
+ * Fill the picker section of the Scene Library tab.
+ *
+ * Loading is lazy and happens in place: nothing is fetched until the tab is actually
+ * opened, and a second visit to the tab reuses what is already rendered rather than
+ * hitting Govee again — `data-loaded-for` records which device the grid belongs to.
+ */
+async function loadScenePicker(type, index) {
   const device = pluginConfig[type]?.[index];
-  if (!device?.deviceId) {
-    window.homebridge.toast.warning('Set the device ID first.');
+  const body = document.getElementById('scenePickerBody');
+  if (!body || !device) {
     return;
   }
 
   scenePickerTarget = { type, index };
-  const modal = new bootstrap.Modal(document.getElementById('scenePickerModal'));
-  const body = document.getElementById('scenePickerBody');
-  const status = document.getElementById('scenePickerStatus');
 
-  document.getElementById('scenePickerLabel').textContent = `Scenes — ${device.label || device.deviceId}`;
-  body.innerHTML = '<div class="text-center py-4"><span class="spinner-border" role="status"></span></div>';
+  // Already showing this device's library; just re-mark which tiles are selected.
+  if (body.dataset.loadedFor && body.dataset.loadedFor === device.deviceId) {
+    refreshScenePickerSelection();
+    return;
+  }
+
+  const status = document.getElementById('scenePickerStatus');
   status.innerHTML = '';
-  modal.show();
+
+  if (!device.deviceId) {
+    body.innerHTML = '<div class="alert alert-secondary mb-0">Enter the device ID on the General tab '
+      + 'and its scenes will appear here.</div>';
+    return;
+  }
 
   const payload = deviceRequestPayload(device);
   if (!payload.model) {
@@ -870,6 +1063,8 @@ async function openScenePicker(type, index) {
       + 'Run <strong>Discover Devices</strong> first so the plugin knows which scenes to offer.</div>';
     return;
   }
+
+  body.innerHTML = '<div class="text-center py-4"><span class="spinner-border" role="status"></span></div>';
 
   try {
     let library = sceneLibraryCache[device.deviceId];
@@ -891,7 +1086,12 @@ async function openScenePicker(type, index) {
       diys = [];
     }
 
+    // The tab may have been closed while the request was in flight.
+    if (!document.getElementById('scenePickerBody')) {
+      return;
+    }
     renderScenePicker(library, diys);
+    body.dataset.loadedFor = device.deviceId;
   } catch (err) {
     body.innerHTML = `<div class="alert alert-danger mb-0">${escapeHtml(err.message || 'Could not load scenes')}</div>`;
   }
@@ -970,7 +1170,10 @@ function renderScenePicker(library, diys) {
   const tabs = groups.map((group, i) => `
     <li class="nav-item" role="presentation">
       <button class="nav-link ${i === 0 ? 'active' : ''}" data-bs-toggle="tab"
-        data-bs-target="#${group.id}" type="button">${escapeHtml(group.name)}</button>
+        data-bs-target="#${group.id}" type="button" title="${escapeHtml(group.name)}">
+        <span class="gv-scene-cat-name">${escapeHtml(group.name)}</span>
+        <span class="gv-scene-cat-count">${group.items.length}</span>
+      </button>
     </li>`).join('');
 
   const panes = groups.map((group, i) => `
@@ -985,9 +1188,13 @@ function renderScenePicker(library, diys) {
       </div>
     </div>`).join('');
 
+  // Categories run down the side rather than across the top: the names are long ("House
+  // of the Dragon") and a horizontal strip had to scroll sideways to reach the later ones.
   body.innerHTML = `
-    <ul class="nav nav-tabs gv-scene-tabs mb-3 flex-nowrap overflow-auto" role="tablist">${tabs}</ul>
-    <div class="tab-content gv-scene-panes">${panes}</div>`;
+    <div class="gv-scene-picker">
+      <ul class="nav nav-pills gv-scene-cats" role="tablist">${tabs}</ul>
+      <div class="tab-content gv-scene-panes">${panes}</div>
+    </div>`;
 
   body.querySelectorAll('.gv-scene-tile').forEach(tile => {
     tile.addEventListener('click', () => toggleSceneSelection(tile.dataset.sceneKey));
@@ -1026,10 +1233,30 @@ function toggleSceneSelection(key) {
   const existing = device.scenes.findIndex(scene => selectionKey(scene) === key);
   if (existing >= 0) {
     device.scenes.splice(existing, 1);
+    if (device.scenes.length === 0) {
+      delete device.scenes;
+    }
   } else {
     device.scenes.push({ ...item.payload });
   }
 
+  refreshSceneSelection(scenePickerTarget.type, scenePickerTarget.index);
+}
+
+/**
+ * Reflect a selection change in both halves of the tab, without re-rendering the card.
+ * A full re-render would rebuild the grid and lose the open category and scroll position
+ * mid-click, which makes picking several scenes in a row unpleasant.
+ */
+function refreshSceneSelection(type, index) {
+  const panel = document.getElementById('selectedScenesPanel');
+  if (!panel) {
+    // The tab is not on screen (a stale handler); fall back to a full redraw.
+    renderDeviceList(type);
+    return;
+  }
+  panel.innerHTML = renderSelectedScenes(type, index, pluginConfig[type]?.[index]?.scenes);
+  hydrateSceneIcons(panel);
   refreshScenePickerSelection();
 }
 
@@ -1042,12 +1269,16 @@ function refreshScenePickerSelection() {
   });
 
   const count = selected.size;
-  document.getElementById('scenePickerCount').textContent =
-    count === 1 ? '1 scene selected' : `${count} scenes selected`;
+  const countEl = document.getElementById('scenePickerCount');
+  const warning = document.getElementById('scenePickerWarning');
+  if (!countEl || !warning) {
+    // The tab was swapped out while a request was in flight.
+    return;
+  }
+  countEl.textContent = count === 1 ? '1 scene selected' : `${count} scenes selected`;
 
   // HomeKit refuses to publish an accessory with too many services; warn well before
   // the user hits that wall rather than letting the bridge fail to start.
-  const warning = document.getElementById('scenePickerWarning');
   warning.classList.toggle('d-none', count <= 50);
   warning.textContent = count > 50
     ? `${count} scenes means ${count} HomeKit switches on this accessory. Much beyond this and HomeKit may refuse to add it — consider trimming the list.`
@@ -1537,14 +1768,6 @@ function refreshScenePickerSelection() {
     }
   });
 
-  // Re-render the device card when the picker closes so the chosen scenes show up
-  document.getElementById('scenePickerModal').addEventListener('hidden.bs.modal', () => {
-    if (scenePickerTarget) {
-      renderDeviceList(scenePickerTarget.type);
-      scenePickerTarget = null;
-    }
-  });
-
   // Make functions globally available
   window.addDevice = addDevice;
   window.removeDevice = removeDevice;
@@ -1552,5 +1775,4 @@ function refreshScenePickerSelection() {
   window.cancelEdit = cancelEdit;
   window.removeScene = removeScene;
   window.clearScenes = clearScenes;
-  window.openScenePicker = openScenePicker;
 })();
