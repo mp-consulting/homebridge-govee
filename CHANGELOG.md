@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-08-09
+
+### Added
+
+- **Scene picker with icons in the config UI**: light devices gain a **Browse Govee Scenes** button that opens the scene library as a grid of tiles showing the same names and artwork as the Govee app. Picked scenes are stored in a new `scenes` array — one HomeKit switch each, with no cap — and keep their icon so the list stays recognisable when you return to it. Icons are fetched by the plugin's UI server and inlined as data URIs, because the config UI's content-security policy blocks Govee's CDN directly; only Govee image hosts are accepted, and tiles load lazily as they scroll into view.
+- **Scene library fetched per device**: with Govee credentials configured, the plugin reads the scene library Govee publishes for the exact model (`/appsku/v2/scences`), applying Govee's per-model effect overrides. Scenes are encoded into the `0xA3` multi-packet frames plus the `0x33 05 04` activation frame that the Govee app itself writes, so no codes need to be sniffed or pasted by hand. Where a scene ships multiple effect variants, all of them are exposed.
+- **DIY effects**: your own DIY effects are listed alongside the scenes, each with its cover image, and can be selected the same way.
+- **Offline scene catalogue**: a trimmed copy of the catalogue bundled in the Govee app ships with the plugin, so the picker works before logging in and for Bluetooth-only or LAN-only setups. The picker states which source it used.
+- **Live music mode**: a new **Music Mode Tile** option exposes music mode as its own HomeKit tile — on/off, brightness as microphone sensitivity, and hue/saturation as the music colour when auto-colour is off — instead of freezing one pasted code. Effect (Rhythm, Energic, Rolling, Spectrum), the soft rhythm variant, and the protocol generation are configurable; older lights that use the earlier music command are supported via **Music Protocol: Legacy**.
+- **Capability-aware config**: the config UI asks Govee which modes a device actually supports (`/bff-app/v1/devices/detail/function-support`) and hides controls the hardware lacks. An unknown answer shows everything rather than hiding controls wrongly.
+- **`goodsType` captured from discovery**: Govee's product-family id is now stored with the discovered device list, since the scene, DIY and capability endpoints all require it.
+
+### Fixed
+
+- **Multi-frame commands over Bluetooth**: a `ptReal` command spanning several frames — which every real scene and DIY effect does — previously wrote only its first frame, so the device never received the full effect. All frames are now written in order over a single connection.
+- **`ptReal` over Bluetooth was double-encoded**: the platform converted the command from base64 to hex and the BLE client then decoded it as base64 again, producing meaningless bytes. The command is now passed through in the form the BLE client expects.
+
+### Changed
+
+- **Device editor is now a single scrolling form** instead of sub-tabs. The card already sits inside an accordion inside a page-level tab, and a further layer of tabs buried the settings — everything is now visible at once in stacked sections, with only the rarely-used Advanced block collapsed (and its open state remembered across re-renders).
+- **Scene Library panel** heads the scene section: a live summary of what is selected, Browse and Clear buttons, and the chosen scenes as icon chips with DIY entries badged. The empty state explains that each scene becomes its own HomeKit switch.
+- **Music effect is a segmented icon picker** rather than a dropdown (a native `<option>` cannot show an icon), and sensitivity is a slider with a live percentage readout.
+- **Scene icons are fetched in batches.** Each proxied icon wrote a line to the Homebridge log, so opening a 150-scene library flooded it; visible icons are now coalesced into a single request per batch, cutting a full library from ~120 log lines to one or two.
+- The scene picker dialog sizes itself against the plugin-settings iframe rather than the browser window, so it gets the full available width instead of Bootstrap's narrow fallback; long category names stay on one line in a horizontally scrolling strip.
+- Scene switches are now removed from HomeKit when the corresponding scene is deleted from the config, instead of lingering as dead tiles.
+- The existing fixed scene slots (`scene`, `sceneTwo`, `diyMode`, `musicMode`, `segmented`, `videoMode`, …) are unchanged and keep working; no existing configuration needs editing.
+
+### Notes
+
+- Scene, DIY and capability support uses the same unofficial endpoints as the Govee Home app. They can change without notice; every call falls back rather than failing the plugin.
+- Scene speed and direction are deliberately not sent as commands. In the Govee app they are not separate commands at all — the effect payload itself is rewritten by per-model routines — so the plugin exposes Govee's own effect variants and the speed/direction metadata instead of guessing at bytes.
+
 ## [1.2.2] - 2026-08-09
 
 ### Changed

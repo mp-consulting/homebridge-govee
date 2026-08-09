@@ -180,6 +180,64 @@
               "maximum": 100,
               "description": "Step size for brightness adjustments."
             },
+            "scenes": {
+              "title": "Scenes",
+              "type": "array",
+              "description": "Scenes picked from the Govee scene library. Each one becomes its own switch in HomeKit. Use the 'Browse Govee Scenes' button in the plugin settings UI to choose them.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": { "title": "Name", "type": "string", "required": true, "description": "Name shown in HomeKit." },
+                  "sceneCode": { "title": "Scene Code", "type": "string", "required": true, "description": "Comma-separated base64 command frames." },
+                  "bleCode": { "title": "BLE Code", "type": "string", "description": "Optional Bluetooth override; defaults to the scene code." },
+                  "sceneId": { "title": "Govee Scene ID", "type": "integer" },
+                  "variantId": { "title": "Variant ID", "type": "integer" },
+                  "iconUrl": { "title": "Icon URL", "type": "string" },
+                  "iconUrlDark": { "title": "Icon URL (dark)", "type": "string" },
+                  "kind": {
+                    "title": "Kind",
+                    "type": "string",
+                    "default": "scene",
+                    "oneOf": [
+                      { "title": "Scene", "enum": ["scene"] },
+                      { "title": "DIY Effect", "enum": ["diy"] }
+                    ]
+                  }
+                }
+              }
+            },
+            "musicModeLive": {
+              "title": "Music Mode (live)",
+              "type": "object",
+              "description": "Expose music mode as its own HomeKit tile whose brightness controls microphone sensitivity, instead of a fixed pasted code.",
+              "properties": {
+                "enabled": { "title": "Enable", "type": "boolean", "default": false },
+                "effect": {
+                  "title": "Effect",
+                  "type": "string",
+                  "default": "rhythm",
+                  "oneOf": [
+                    { "title": "Rhythm", "enum": ["rhythm"] },
+                    { "title": "Energic", "enum": ["energic"] },
+                    { "title": "Rolling", "enum": ["rolling"] },
+                    { "title": "Spectrum", "enum": ["spectrum"] }
+                  ]
+                },
+                "sensitivity": { "title": "Default Sensitivity", "type": "integer", "minimum": 0, "maximum": 100, "default": 50 },
+                "autoColour": { "title": "Auto Colour", "type": "boolean", "default": true, "description": "Let the light choose colours. Turn off to control the music colour from HomeKit." },
+                "soft": { "title": "Soft Variant", "type": "boolean", "default": false, "description": "Rhythm only: the gentler of the two rhythm styles." },
+                "protocol": {
+                  "title": "Protocol",
+                  "type": "string",
+                  "default": "modern",
+                  "description": "Older Govee lights use an earlier music command. Switch to Legacy if music mode does nothing.",
+                  "oneOf": [
+                    { "title": "Modern", "enum": ["modern"] },
+                    { "title": "Legacy", "enum": ["legacy"] }
+                  ]
+                }
+              }
+            },
             "scene": {
               "title": "Scene 1",
               "type": "object",

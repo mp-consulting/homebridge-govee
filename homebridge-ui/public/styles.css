@@ -15,7 +15,7 @@
 .device-card { border-left: 4px solid var(--bs-primary); }
 .device-card.ignored { border-left-color: var(--bs-danger); opacity: 0.7; }
 .device-type-badge { font-size: 0.75rem; }
-.btn-add-device { margin-bottom: 1rem; }
+.btn-add-device { margin-top: 0.75rem; margin-bottom: 1rem; }
 
 /* ── Device list rows ──────────────────────────────────────── */
 .device-list-items {
@@ -26,3 +26,207 @@
 .device-row:last-child {
   border-bottom: none !important;
 }
+
+/* ── Scene picker ──────────────────────────────────────────── */
+
+/* Grouped fields inside a settings tab */
+.gv-field-group {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--bs-border-color);
+}
+.gv-field-group:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+.gv-field-group-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--bs-secondary-color);
+  margin-bottom: 0.75rem;
+}
+
+/* The Advanced disclosure that closes each device card */
+.gv-advanced-toggle {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--bs-secondary-color);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.gv-advanced-toggle:hover { color: var(--bs-body-color); }
+.gv-advanced-chevron {
+  margin-right: 0.5rem;
+  transition: transform 0.15s ease;
+  transform: rotate(90deg);
+}
+.gv-advanced-toggle.collapsed .gv-advanced-chevron { transform: rotate(0deg); }
+
+/* The scene panel that heads the Scenes & Modes section */
+.gv-scene-panel {
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  overflow: hidden;
+}
+.gv-scene-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 1rem;
+  background: var(--bs-tertiary-bg);
+  border-bottom: 1px solid var(--bs-border-color);
+}
+.gv-scene-panel-body { padding: 1rem; }
+
+/* Empty state, shown before anything has been picked */
+.gv-scene-empty {
+  text-align: center;
+  padding: 1.25rem 1rem;
+  color: var(--bs-body-color);
+}
+.gv-scene-empty > .bi {
+  font-size: 1.75rem;
+  color: var(--bs-secondary-color);
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+/* Chosen scenes, shown inline on the device card */
+.gv-scene-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.gv-scene-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.5rem 0.25rem 0.35rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 2rem;
+  background: var(--bs-tertiary-bg);
+  max-width: 100%;
+}
+.gv-scene-chip-kind { font-size: 0.625rem; }
+.gv-scene-chip-name {
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 10rem;
+}
+
+/* The full library grid inside the modal */
+.gv-scene-grid {
+  display: grid;
+  /* Narrow tiles so the grid still shows several columns inside the plugin
+     settings iframe, which is a good deal narrower than the browser window. */
+  grid-template-columns: repeat(auto-fill, minmax(5.25rem, 1fr));
+  gap: 0.5rem;
+}
+
+/* Category names can be long ("House of the Dragon"); keep each tab on one line
+   and let the strip scroll sideways rather than growing three rows tall. */
+.gv-scene-tabs .nav-link {
+  white-space: nowrap;
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+  font-size: 0.875rem;
+}
+
+/* Hold a steady height so switching categories does not resize the dialog */
+.gv-scene-panes { min-height: 18rem; }
+.gv-scene-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.6rem 0.35rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  background: var(--bs-body-bg);
+  color: inherit;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.gv-scene-tile:hover { border-color: var(--bs-primary); }
+.gv-scene-tile.selected {
+  border-color: var(--bs-primary);
+  box-shadow: inset 0 0 0 1px var(--bs-primary);
+  background: rgba(var(--bs-primary-rgb), 0.08);
+}
+.gv-scene-tile.selected::after {
+  content: "\F26E"; /* bootstrap-icons check-lg */
+  font-family: "bootstrap-icons";
+  position: absolute;
+  top: 0.15rem;
+  right: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--bs-primary);
+}
+.gv-scene-tile-name {
+  font-size: 0.75rem;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.gv-scene-variants {
+  position: absolute;
+  top: 0.15rem;
+  left: 0.3rem;
+  font-size: 0.625rem;
+}
+
+/* Icons are square; Govee ships transparent PNGs that suit both themes */
+.gv-scene-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.gv-scene-icon-lg { width: 2.75rem; height: 2.75rem; }
+.gv-scene-icon-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--bs-secondary-color);
+  background: var(--bs-tertiary-bg);
+  border-radius: var(--bs-border-radius);
+}
+
+/* The picker lives inside the plugin-settings iframe, so Bootstrap's modal
+   breakpoints see the iframe's width and fall back to the narrow 500px dialog.
+   Size it against the available width instead so the grid gets real room. */
+#scenePickerModal .modal-dialog {
+  max-width: calc(100vw - 2rem);
+  width: 60rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Segmented icon picker, used where a <select> could not show an icon */
+.gv-icon-select .btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.4rem 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1.1;
+}
+.gv-icon-select .btn > .bi { font-size: 1rem; }
+
+/* Slider rows: the value badge sits inline with the label */
+.form-range { padding-top: 0.25rem; }

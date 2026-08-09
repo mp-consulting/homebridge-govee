@@ -1,12 +1,23 @@
 import type { Service, AdaptiveLightingController } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
-import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams, LightDeviceConfig } from '../types.js';
+import type {
+  GoveePlatformAccessoryWithControl,
+  ExternalUpdateParams,
+  LightDeviceConfig,
+  MusicModeConfig,
+  SceneSelection,
+} from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { hs2rgb, k2rgb, m2hs, rgb2hs } from '../utils/colour.js';
 import { platformConsts, platformLang } from '../utils/index.js';
 import { createDebouncedGuard, hasProperty, parseError, sleep } from '../utils/functions.js';
+import type { MusicEffect } from '../utils/scene-codes.js';
 
-// Scene characteristic names
+/**
+ * The original fixed scene slots. Each maps to a custom Eve characteristic, so the
+ * list cannot grow — which is why scenes picked from the Govee library live in the
+ * `scenes` array instead. These are still read so existing configs keep working.
+ */
 const SCENE_CHAR_NAMES = [
   'DiyMode',
   'DiyModeTwo',
@@ -28,6 +39,26 @@ const SCENE_CHAR_NAMES = [
 
 type SceneCharName = (typeof SCENE_CHAR_NAMES)[number];
 
+/** Subtype prefix for the switch services backing library-picked scenes. */
+const SCENE_SERVICE_PREFIX = 'gv-scene-';
+
+/** Subtype for the live music-mode service. */
+const MUSIC_SERVICE_SUBTYPE = 'gv-music';
+
+/**
+ * A scene the accessory can apply, whether it came from the new `scenes` array or one
+ * of the legacy fixed slots.
+ */
+interface ActiveScene {
+  /** Unique key: the legacy characteristic name, or a `gv-scene-*` service subtype. */
+  key: string;
+  name: string;
+  sceneCode: string;
+  bleCode?: string;
+  /** Set when the scene is driven by a legacy Eve characteristic rather than a switch. */
+  legacyChar?: SceneCharName;
+}
+
 /**
  * Light device handler for RGB/CCT lights.
  * Supports color, brightness, color temperature, and scene modes.
@@ -48,8 +79,15 @@ export class LightDevice extends GoveeDeviceBase {
   private readonly maxKelvin: number;
 
   // Scene management
-  private usedCodes: SceneCharName[] = [];
+  private scenes: ActiveScene[] = [];
   private hasScenes = false;
+
+  // Live music mode
+  private musicService?: Service;
+  private musicConf?: MusicModeConfig;
+  private cacheMusicSensitivity = 50;
+  private cacheMusicHue = 0;
+  private cacheMusicSat = 0;
 
   // Cached values
   private cacheBright = 0;
@@ -92,22 +130,23 @@ export class LightDevice extends GoveeDeviceBase {
   }
 
   init(): void {
-    // Remove any switch service if it exists
-    this.removeServiceIfExists('Switch');
+    // Remove the legacy subtype-less switch service if it exists
+    this.removeLegacySwitchService();
 
-    // Add the main lightbulb service if it doesn't already exist
-    this._service = this.accessory.getService(this.hapServ.Lightbulb)
-      || this.accessory.addService(this.hapServ.Lightbulb);
-
-    // If adaptive lighting has just been disabled then remove and re-add service to hide AL icon
-    if ((this.colourSafeMode || this.alShift === -1) && this.accessory.context.adaptiveLighting) {
-      this.accessory.removeService(this._service);
-      this._service = this.accessory.addService(this.hapServ.Lightbulb);
+    // If adaptive lighting has just been disabled then the service has to be re-added
+    // from scratch to hide the AL icon
+    const replaceMain = (this.colourSafeMode || this.alShift === -1)
+      && !!this.accessory.context.adaptiveLighting;
+    this._service = this.ensureMainLightbulb(replaceMain);
+    if (replaceMain) {
       this.accessory.context.adaptiveLighting = false;
     }
 
     // Setup custom characteristics for different scenes and modes
     this.setupSceneCharacteristics();
+
+    // Expose live music mode as its own service when enabled
+    this.setupMusicMode();
 
     // Add the colour mode characteristic if at least one other scene/mode is exposed
     this.setupColourModeCharacteristic();
@@ -131,8 +170,60 @@ export class LightDevice extends GoveeDeviceBase {
     this.initialised = true;
   }
 
+  /**
+   * Drop the legacy subtype-less Switch service. This cannot go through
+   * `removeServiceIfExists`, which matches on UUID alone and so would delete the first
+   * `gv-scene-*` tile instead — re-adding it later shifts its instance id and breaks the
+   * name, room and automations the user bound to it.
+   */
+  private removeLegacySwitchService(): void {
+    const legacy = this.accessory.services.find(
+      (service) => service.UUID === this.hapServ.Switch.UUID && !service.subtype,
+    );
+    if (legacy) {
+      this.accessory.removeService(legacy);
+    }
+  }
+
+  /**
+   * Get the main lightbulb service, adding it if needed.
+   *
+   * Both this service and the music tile are Lightbulbs, and `getService()` matches on
+   * UUID alone, so the main service is identified by having no subtype. hap-nodejs also
+   * refuses to add a second subtype-less service of a UUID that is already present, so
+   * any other Lightbulb has to stand aside whenever this one is added — `setupMusicMode`
+   * recreates the music tile immediately afterwards.
+   */
+  private ensureMainLightbulb(replace: boolean): Service {
+    const existing = this.accessory.services.find(
+      (service) => service.UUID === this.hapServ.Lightbulb.UUID && !service.subtype,
+    );
+    if (existing && !replace) {
+      return existing;
+    }
+    for (const service of [...this.accessory.services]) {
+      if (service.UUID === this.hapServ.Lightbulb.UUID) {
+        this.accessory.removeService(service);
+      }
+    }
+    return this.accessory.addService(this.hapServ.Lightbulb);
+  }
+
   private setupSceneCharacteristics(): void {
-    this.usedCodes = [];
+    this.scenes = [];
+
+    this.setupLegacySceneSlots();
+    this.setupLibraryScenes();
+    this.pruneStaleSceneServices();
+
+    this.hasScenes = this.scenes.length > 0;
+  }
+
+  /**
+   * Wire up the original fixed slots (`scene`, `diyMode`, `musicMode`, …), each of
+   * which is a hand-pasted code bound to a custom Eve characteristic or a switch.
+   */
+  private setupLegacySceneSlots(): void {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const deviceConf = this.deviceConf as any;
 
@@ -140,53 +231,108 @@ export class LightDevice extends GoveeDeviceBase {
       const confName = charName.charAt(0).toLowerCase() + charName.slice(1);
       const confCode = deviceConf[confName] as { sceneCode?: string; bleCode?: string; showAs?: string } | undefined;
 
-      // Check if any code has been entered in the config by the user
-      if (confCode?.sceneCode) {
-        const { bleCode, sceneCode } = confCode;
-
-        // Add to the global enabled scenes list
-        this.usedCodes.push(charName);
-
-        if (confCode.showAs === 'switch') {
-          this.setupSceneAsSwitch(charName, sceneCode, bleCode);
-        } else {
-          this.setupSceneAsEve(charName, sceneCode, bleCode);
-        }
-      } else {
-        // Remove characteristic if no longer configured
+      if (!confCode?.sceneCode) {
+        // Remove the characteristic if the slot is no longer configured
         if (this.cusChar[charName] && this._service.testCharacteristic(this.cusChar[charName])) {
           this._service.removeCharacteristic(this._service.getCharacteristic(this.cusChar[charName]));
         }
+        continue;
+      }
+
+      const { bleCode, sceneCode } = confCode;
+      const asSwitch = confCode.showAs === 'switch';
+      const scene: ActiveScene = {
+        key: charName,
+        name: charName,
+        sceneCode,
+        bleCode,
+        legacyChar: asSwitch ? undefined : charName,
+      };
+      this.scenes.push(scene);
+
+      if (asSwitch) {
+        this.setupSceneAsSwitch(scene, charName);
+      } else {
+        this.setupSceneAsEve(scene, charName);
       }
     }
-
-    this.hasScenes = this.usedCodes.length > 0;
   }
 
-  private setupSceneAsSwitch(charName: SceneCharName, sceneCode: string, bleCode?: string): void {
-    // Remove the Eve switch if exists
+  /**
+   * Wire up scenes picked from the Govee scene library. These are unbounded in number,
+   * so each gets its own switch service rather than a custom characteristic.
+   */
+  private setupLibraryScenes(): void {
+    const deviceConf = this.deviceConf as unknown as Partial<LightDeviceConfig>;
+    const selections = Array.isArray(deviceConf.scenes) ? deviceConf.scenes : [];
+
+    selections.forEach((selection: SceneSelection, index: number) => {
+      if (!selection?.sceneCode || !selection.name) {
+        return;
+      }
+      // Scene ids and DIY ids are numbered independently, so the kind has to be part of
+      // the key or a scene and a DIY effect sharing an id collapse into one tile
+      const kind = selection.kind ?? 'scene';
+      const scene: ActiveScene = {
+        key: `${SCENE_SERVICE_PREFIX}${kind}-${selection.sceneId ?? index}`,
+        name: selection.name,
+        sceneCode: selection.sceneCode,
+        bleCode: selection.bleCode,
+      };
+      this.scenes.push(scene);
+      this.setupSceneAsSwitch(scene, scene.key);
+    });
+  }
+
+  /**
+   * Drop switch services for scenes the user has since removed from the config.
+   * Without this they would linger in HomeKit as dead tiles.
+   */
+  private pruneStaleSceneServices(): void {
+    const liveKeys = new Set(this.scenes.map((scene) => scene.key));
+    for (const service of [...this.accessory.services]) {
+      const subtype = service.subtype;
+      if (!subtype) {
+        continue;
+      }
+      const isSceneService = subtype.startsWith(SCENE_SERVICE_PREFIX)
+        || (SCENE_CHAR_NAMES as readonly string[]).includes(subtype);
+      if (isSceneService && !liveKeys.has(subtype)) {
+        this.accessory.removeService(service);
+      }
+    }
+  }
+
+  private setupSceneAsSwitch(scene: ActiveScene, subtype: string): void {
+    // A switch and an Eve characteristic are mutually exclusive representations
+    const charName = scene.legacyChar ?? (subtype as SceneCharName);
     if (this.cusChar[charName] && this._service.testCharacteristic(this.cusChar[charName])) {
       this._service.removeCharacteristic(this._service.getCharacteristic(this.cusChar[charName]));
     }
 
-    // Add the accessory service switch
-    let switchService = this.accessory.getService(charName);
+    let switchService = this.accessory.getServiceById(this.hapServ.Switch, subtype);
     if (!switchService) {
-      switchService = this.accessory.addService(this.hapServ.Switch, charName, charName);
+      switchService = this.accessory.addService(this.hapServ.Switch, scene.name, subtype);
     }
 
-    // Add the set handler and also mark all as off when initialising accessory
+    // Keep the tile name in step with a renamed scene
+    if (!switchService.testCharacteristic(this.hapChar.ConfiguredName)) {
+      switchService.addCharacteristic(this.hapChar.ConfiguredName);
+    }
+    switchService.updateCharacteristic(this.hapChar.ConfiguredName, scene.name);
+    switchService.updateCharacteristic(this.hapChar.Name, scene.name);
+
     switchService
       .getCharacteristic(this.hapChar.On)
       .onSet(async (value) => {
-        await this.internalSceneUpdate(charName, sceneCode, bleCode, value as boolean, true);
+        await this.internalSceneUpdate(scene, value as boolean, true);
       })
       .updateValue(false);
   }
 
-  private setupSceneAsEve(charName: SceneCharName, sceneCode: string, bleCode?: string): void {
+  private setupSceneAsEve(scene: ActiveScene, charName: SceneCharName): void {
     // Remove the accessory service switch if exists
-    const existingSwitch = this.accessory.getService(charName);
+    const existingSwitch = this.accessory.getServiceById(this.hapServ.Switch, charName);
     if (existingSwitch) {
       this.accessory.removeService(existingSwitch);
     }
@@ -201,14 +347,157 @@ export class LightDevice extends GoveeDeviceBase {
       this._service
         .getCharacteristic(this.cusChar[charName])
         .onSet(async (value) => {
-          await this.internalSceneUpdate(charName, sceneCode, bleCode, value as boolean, false);
+          await this.internalSceneUpdate(scene, value as boolean, false);
         })
         .updateValue(false);
     }
   }
 
+  /**
+   * Live music mode, exposed as its own lightbulb service so that sensitivity and
+   * colour are adjustable from HomeKit instead of frozen into a pasted code:
+   * On toggles music mode, Brightness is the microphone sensitivity, and Hue and
+   * Saturation set the colour used when auto-colour is off.
+   */
+  private setupMusicMode(): void {
+    const deviceConf = this.deviceConf as unknown as Partial<LightDeviceConfig>;
+    this.musicConf = deviceConf.musicModeLive;
+
+    const existing = this.accessory.getServiceById(this.hapServ.Lightbulb, MUSIC_SERVICE_SUBTYPE);
+
+    if (!this.musicConf?.enabled) {
+      if (existing) {
+        this.accessory.removeService(existing);
+      }
+      this.musicService = undefined;
+      return;
+    }
+
+    this.musicService = existing
+      || this.accessory.addService(this.hapServ.Lightbulb, platformLang.musicModeName, MUSIC_SERVICE_SUBTYPE);
+
+    this.cacheMusicSensitivity = this.musicConf.sensitivity ?? 50;
+
+    this.musicService
+      .getCharacteristic(this.hapChar.On)
+      .onSet(async (value) => {
+        if (value) {
+          await this.internalMusicUpdate();
+        }
+      })
+      .updateValue(false);
+
+    this.musicService
+      .getCharacteristic(this.hapChar.Brightness)
+      .onSet(async (value) => {
+        this.cacheMusicSensitivity = value as number;
+        // Only re-send while music mode is the active mode
+        if (this.musicService?.getCharacteristic(this.hapChar.On).value) {
+          await this.internalMusicUpdate();
+        }
+      })
+      .updateValue(this.cacheMusicSensitivity);
+
+    // Colour is only meaningful when the device is not picking colours itself.
+    // Auto colour is the default, matching `internalMusicUpdate` and the config schema.
+    if (this.musicConf.autoColour ?? true) {
+      for (const char of [this.hapChar.Hue, this.hapChar.Saturation]) {
+        if (this.musicService.testCharacteristic(char)) {
+          this.musicService.removeCharacteristic(this.musicService.getCharacteristic(char));
+        }
+      }
+    } else {
+      this.musicService.getCharacteristic(this.hapChar.Hue).onSet(async (value) => {
+        this.cacheMusicHue = value as number;
+        if (this.musicService?.getCharacteristic(this.hapChar.On).value) {
+          await this.internalMusicUpdate();
+        }
+      });
+      this.musicService.getCharacteristic(this.hapChar.Saturation).onSet(async (value) => {
+        this.cacheMusicSat = value as number;
+        if (this.musicService?.getCharacteristic(this.hapChar.On).value) {
+          await this.internalMusicUpdate();
+        }
+      });
+      this.cacheMusicHue = this.musicService.getCharacteristic(this.hapChar.Hue).value as number;
+      this.cacheMusicSat = this.musicService.getCharacteristic(this.hapChar.Saturation).value as number;
+    }
+  }
+
+  private async internalMusicUpdate(): Promise<void> {
+    if (!this.musicConf?.enabled) {
+      return;
+    }
+    try {
+      const autoColour = this.musicConf.autoColour ?? true;
+      const [r, g, b] = hs2rgb(this.cacheMusicHue, this.cacheMusicSat);
+
+      await this.sendDeviceUpdate({
+        cmd: 'musicMode',
+        value: {
+          effect: (this.musicConf.effect ?? 'rhythm') as MusicEffect,
+          sensitivity: this.cacheMusicSensitivity,
+          autoColour,
+          soft: this.musicConf.soft ?? false,
+          colour: autoColour ? undefined : { r, g, b },
+          protocol: this.musicConf.protocol ?? 'modern',
+        },
+      });
+
+      if (!this.colourSafeMode && this.alController?.isAdaptiveLightingActive?.()) {
+        this.alController.disableAdaptiveLighting();
+        this.accessory.log(platformLang.alDisabledScene);
+      }
+
+      this.accessory.log(
+        `${platformLang.curMusicMode} [${this.musicConf.effect ?? 'rhythm'}] [${this.cacheMusicSensitivity}%]`,
+      );
+
+      // Music mode replaces whatever mode was active
+      setTimeout(() => {
+        this._service.updateCharacteristic(this.hapChar.On, true);
+        if (this.cusChar.ColourMode) {
+          this._service.updateCharacteristic(this.cusChar.ColourMode, false);
+        }
+        // Music mode is the active mode, so its own tile has to stay on
+        this.resetSceneIndicators(MUSIC_SERVICE_SUBTYPE);
+      }, 1000);
+    } catch (err) {
+      if (this.musicService) {
+        this.handleUpdateError(err, this.musicService.getCharacteristic(this.hapChar.On), false);
+      } else {
+        this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
+      }
+    }
+  }
+
+  /**
+   * Clear every scene indicator, optionally leaving one on. Used whenever the active
+   * mode changes so HomeKit does not show two modes active at once.
+   */
+  private resetSceneIndicators(exceptKey?: string): void {
+    for (const scene of this.scenes) {
+      if (scene.key === exceptKey) {
+        continue;
+      }
+      if (scene.legacyChar && this.cusChar[scene.legacyChar] && this._service.testCharacteristic(this.cusChar[scene.legacyChar])) {
+        this._service.updateCharacteristic(this.cusChar[scene.legacyChar], false);
+      }
+      const sceneSwitch = this.accessory.getServiceById(this.hapServ.Switch, scene.key);
+      if (sceneSwitch) {
+        sceneSwitch.updateCharacteristic(this.hapChar.On, false);
+      }
+    }
+    if (exceptKey !== MUSIC_SERVICE_SUBTYPE) {
+      this.musicService?.updateCharacteristic(this.hapChar.On, false);
+    }
+  }
+
   private setupColourModeCharacteristic(): void {
-    if (this.hasScenes) {
+    // Music mode counts too: it is another mode the colour toggle has to switch away
+    // from, and without this the characteristic would be missing when music is the
+    // only extra mode configured.
+    if (this.hasScenes || this.musicService) {
       // Add the colour mode characteristic if not already
       if (this.cusChar.ColourMode && !this._service.testCharacteristic(this.cusChar.ColourMode)) {
         this._service.addCharacteristic(this.cusChar.ColourMode);
@@ -390,22 +679,14 @@ export class LightDevice extends GoveeDeviceBase {
         },
       });
 
-      // Switch off any custom mode/scene characteristics and turn the on switch to on
-      if (this.hasScenes) {
+      // Switch off any custom mode/scene indicators and turn the on switch to on
+      if (this.hasScenes || this.musicService) {
         setTimeout(() => {
           this._service.updateCharacteristic(this.hapChar.On, true);
           if (this.cusChar.ColourMode) {
             this._service.updateCharacteristic(this.cusChar.ColourMode, true);
           }
-          this.usedCodes.forEach((thisCharName) => {
-            if (this.cusChar[thisCharName] && this._service.testCharacteristic(this.cusChar[thisCharName])) {
-              this._service.updateCharacteristic(this.cusChar[thisCharName], false);
-            }
-            const sceneSwitch = this.accessory.getService(thisCharName);
-            if (sceneSwitch) {
-              sceneSwitch.updateCharacteristic(this.hapChar.On, false);
-            }
-          });
+          this.resetSceneIndicators();
         }, 1000);
       }
 
@@ -474,22 +755,14 @@ export class LightDevice extends GoveeDeviceBase {
       // Send the request to the platform sender function
       await this.sendDeviceUpdate(objToSend);
 
-      // Switch off any custom mode/scene characteristics and turn the on switch to on
-      if (this.hasScenes) {
+      // Switch off any custom mode/scene indicators and turn the on switch to on
+      if (this.hasScenes || this.musicService) {
         setTimeout(() => {
           this._service.updateCharacteristic(this.hapChar.On, true);
           if (this.cusChar.ColourMode) {
             this._service.updateCharacteristic(this.cusChar.ColourMode, true);
           }
-          this.usedCodes.forEach((thisCharName) => {
-            if (this.cusChar[thisCharName] && this._service.testCharacteristic(this.cusChar[thisCharName])) {
-              this._service.updateCharacteristic(this.cusChar[thisCharName], false);
-            }
-            const sceneSwitch = this.accessory.getService(thisCharName);
-            if (sceneSwitch) {
-              sceneSwitch.updateCharacteristic(this.hapChar.On, false);
-            }
-          });
+          this.resetSceneIndicators();
         }, 1000);
       }
 
@@ -514,13 +787,7 @@ export class LightDevice extends GoveeDeviceBase {
     }
   }
 
-  private async internalSceneUpdate(
-    charName: SceneCharName,
-    awsCode: string,
-    bleCode: string | undefined,
-    value: boolean,
-    isService = false,
-  ): Promise<void> {
+  private async internalSceneUpdate(scene: ActiveScene, value: boolean, isService = false): Promise<void> {
     try {
       // Don't continue if command is to turn off
       if (!value) {
@@ -530,7 +797,7 @@ export class LightDevice extends GoveeDeviceBase {
       // Send the request to the platform sender function
       await this.sendDeviceUpdate({
         cmd: 'rgbScene',
-        value: [awsCode, bleCode],
+        value: [scene.sceneCode, scene.bleCode],
       });
 
       // Disable adaptive lighting if it's on already
@@ -540,40 +807,30 @@ export class LightDevice extends GoveeDeviceBase {
       }
 
       // Log the scene change
-      if (this.cacheScene !== charName) {
-        this.cacheScene = charName;
+      if (this.cacheScene !== scene.name) {
+        this.cacheScene = scene.name;
         this.accessory.log(`${platformLang.curScene} [${this.cacheScene}]`);
       }
 
-      // Turn all the characteristics off and turn the on switch to on
+      // Turn all other mode indicators off and turn the on switch to on
       setTimeout(() => {
         this._service.updateCharacteristic(this.hapChar.On, true);
         if (this.cusChar.ColourMode) {
           this._service.updateCharacteristic(this.cusChar.ColourMode, false);
         }
-        this.usedCodes.forEach((thisCharName) => {
-          if (thisCharName !== charName) {
-            if (this.cusChar[thisCharName] && this._service.testCharacteristic(this.cusChar[thisCharName])) {
-              this._service.updateCharacteristic(this.cusChar[thisCharName], false);
-            }
-            const sceneSwitch = this.accessory.getService(thisCharName);
-            if (sceneSwitch) {
-              sceneSwitch.updateCharacteristic(this.hapChar.On, false);
-            }
-          }
-        });
+        this.resetSceneIndicators(scene.key);
       }, 1000);
     } catch (err) {
       // For scene updates, we need custom revert logic based on whether it's a service or characteristic
       if (isService) {
-        const sceneService = this.accessory.getService(charName);
+        const sceneService = this.accessory.getServiceById(this.hapServ.Switch, scene.key);
         if (sceneService) {
           this.handleUpdateError(err, sceneService.getCharacteristic(this.hapChar.On), false);
         } else {
           this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
         }
-      } else if (this.cusChar[charName]) {
-        this.handleUpdateError(err, this._service.getCharacteristic(this.cusChar[charName]), false);
+      } else if (scene.legacyChar && this.cusChar[scene.legacyChar]) {
+        this.handleUpdateError(err, this._service.getCharacteristic(this.cusChar[scene.legacyChar]), false);
       } else {
         this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
       }

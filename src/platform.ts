@@ -40,12 +40,12 @@ import {
   EveCharacteristics,
 } from './utils/index.js';
 import {
-  base64ToHex,
   hasProperty,
   parseDeviceId,
   parseError,
   pfxToCertAndKey,
 } from './utils/functions.js';
+import { codeToFrames, encodeMusicMode, type MusicModeOptions } from './utils/scene-codes.js';
 
 const PLUGIN_NAME = '@mp-consulting/homebridge-govee';
 export const PLATFORM_NAME = 'Govee';
@@ -466,6 +466,11 @@ export class GoveePlatform implements DynamicPlatformPlugin {
         model: string;
         deviceType: DeviceTypeKey;
         ip?: string;
+        goodsType?: number;
+        pactType?: number;
+        pactCode?: number;
+        versionSoft?: string;
+        versionHard?: string;
       }> = [];
 
       // Process HTTP devices
@@ -482,7 +487,21 @@ export class GoveePlatform implements DynamicPlatformPlugin {
         // so the UI device picker can pre-fill it (useful for cross-VLAN setups)
         const ip = this.lanDevices.find(el => el.device === deviceId)?.ip as string | undefined;
 
-        allDevices.push({ deviceId, deviceName, model, deviceType, ip });
+        // Carry Govee's product identifiers through to the config UI: the scene, DIY
+        // and capability endpoints all require goodsType, and the UI has no other way
+        // to obtain it without a fresh login.
+        allDevices.push({
+          deviceId,
+          deviceName,
+          model,
+          deviceType,
+          ip,
+          goodsType: httpDevice.goodsType as number | undefined,
+          pactType: httpDevice.pactType as number | undefined,
+          pactCode: httpDevice.pactCode as number | undefined,
+          versionSoft: httpDevice.versionSoft as string | undefined,
+          versionHard: httpDevice.versionHard as string | undefined,
+        });
       }
 
       // Process LAN-only devices
@@ -669,6 +688,9 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       accessory.context.useBleControl = false;
 
       const httpInfo = device.httpInfo as Record<string, unknown> | undefined;
+      if (typeof httpInfo?.goodsType === 'number') {
+        accessory.context.goodsType = httpInfo.goodsType;
+      }
       if (httpInfo?.deviceExt) {
         const deviceExt = httpInfo.deviceExt as Record<string, unknown>;
         if (deviceExt.deviceSettings) {
@@ -936,17 +958,28 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       case 'ptReal': {
         const code = params.value as string;
         data.awsParams = { cmd: 'ptReal', data: { command: [code] } };
-        data.bleParams = { cmd: 'ptReal', data: base64ToHex(code) };
+        // The BLE client base64-decodes this itself, so pass the code through as-is.
+        data.bleParams = { cmd: 'ptReal', data: code };
         break;
       }
       case 'rgbScene': {
         const [awsCode, bleCode] = params.value as [string, string | undefined];
-        if (awsCode) {
-          data.awsParams = { cmd: 'ptReal', data: { command: awsCode.split(',') } };
+        // A scene is a sequence of 20-byte frames. AWS takes them in one message;
+        // BLE writes them in order over a single connection.
+        const awsFrames = awsCode ? codeToFrames(awsCode) : [];
+        const bleFrames = codeToFrames(bleCode || awsCode || '');
+        if (awsFrames.length > 0) {
+          data.awsParams = { cmd: 'ptReal', data: { command: awsFrames } };
         }
-        if (bleCode) {
-          data.bleParams = { cmd: 'ptReal', data: bleCode };
+        if (bleFrames.length > 0) {
+          data.bleParams = { cmd: 'ptReal', data: bleFrames };
         }
+        break;
+      }
+      case 'musicMode': {
+        const frames = encodeMusicMode(params.value as MusicModeOptions);
+        data.awsParams = { cmd: 'ptReal', data: { command: frames } };
+        data.bleParams = { cmd: 'ptReal', data: frames };
         break;
       }
       default:
