@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.2] - 2026-09-10
+
+### Changed
+
+- **Dependencies**: Updated all dependencies to latest compatible versions, including the Bluetooth stack (`@stoprocent/noble` ^2.8.0, `@stoprocent/bluetooth-hci-socket` ^2.3.0), `axios` ^1.20.0, `p-queue` ^9.3.3 and `@homebridge/plugin-ui-utils` ^2.2.6, plus dev-only major bumps for `vitest` (4→5) and `@types/node` (25→26).
+
 ## [1.4.1] - 2026-08-10
 
 ### Fixed
