@@ -1,6 +1,6 @@
 import type { GoveePluginConfig } from '../types.js';
 
-export interface DefaultConfigValues {
+interface DefaultConfigValues {
   adaptiveLightingShift: number;
   bleControlInterval: number;
   awsColourMode: string;
@@ -13,7 +13,7 @@ export interface DefaultConfigValues {
   showAs: string;
 }
 
-export interface MinConfigValues {
+interface MinConfigValues {
   adaptiveLightingShift: number;
   bleControlInterval: number;
   bleRefreshTime: number;
@@ -24,7 +24,7 @@ export interface MinConfigValues {
   lowBattThreshold: number;
 }
 
-export interface DeviceModels {
+interface DeviceModels {
   rgb: string[];
   switchSingle: string[];
   switchDouble: string[];
@@ -48,33 +48,17 @@ export interface DeviceModels {
   template: string[];
 }
 
-export interface AllowedConfig {
-  lightDevices: string[];
-  switchDevices: string[];
-  leakDevices: string[];
-  thermoDevices: string[];
-  fanDevices: string[];
-  heaterDevices: string[];
-  humidifierDevices: string[];
-  dehumidifierDevices: string[];
-  purifierDevices: string[];
-  diffuserDevices: string[];
-  kettleDevices: string[];
-  iceMakerDevices: string[];
-  awsColourMode: string[];
-  showAs: string[];
-}
-
-export interface PlatformConstants {
+interface PlatformConstants {
   defaultConfig: GoveePluginConfig;
   defaultValues: DefaultConfigValues;
   minValues: MinConfigValues;
-  allowed: AllowedConfig;
   models: DeviceModels;
   matterModels: string[];
+  // Single outlets that take the channel-1 codes (17 on / 16 off) for AWS on/off
   awsOutlet1617: string[];
   apiBrightnessScale: string[];
   bleBrightnessNoScale: string[];
+  // BLE colour command variants: mode byte 0x0d instead of 0x02, or the all-segments frame (15 01)
   bleColourD: string[];
   bleColour1501: string[];
   httpRetryCodes: string[];
@@ -95,7 +79,7 @@ const platformConsts: PlatformConstants = {
     lanDisable: false,
     lanRefreshTime: 30,
     lanScanInterval: 60,
-    bleControlInterval: 5,
+    bleControlInterval: 500,
     colourSafeMode: false,
     lightDevices: [],
     switchDevices: [],
@@ -113,7 +97,7 @@ const platformConsts: PlatformConstants = {
 
   defaultValues: {
     adaptiveLightingShift: 0,
-    bleControlInterval: 5,
+    bleControlInterval: 500,
     awsColourMode: 'default',
     bleRefreshTime: 300,
     brightnessStep: 1,
@@ -124,6 +108,7 @@ const platformConsts: PlatformConstants = {
     showAs: 'default',
   },
 
+  // bleControlInterval accepts milliseconds (>= 500) or, for older configs, seconds (5+)
   minValues: {
     adaptiveLightingShift: -1,
     bleControlInterval: 5,
@@ -135,76 +120,6 @@ const platformConsts: PlatformConstants = {
     lowBattThreshold: 1,
   },
 
-  allowed: {
-    lightDevices: [
-      'label',
-      'deviceId',
-      'ignoreDevice',
-      'showAs',
-      'customAddress',
-      'customIPAddress',
-      'adaptiveLightingShift',
-      'awsBrightnessNoScale',
-      'awsColourMode',
-      'brightnessStep',
-      'scene',
-      'sceneTwo',
-      'sceneThree',
-      'sceneFour',
-      'musicMode',
-      'musicModeTwo',
-      'videoMode',
-      'videoModeTwo',
-      'diyMode',
-      'diyModeTwo',
-      'diyModeThree',
-      'diyModeFour',
-      'segmented',
-      'segmentedTwo',
-      'segmentedThree',
-      'segmentedFour',
-    ],
-    switchDevices: [
-      'label',
-      'deviceId',
-      'ignoreDevice',
-      'showAs',
-      'temperatureSource',
-    ],
-    leakDevices: ['label', 'deviceId', 'ignoreDevice', 'lowBattThreshold'],
-    thermoDevices: ['label', 'deviceId', 'ignoreDevice', 'lowBattThreshold', 'showExtraSwitch'],
-    fanDevices: ['label', 'deviceId', 'ignoreDevice', 'hideLight'],
-    heaterDevices: ['label', 'deviceId', 'ignoreDevice', 'tempReporting'],
-    humidifierDevices: ['label', 'deviceId', 'ignoreDevice'],
-    dehumidifierDevices: ['label', 'deviceId', 'ignoreDevice'],
-    purifierDevices: ['label', 'deviceId', 'ignoreDevice'],
-    diffuserDevices: ['label', 'deviceId', 'ignoreDevice'],
-    kettleDevices: [
-      'label',
-      'deviceId',
-      'ignoreDevice',
-      'hideModeGreenTea',
-      'hideModeOolongTea',
-      'hideModeCoffee',
-      'hideModeBlackTea',
-      'showCustomMode1',
-      'showCustomMode2',
-    ],
-    iceMakerDevices: ['label', 'deviceId', 'ignoreDevice'],
-    awsColourMode: ['default', 'rgb', 'redgreenblue'],
-    showAs: [
-      'default',
-      'audio',
-      'box',
-      'cooler',
-      'heater',
-      'purifier',
-      'stick',
-      'switch',
-      'tap',
-      'valve',
-    ],
-  },
 
   models: {
     rgb: [

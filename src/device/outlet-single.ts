@@ -1,6 +1,6 @@
 import type { Service } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
-import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams, EveHistoryService } from '../types.js';
+import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams, EveHistoryService, CharacteristicType } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
 import {
@@ -16,8 +16,7 @@ import {
  */
 export class OutletSingleDevice extends GoveeDeviceBase {
   private _service!: Service;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private eveChar: any;
+  private eveChar: Record<string, CharacteristicType>;
 
   // Power monitoring cache (for H5086)
   private cacheWatt = 0;
@@ -72,23 +71,14 @@ export class OutletSingleDevice extends GoveeDeviceBase {
   }
 
   private setupPowerMonitoring(): void {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const EveCurrentConsumption = this.eveChar.CurrentConsumption as any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const EveElectricCurrent = this.eveChar.ElectricCurrent as any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const EveVoltage = this.eveChar.Voltage as any;
+    const EveCurrentConsumption = this.eveChar.CurrentConsumption;
+    const EveElectricCurrent = this.eveChar.ElectricCurrent;
+    const EveVoltage = this.eveChar.Voltage;
 
     // Power readings
-    if (!this._service.testCharacteristic(EveCurrentConsumption)) {
-      this._service.addCharacteristic(EveCurrentConsumption);
-    }
-    if (!this._service.testCharacteristic(EveElectricCurrent)) {
-      this._service.addCharacteristic(EveElectricCurrent);
-    }
-    if (!this._service.testCharacteristic(EveVoltage)) {
-      this._service.addCharacteristic(EveVoltage);
-    }
+    this.addCharacteristicIfMissing(this._service, EveCurrentConsumption);
+    this.addCharacteristicIfMissing(this._service, EveElectricCurrent);
+    this.addCharacteristicIfMissing(this._service, EveVoltage);
 
     this.cacheWatt = (this._service.getCharacteristic(EveCurrentConsumption).value as number) || 0;
     this.cacheAmp = (this._service.getCharacteristic(EveElectricCurrent).value as number) || 0;
@@ -112,7 +102,7 @@ export class OutletSingleDevice extends GoveeDeviceBase {
       // Set up a one-minute timeout for the plugin to ignore incoming updates
       const timerKey = generateRandomString(5);
       this.updateTimeout = timerKey;
-      setTimeout(() => {
+      this.schedule(() => {
         if (this.updateTimeout === timerKey) {
           this.updateTimeout = false;
         }
@@ -201,13 +191,9 @@ export class OutletSingleDevice extends GoveeDeviceBase {
     if (this.deviceModel !== 'H5086') {
       return;
     }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const EveCurrentConsumption = this.eveChar.CurrentConsumption as any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const EveElectricCurrent = this.eveChar.ElectricCurrent as any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const EveVoltage = this.eveChar.Voltage as any;
+    const EveCurrentConsumption = this.eveChar.CurrentConsumption;
+    const EveElectricCurrent = this.eveChar.ElectricCurrent;
+    const EveVoltage = this.eveChar.Voltage;
 
     const hexWatt = `${getTwoItemPosition(hexParts, 13)}${getTwoItemPosition(hexParts, 14)}${getTwoItemPosition(hexParts, 15)}`;
     const hexAmp = `${getTwoItemPosition(hexParts, 11)}${getTwoItemPosition(hexParts, 12)}`;
@@ -237,4 +223,3 @@ export class OutletSingleDevice extends GoveeDeviceBase {
   }
 }
 
-export default OutletSingleDevice;

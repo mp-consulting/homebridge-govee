@@ -239,7 +239,7 @@ export class FanLightDevice extends GoveeDeviceBase {
 
       // Govee considers 0% brightness to be off
       if (value === 0) {
-        setTimeout(() => {
+        this.schedule(() => {
           this.cacheLightState = 'off';
           if (this.lightService?.getCharacteristic(this.hapChar.On).value) {
             this.lightService.updateCharacteristic(this.hapChar.On, false);
@@ -376,4 +376,3 @@ export class FanLightDevice extends GoveeDeviceBase {
   }
 }
 
-export default FanLightDevice;

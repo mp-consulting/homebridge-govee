@@ -49,7 +49,7 @@ export class TVDevice extends GoveeDeviceBase {
       // Set up a one-minute timeout for the plugin to ignore incoming updates
       const timerKey = generateRandomString(5);
       this.updateTimeout = timerKey;
-      setTimeout(() => {
+      this.schedule(() => {
         if (this.updateTimeout === timerKey) {
           this.updateTimeout = false;
         }
@@ -85,4 +85,3 @@ export class TVDevice extends GoveeDeviceBase {
   }
 }
 
-export default TVDevice;

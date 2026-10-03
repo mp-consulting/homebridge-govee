@@ -271,7 +271,6 @@ export const FAN_H7102_SPEED_CODES: Record<number, string> = {
  * Fan speed step size constants
  */
 export const FAN_SPEED_STEP = 11;
-export const FAN_MAX_SPEED = 8;
 
 // ============================================================================
 // Humidifier Speed Codes
@@ -376,12 +375,6 @@ export const PURIFIER_H7122_SPEED_CODES: Record<number, string> = {
 };
 
 /**
- * Speed codes for H7123/H7124 purifier (5 modes at 20% increments)
- * Same as H7122
- */
-export const PURIFIER_H7123_SPEED_CODES = PURIFIER_H7122_SPEED_CODES;
-
-/**
  * Speed codes for H7126 purifier (3 speeds at 33% increments)
  * 1=sleep, 2=low, 3=high
  */
@@ -391,30 +384,9 @@ export const PURIFIER_H7126_SPEED_CODES: Record<number, string> = {
   3: 'MwUBAwAAAAAAAAAAAAAAAAAAADQ=', // high
 };
 
-/**
- * Speed codes for H7127/H7128/H7129/H712C purifier (3 speeds at 33% increments)
- * Same as H7126
- */
-export const PURIFIER_H7127_SPEED_CODES = PURIFIER_H7126_SPEED_CODES;
-
 // ============================================================================
 // Speed Mode Labels
 // ============================================================================
-
-/**
- * Speed mode labels for 4-speed purifiers
- */
-export const SPEED_LABELS_4 = ['off', 'sleep', 'low', 'medium', 'high'] as const;
-
-/**
- * Speed mode labels for 5-speed purifiers
- */
-export const SPEED_LABELS_5 = ['off', 'sleep', 'low', 'medium', 'high', 'auto'] as const;
-
-/**
- * Speed mode labels for 3-speed purifiers
- */
-export const SPEED_LABELS_3 = ['off', 'sleep', 'low', 'high'] as const;
 
 // ============================================================================
 // External Command Prefixes
@@ -499,11 +471,6 @@ export const DEBOUNCE_BRIGHTNESS_MS = 350;
 export const DEBOUNCE_COLOR_MS = 300;
 
 /**
- * Debounce delay for color temperature updates (milliseconds)
- */
-export const DEBOUNCE_COLOR_TEMP_MS = 300;
-
-/**
  * Delay before sending kettle boil command (milliseconds)
  */
 export const KETTLE_MODE_DELAY_MS = 1000;
@@ -512,52 +479,3 @@ export const KETTLE_MODE_DELAY_MS = 1000;
 // Type Exports
 // ============================================================================
 
-export type LockCodes = typeof LOCK_CODES;
-export type DisplayCodes = typeof DISPLAY_CODES;
-export type SpeedCodes = Record<number, string>;
-export type OnOffCodes = { on: string; off: string };
-
-export default {
-  LOCK_CODES,
-  DISPLAY_CODES,
-  DEVICE_STATE_CODES,
-  HEATER_SWING_CODES,
-  FAN_SWING_CODES,
-  HEATER_H7130_SPEED_CODES,
-  HEATER_SPEED_LABELS,
-  HEATER_H7130_TEMP_CODES_AUTO,
-  HEATER_H7130_TEMP_CODES_HEAT,
-  HEATER_TEMP_MIN,
-  HEATER_TEMP_MAX,
-  HEATER2_SWING_CODES,
-  HEATER2_LOCK_CODES,
-  HEATER2_SPEED_CODES,
-  HEATER2_SPEED_LABELS,
-  HEATER2_TEMP_CODES_AUTO,
-  HEATER2_TEMP_CODES_AUTO_TURN,
-  FAN_H7102_SPEED_CODES,
-  FAN_SPEED_STEP,
-  FAN_MAX_SPEED,
-  HUMIDIFIER_H7140_SPEED_CODES,
-  HUMIDIFIER_H7142_SPEED_CODES,
-  HUMIDIFIER_H7142_UV_ON,
-  KETTLE_MODE_CODES,
-  ICE_MAKER_CODES,
-  PURIFIER_H7120_SPEED_CODES,
-  PURIFIER_H7120_NIGHT_LIGHT_CODES,
-  PURIFIER_H7122_SPEED_CODES,
-  PURIFIER_H7123_SPEED_CODES,
-  PURIFIER_H7126_SPEED_CODES,
-  PURIFIER_H7127_SPEED_CODES,
-  SPEED_LABELS_3,
-  SPEED_LABELS_4,
-  SPEED_LABELS_5,
-  AIR_QUALITY_LABELS,
-  PM25_THRESHOLDS,
-  DEBOUNCE_BRIGHTNESS_MS,
-  DEBOUNCE_COLOR_MS,
-  DEBOUNCE_COLOR_TEMP_MS,
-  KETTLE_MODE_DELAY_MS,
-  getAirQualityFromPM25,
-  getAirQualityLabelFromPM25,
-};

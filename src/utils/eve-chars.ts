@@ -1,13 +1,13 @@
-import type { API, Characteristic as CharacteristicClass } from 'homebridge';
+import type { API } from 'homebridge';
 
-import type { EveCharacteristicUUIDs } from '../types.js';
+import type { CharacteristicType, EveCharacteristicUUIDs } from '../types.js';
 
 export default class EveCharacteristics {
   public readonly uuids: EveCharacteristicUUIDs;
-  public readonly CurrentConsumption: typeof CharacteristicClass;
-  public readonly Voltage: typeof CharacteristicClass;
-  public readonly ElectricCurrent: typeof CharacteristicClass;
-  public readonly LastActivation: typeof CharacteristicClass;
+  public readonly CurrentConsumption: CharacteristicType;
+  public readonly Voltage: CharacteristicType;
+  public readonly ElectricCurrent: CharacteristicType;
+  public readonly LastActivation: CharacteristicType;
 
   constructor(api: API) {
     this.uuids = {

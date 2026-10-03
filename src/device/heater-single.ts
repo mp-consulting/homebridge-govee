@@ -96,7 +96,7 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
     }) as unknown as EveHistoryService;
 
     // Set up an interval to get regular temperature updates
-    this.initTimeout = setTimeout(() => {
+    this.initTimeout = this.schedule(() => {
       this.initTimeout = undefined;
       this.getTemperature();
       this.intervalPoll = setInterval(() => this.getTemperature(), 120000);
@@ -138,7 +138,7 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
         // Set up a one-minute timeout for the plugin to ignore incoming updates
         const timerKey = generateRandomString(5);
         this.updateTimeout = timerKey;
-        setTimeout(() => {
+        this.schedule(() => {
           if (this.updateTimeout === timerKey) {
             this.updateTimeout = false;
           }
@@ -203,7 +203,7 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
       // Set up a one-minute timeout for the plugin to ignore incoming updates
       const timerKey = generateRandomString(5);
       this.updateTimeout = timerKey;
-      setTimeout(() => {
+      this.schedule(() => {
         if (this.updateTimeout === timerKey) {
           this.updateTimeout = false;
         }
@@ -252,7 +252,7 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
       // Set up a one-minute timeout for the plugin to ignore incoming updates
       const timerKey = generateRandomString(5);
       this.updateTimeout = timerKey;
-      setTimeout(() => {
+      this.schedule(() => {
         if (this.updateTimeout === timerKey) {
           this.updateTimeout = false;
         }
@@ -304,8 +304,9 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
   }
 
   override destroy(): void {
+    super.destroy();
     if (this.initTimeout) {
-      clearTimeout(this.initTimeout);
+      this.cancel(this.initTimeout);
       this.initTimeout = undefined;
     }
     if (this.intervalPoll) {
@@ -315,4 +316,3 @@ export class HeaterSingleDevice extends GoveeDeviceBase {
   }
 }
 
-export default HeaterSingleDevice;

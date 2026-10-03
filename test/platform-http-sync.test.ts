@@ -24,6 +24,8 @@ function createPlatformMock(devices: unknown[], accessoryIds: string[] = []) {
     api: { hap: { uuid: { generate: (id: string) => `uuid-${id}` } } },
     log: { debug: vi.fn(), warn: vi.fn() },
     receiveDeviceUpdate: vi.fn(),
+    leakState: new Map(),
+    checkLeakAlerts: (GoveePlatform.prototype as unknown as Record<string, unknown>).checkLeakAlerts,
   };
 }
 
@@ -177,5 +179,53 @@ describe('goveeHTTPSync', () => {
     await sync.call(platform);
 
     expect(platform.httpClient.getDevices).not.toHaveBeenCalled();
+  });
+});
+
+describe('leak alert polling', () => {
+  function leakPlatform(lastTime: number) {
+    return createPlatformMock([{
+      device: 'A1:B2:C3:D4:E5:F6:A7:B8',
+      sku: 'H5054',
+      deviceName: 'Leak Sensor',
+      deviceExt: {
+        deviceSettings: JSON.stringify({ battery: 80 }),
+        lastDeviceData: JSON.stringify({ lastTime, online: true, gwonline: true }),
+      },
+    }], ['A1:B2:C3:D4:E5:F6:A7:B8']);
+  }
+
+  it('only fetches the alert list when the sensor reports a new event', async () => {
+    const platform = leakPlatform(1700000000);
+    platform.httpClient.getLeakDeviceWarning.mockResolvedValue([{ read: true, message: 'Leakage alert' }]);
+
+    await sync.call(platform);
+    await sync.call(platform);
+    expect(platform.httpClient.getLeakDeviceWarning).toHaveBeenCalledTimes(1);
+
+    platform.httpClient.getDevices.mockResolvedValue([{
+      device: 'A1:B2:C3:D4:E5:F6:A7:B8',
+      sku: 'H5054',
+      deviceName: 'Leak Sensor',
+      deviceExt: {
+        deviceSettings: JSON.stringify({ battery: 80 }),
+        lastDeviceData: JSON.stringify({ lastTime: 1700000500, online: true, gwonline: true }),
+      },
+    }]);
+    await sync.call(platform);
+    expect(platform.httpClient.getLeakDeviceWarning).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps an active alert when the alert list cannot be fetched', async () => {
+    const platform = leakPlatform(1700000000);
+    platform.httpClient.getLeakDeviceWarning.mockResolvedValueOnce([{ read: false, message: 'Leakage Alert' }]);
+    await sync.call(platform);
+
+    platform.leakState.get('A1:B2:C3:D4:E5:F6:A7:B8').checkedAt = 0;
+    platform.httpClient.getLeakDeviceWarning.mockRejectedValueOnce(new Error('HTTP 429'));
+    await sync.call(platform);
+
+    const leakFlags = platform.receiveDeviceUpdate.mock.calls.map(([, params]) => params.leakDetected);
+    expect(leakFlags).toEqual([true, true]);
   });
 });

@@ -13,13 +13,15 @@ const H5075_UUID = 'ec88';
 const H5101_UUID = '0001';
 const CONTROL_CHARACTERISTIC_UUID = '000102030405060708090a0b0c0d1910';
 const CONNECTION_TIMEOUT = 10000;
+const DISCOVERY_TIMEOUT = 10000;
 const WRITE_TIMEOUT = 5000;
+const DISCONNECT_TIMEOUT = 5000;
+const RESUME_SCAN_DELAY = 1000;
 
 interface Noble {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  on(event: string, callback: (...args: any[]) => void): void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  removeListener(event: string, callback: (...args: any[]) => void): void;
+  // Listener arguments vary by event
+  on(event: string, callback: (...args: never[]) => void): void;
+  removeListener(event: string, callback: (...args: never[]) => void): void;
   removeAllListeners(): void;
   startScanningAsync(serviceUUIDs: string[], allowDuplicates: boolean): Promise<void>;
   stopScanningAsync(): Promise<void>;
@@ -69,6 +71,8 @@ export default class BLEClient {
   private activeConnection: Peripheral | null = null;
   private discoverCallback: ((reading: BLESensorReading) => void) | null = null;
   private scanTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private scanDeadline: number | null = null;
+  private resumeTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private isShuttingDown = false;
   private eventHandlers: EventHandlers;
   private btClient: Noble | null = null;
@@ -202,10 +206,19 @@ export default class BLEClient {
       this.isConnecting = false;
     }
 
+    this.clearScanTimers();
+  }
+
+  private clearScanTimers(): void {
     if (this.scanTimeoutId) {
       clearTimeout(this.scanTimeoutId);
       this.scanTimeoutId = null;
     }
+    if (this.resumeTimeoutId) {
+      clearTimeout(this.resumeTimeoutId);
+      this.resumeTimeoutId = null;
+    }
+    this.scanDeadline = null;
   }
 
   private async waitForPowerOn(timeout = 5000): Promise<boolean> {
@@ -247,6 +260,7 @@ export default class BLEClient {
 
     const wasScanning = this.isScanning;
     const savedDiscoverCallback = this.discoverCallback;
+    const savedDeadline = this.scanDeadline;
     if (wasScanning) {
       accessory.logDebug('pausing sensor scan for device update');
       await this.stopDiscovery();
@@ -264,7 +278,12 @@ export default class BLEClient {
       accessory.logDebug('connected successfully');
 
       accessory.logDebug('discovering services and characteristics');
-      const { characteristics } = await peripheral.discoverAllServicesAndCharacteristicsAsync();
+      const connected = peripheral;
+      const { characteristics } = await this.withTimeout(
+        () => connected.discoverAllServicesAndCharacteristicsAsync(),
+        DISCOVERY_TIMEOUT,
+        'Service discovery timeout',
+      );
 
       const characteristic = Object.values(characteristics).find(
         (char) => char.uuid.replace(/-/g, '') === CONTROL_CHARACTERISTIC_UUID,
@@ -293,33 +312,34 @@ export default class BLEClient {
       if (peripheral) {
         try {
           accessory.logDebug('disconnecting from device');
-          await peripheral.disconnectAsync();
+          const connected = peripheral;
+          await this.withTimeout(() => connected.disconnectAsync(), DISCONNECT_TIMEOUT, 'Disconnect timeout');
           accessory.logDebug('disconnected');
         } catch (err) {
           accessory.logDebug('disconnect error (non-critical): %s', (err as Error).message);
         }
       }
 
-      if (wasScanning && savedDiscoverCallback) {
-        setTimeout(() => {
-          this.startDiscovery(savedDiscoverCallback).catch((err) =>
+      // Resume an interrupted sensor scan for whatever remains of its window
+      const remaining = savedDeadline === null ? undefined : savedDeadline - Date.now() - RESUME_SCAN_DELAY;
+      if (wasScanning && savedDiscoverCallback && !this.isShuttingDown && (remaining === undefined || remaining > 0)) {
+        this.resumeTimeoutId = setTimeout(() => {
+          this.resumeTimeoutId = null;
+          this.scanFor(savedDiscoverCallback, remaining).catch((err) =>
             this.log.debug('[BLE] failed to resume scanning: %s.', (err as Error).message),
           );
-        }, 1000);
+        }, RESUME_SCAN_DELAY);
       }
     }
   }
 
-  private async connectWithTimeout(address: string, timeout: number): Promise<Peripheral> {
-    if (!this.btClient) {
-      throw new Error('BLE client not initialized');
-    }
+  private async withTimeout<T>(operation: () => Promise<T>, timeout: number, message: string): Promise<T> {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
       return await Promise.race([
-        this.btClient.connectAsync(address),
+        operation(),
         new Promise<never>((_, reject) => {
-          timeoutId = setTimeout(() => reject(new Error('Connection timeout')), timeout);
+          timeoutId = setTimeout(() => reject(new Error(message)), timeout);
         }),
       ]);
     } finally {
@@ -327,22 +347,16 @@ export default class BLEClient {
     }
   }
 
-  private async writeWithTimeout(
-    characteristic: Characteristic,
-    buffer: Buffer,
-    timeout: number,
-  ): Promise<void> {
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    try {
-      return await Promise.race([
-        characteristic.writeAsync(buffer, true),
-        new Promise<never>((_, reject) => {
-          timeoutId = setTimeout(() => reject(new Error('Write timeout')), timeout);
-        }),
-      ]);
-    } finally {
-      clearTimeout(timeoutId);
+  private async connectWithTimeout(address: string, timeout: number): Promise<Peripheral> {
+    const btClient = this.btClient;
+    if (!btClient) {
+      throw new Error('BLE client not initialized');
     }
+    return this.withTimeout(() => btClient.connectAsync(address), timeout, 'Connection timeout');
+  }
+
+  private async writeWithTimeout(characteristic: Characteristic, buffer: Buffer, timeout: number): Promise<void> {
+    return this.withTimeout(() => characteristic.writeAsync(buffer, true), timeout, 'Write timeout');
   }
 
   private prepareCommandBuffers(params: BLEParams): Buffer[] {
@@ -355,7 +369,30 @@ export default class BLEClient {
     return [generateCodeFromHexValues([0x33, params.cmd as number, params.data as number], true) as Buffer];
   }
 
+  /**
+   * Scan for sensor advertisements, stopping automatically after `duration` ms
+   * (or running until stopDiscovery() when no duration is given)
+   */
+  async scanFor(callback: (reading: BLESensorReading) => void, duration?: number): Promise<void> {
+    await this.startDiscovery(callback);
+    if (this.discoverCallback !== callback || duration === undefined) {
+      return;
+    }
+    if (this.scanTimeoutId) {
+      clearTimeout(this.scanTimeoutId);
+    }
+    this.scanDeadline = Date.now() + duration;
+    this.scanTimeoutId = setTimeout(() => {
+      this.scanTimeoutId = null;
+      this.stopDiscovery().catch(() => {});
+    }, duration);
+  }
+
   async startDiscovery(callback: (reading: BLESensorReading) => void): Promise<void> {
+    if (this.isShuttingDown) {
+      return;
+    }
+
     if (this.isConnecting) {
       this.log.debug('[BLE] skipping sensor scan - device connection in progress.');
       return;
@@ -363,6 +400,7 @@ export default class BLEClient {
 
     if (this.isScanning) {
       this.log.debug('[BLE] already scanning.');
+      this.discoverCallback = callback;
       return;
     }
 
@@ -392,11 +430,7 @@ export default class BLEClient {
 
   async stopDiscovery(): Promise<void> {
     this.discoverCallback = null;
-
-    if (this.scanTimeoutId) {
-      clearTimeout(this.scanTimeoutId);
-      this.scanTimeoutId = null;
-    }
+    this.clearScanTimers();
 
     if (this.isScanning && this.btClient) {
       try {
@@ -442,10 +476,7 @@ export default class BLEClient {
       this.log('[BLE] error removing event listeners: %s.', (err as Error).message);
     }
 
-    if (this.scanTimeoutId) {
-      clearTimeout(this.scanTimeoutId);
-      this.scanTimeoutId = null;
-    }
+    this.clearScanTimers();
 
     try {
       if (this.btClient) {

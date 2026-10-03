@@ -81,4 +81,3 @@ export class IceMakerDevice extends GoveeDeviceBase {
   }
 }
 
-export default IceMakerDevice;

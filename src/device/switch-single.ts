@@ -103,4 +103,3 @@ export class SwitchSingleDevice extends GoveeDeviceBase {
   }
 }
 
-export default SwitchSingleDevice;

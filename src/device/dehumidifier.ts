@@ -128,4 +128,3 @@ export class DehumidifierDevice extends GoveeDeviceBase {
   }
 }
 
-export default DehumidifierDevice;

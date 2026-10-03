@@ -5,32 +5,56 @@ import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
 import {
   getTwoItemPosition,
+  hexToBase64,
   processCommands,
-  speedPercentToValue,
-  speedValueToPercent,
+  statusToActionCode,
 } from '../utils/functions.js';
 import {
-  PURIFIER_H7126_SPEED_CODES,
+  PURIFIER_H7122_SPEED_CODES,
+  PURIFIER_SPEED_COMMAND_MAP,
   LOCK_CODES,
   DISPLAY_CODES,
 } from '../catalog/index.js';
 
-// Use catalog codes - H7126 and H7127 use the same speed codes
-const SPEED_VALUE_CODES = PURIFIER_H7126_SPEED_CODES;
-const MAX_SPEED = 3;
+// H7122 and H7123 share speed codes
+const SPEED_VALUE_CODES = PURIFIER_H7122_SPEED_CODES;
+
+const SPEED_VALUE_LABELS: Record<number, string> = {
+  0: 'off',
+  1: 'sleep',
+  2: 'low',
+  3: 'medium',
+  4: 'high',
+  5: 'auto',
+};
+
+// Speed mode increment for rotation speed
+const SPEED_STEP = 20;
+// Custom speed code that indicates non-standard mode
+const CUSTOM_SPEED_CODE = '0202';
 
 /**
- * Base purifier device handler for H7126/H7127/H7128/H7129/H712C models.
- * Supports on/off, 3-speed control, lock, and display light.
+ * Shared handler for the 5-speed purifiers with an air quality sensor (H7122, H7123/H7124):
+ * on/off, speed, lock and display light. Subclasses define how air quality is exposed and
+ * which status opcode reports it.
  */
-export class PurifierH7126BaseDevice extends GoveeDeviceBase {
-  private _service!: Service;
+export abstract class PurifierAirQualityBase extends GoveeDeviceBase {
+  protected _service!: Service;
+  protected airService!: Service;
 
   // Cached values
-  private cacheSpeed = 0;
-  private cacheSpeedRaw = '01';
+  private cacheMode = 1;
   private cacheLock: 'on' | 'off' = 'off';
   private cacheDisplay: 'on' | 'off' = 'off';
+
+  /** Status opcode (byte after `aa`) that carries the air quality reading */
+  protected abstract readonly airQualityOpcode: string;
+
+  /** Add or remove the air quality characteristics this model supports */
+  protected abstract setupAirQuality(): void;
+
+  /** Apply an air quality status frame */
+  protected abstract handleAirQualityUpdate(hexParts: string[]): void;
 
   // Custom characteristic for display light
   private displayLightChar?: Characteristic;
@@ -47,23 +71,29 @@ export class PurifierH7126BaseDevice extends GoveeDeviceBase {
     // Add the purifier service
     this._service = this.getOrAddService(this.hapServ.AirPurifier);
 
+    // Add the air quality service
+    this.airService = this.getOrAddService(this.hapServ.AirQualitySensor);
+
+    this.setupAirQuality();
+
     // Active characteristic
     this._service.getCharacteristic(this.hapChar.Active).onSet(async (value) => {
       await this.internalStateUpdate(value as number);
     });
     this.cacheState = this._service.getCharacteristic(this.hapChar.Active).value === 1 ? 'on' : 'off';
 
-    // Target state (manual only - no auto mode on these models)
-    this._service.getCharacteristic(this.hapChar.TargetAirPurifierState)
-      .setProps({ validValues: [0] })
-      .updateValue(0);
+    // Target state (manual only)
+    this._service
+      .getCharacteristic(this.hapChar.TargetAirPurifierState)
+      .updateValue(1)
+      .setProps({ minValue: 1, maxValue: 1, validValues: [1] });
 
-    // Rotation speed (3 speeds)
+    // Rotation speed (5 modes at 20% increments)
     this._service
       .getCharacteristic(this.hapChar.RotationSpeed)
-      .setProps({ minStep: 33, validValues: [0, 33, 66, 99] })
+      .setProps({ minStep: SPEED_STEP, validValues: [0, 20, 40, 60, 80, 100] })
       .onSet(async (value) => this.internalSpeedUpdate(value as number));
-    this.cacheSpeed = this._service.getCharacteristic(this.hapChar.RotationSpeed).value as number;
+    this.cacheMode = Math.floor((this._service.getCharacteristic(this.hapChar.RotationSpeed).value as number || SPEED_STEP) / SPEED_STEP);
 
     // Lock controls
     this._service.getCharacteristic(this.hapChar.LockPhysicalControls).onSet(async (value) => {
@@ -74,8 +104,7 @@ export class PurifierH7126BaseDevice extends GoveeDeviceBase {
     // Display light custom characteristic
     this.displayLightChar = this.addCustomCharacteristic(
       this._service,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (this.platform.cusChar as any)?.DisplayLight,
+      this.platform.cusChar.DisplayLight,
       async (value: boolean) => this.internalDisplayLightUpdate(value),
     );
     if (this.displayLightChar) {
@@ -113,22 +142,21 @@ export class PurifierH7126BaseDevice extends GoveeDeviceBase {
         return;
       }
 
-      const newValue = speedPercentToValue(value, MAX_SPEED);
-      const newPercent = speedValueToPercent(newValue, MAX_SPEED);
-
-      if (newPercent === this.cacheSpeed) {
+      // Get the mode key {1, 2, 3, 4, 5}
+      const newValueKey = Math.floor(value / SPEED_STEP);
+      if (!newValueKey || newValueKey === this.cacheMode) {
         return;
       }
 
-      await this.sendDeviceUpdate({ cmd: 'ptReal', value: SPEED_VALUE_CODES[newValue] });
+      await this.sendDeviceUpdate({ cmd: 'ptReal', value: SPEED_VALUE_CODES[newValueKey] });
 
-      this.cacheSpeed = newPercent;
-      this.accessory.log(`${platformLang.curSpeed} [${this.cacheSpeed}%]`);
+      this.cacheMode = newValueKey;
+      this.accessory.log(`${platformLang.curMode} [${SPEED_VALUE_LABELS[this.cacheMode]}]`);
     } catch (err) {
       this.handleUpdateError(
         err,
         this._service.getCharacteristic(this.hapChar.RotationSpeed),
-        this.cacheSpeed,
+        this.cacheMode * SPEED_STEP,
       );
     }
   }
@@ -160,7 +188,18 @@ export class PurifierH7126BaseDevice extends GoveeDeviceBase {
         return;
       }
 
-      await this.sendDeviceUpdate({ cmd: 'ptReal', value: DISPLAY_CODES[newValue] });
+      // Generate the code to send - use cached display code if available
+      let codeToSend: string;
+      if (value) {
+        const cachedDisplayCode = this.accessory.context.cacheDisplayCode as string | undefined;
+        codeToSend = cachedDisplayCode
+          ? hexToBase64(statusToActionCode(cachedDisplayCode))
+          : DISPLAY_CODES.on;
+      } else {
+        codeToSend = DISPLAY_CODES.off;
+      }
+
+      await this.sendDeviceUpdate({ cmd: 'ptReal', value: codeToSend });
 
       this.cacheDisplay = newValue;
       this.accessory.log(`${platformLang.curDisplay} [${newValue}]`);
@@ -183,11 +222,14 @@ export class PurifierH7126BaseDevice extends GoveeDeviceBase {
       processCommands(
         params.commands,
         {
-          '0501': (hexParts) => this.handleSpeedUpdate(hexParts),
-          '1000': () => this.handleLockUpdate('off'),
-          '1001': () => this.handleLockUpdate('on'),
-          '1600': () => this.handleDisplayUpdate('off'),
-          '1601': () => this.handleDisplayUpdate('on'),
+          // Keyed by opcode alone: these handlers read the sub-code bytes themselves
+          '05': (hexParts) => this.handleSpeedUpdate(hexParts),
+          '10': (hexParts) => this.handleLockUpdate(hexParts),
+          '16': (hexParts, hexString) => this.handleDisplayUpdate(hexParts, hexString),
+          [this.airQualityOpcode]: (hexParts) => this.handleAirQualityUpdate(hexParts),
+          // Ignored commands
+          '11': () => {}, // timer
+          '13': () => {}, // scheduling
         },
         (command, hexString) => {
           this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
@@ -197,16 +239,24 @@ export class PurifierH7126BaseDevice extends GoveeDeviceBase {
   }
 
   private handleSpeedUpdate(hexParts: string[]): void {
-    const newSpeedRaw = getTwoItemPosition(hexParts, 4);
-    if (newSpeedRaw !== this.cacheSpeedRaw) {
-      this.cacheSpeedRaw = newSpeedRaw;
-      this.cacheSpeed = Number.parseInt(newSpeedRaw, 10) * 10;
-      this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
-      this.accessory.log(`${platformLang.curSpeed} [${this.cacheSpeed}]`);
+    const newSpeedCode = `${getTwoItemPosition(hexParts, 3)}${getTwoItemPosition(hexParts, 4)}`;
+
+    // Different behaviour for custom speed
+    if (newSpeedCode === CUSTOM_SPEED_CODE) {
+      this.accessory.log(`${platformLang.curMode} [custom]`);
+      return;
+    }
+
+    const newMode = PURIFIER_SPEED_COMMAND_MAP[newSpeedCode];
+    if (newMode && newMode !== this.cacheMode) {
+      this.cacheMode = newMode;
+      this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheMode * SPEED_STEP);
+      this.accessory.log(`${platformLang.curMode} [${SPEED_VALUE_LABELS[this.cacheMode]}]`);
     }
   }
 
-  private handleLockUpdate(newLock: 'on' | 'off'): void {
+  private handleLockUpdate(hexParts: string[]): void {
+    const newLock = getTwoItemPosition(hexParts, 3) === '01' ? 'on' : 'off';
     if (newLock !== this.cacheLock) {
       this.cacheLock = newLock;
       this._service.updateCharacteristic(this.hapChar.LockPhysicalControls, this.cacheLock === 'on' ? 1 : 0);
@@ -214,7 +264,11 @@ export class PurifierH7126BaseDevice extends GoveeDeviceBase {
     }
   }
 
-  private handleDisplayUpdate(newDisplay: 'on' | 'off'): void {
+  private handleDisplayUpdate(hexParts: string[], hexString: string): void {
+    const newDisplay = getTwoItemPosition(hexParts, 3) === '01' ? 'on' : 'off';
+    if (newDisplay === 'on') {
+      this.accessory.context.cacheDisplayCode = hexString;
+    }
     if (newDisplay !== this.cacheDisplay) {
       this.cacheDisplay = newDisplay;
       if (this.displayLightChar) {
@@ -225,4 +279,3 @@ export class PurifierH7126BaseDevice extends GoveeDeviceBase {
   }
 }
 
-export default PurifierH7126BaseDevice;

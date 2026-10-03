@@ -38,4 +38,3 @@ export class SensorContactDevice extends GoveeDeviceBase {
   }
 }
 
-export default SensorContactDevice;

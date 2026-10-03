@@ -1,156 +1,97 @@
-import { describe, it, expect, vi } from 'vitest';
-import { SensorThermoDevice } from '../../src/device/sensor-thermo.js';
+import { describe, expect, it, vi } from 'vitest';
+
 import { SensorMonitorDevice } from '../../src/device/sensor-monitor.js';
+import { SensorThermoDevice } from '../../src/device/sensor-thermo.js';
+import { createAccessory, createPlatform, hap } from '../helpers/hap.js';
 
-// Helper to create a mock characteristic
-function createMockCharacteristic(value: number = 0) {
-  return { value, onGet: vi.fn().mockReturnThis(), onSet: vi.fn().mockReturnThis() };
+const { Characteristic, Service } = hap;
+
+function setup<T extends SensorThermoDevice | SensorMonitorDevice>(
+  DeviceClass: new (...args: never[]) => T,
+) {
+  const platform = createPlatform();
+  const accessory = createAccessory({ gvModel: 'H5179' });
+  const device = new DeviceClass(...([platform, accessory] as never[]));
+  device.init();
+  const value = (service: typeof Service.TemperatureSensor, characteristic: typeof Characteristic.CurrentTemperature) =>
+    accessory.getService(service)!.getCharacteristic(characteristic).value;
+  return { platform, accessory, device, value };
 }
 
-// Helper to create a mock service
-function createMockService() {
-  const characteristics = new Map<string, ReturnType<typeof createMockCharacteristic>>();
-  return {
-    setPrimaryService: vi.fn(),
-    addCharacteristic: vi.fn(),
-    updateCharacteristic: vi.fn(),
-    getCharacteristic: vi.fn((char: string) => {
-      if (!characteristics.has(char)) {
-        characteristics.set(char, createMockCharacteristic());
-      }
-      return characteristics.get(char)!;
-    }),
-  };
-}
+describe.each([
+  ['SensorThermoDevice', SensorThermoDevice],
+  ['SensorMonitorDevice', SensorMonitorDevice],
+] as const)('%s', (_name, DeviceClass) => {
+  it('makes the temperature service primary, not the humidity service', () => {
+    const { accessory } = setup(DeviceClass as never);
 
-// Minimal mock platform and accessory for device handler construction
-function createMocks() {
-  const services = new Map<string, ReturnType<typeof createMockService>>();
-
-  const accessory = {
-    displayName: 'Test Sensor',
-    context: { gvDeviceId: 'test-device-id' },
-    getService: vi.fn((svc: string) => services.get(svc)),
-    addService: vi.fn((svc: string) => {
-      const mock = createMockService();
-      services.set(svc, mock);
-      return mock;
-    }),
-    removeService: vi.fn(),
-    log: vi.fn(),
-    logWarn: vi.fn(),
-    eveService: null,
-  };
-
-  const platform = {
-    api: {
-      hap: {
-        Characteristic: {
-          CurrentTemperature: 'CurrentTemperature',
-          CurrentRelativeHumidity: 'CurrentRelativeHumidity',
-          BatteryLevel: 'BatteryLevel',
-          StatusLowBattery: 'StatusLowBattery',
-          PM2_5Density: 'PM2_5Density',
-          AirQuality: 'AirQuality',
-          TargetTemperature: 'TargetTemperature',
-          CurrentHeatingCoolingState: 'CurrentHeatingCoolingState',
-          TargetHeatingCoolingState: 'TargetHeatingCoolingState',
-        },
-        Service: {
-          TemperatureSensor: 'TemperatureSensor',
-          HumiditySensor: 'HumiditySensor',
-          Battery: 'Battery',
-          Thermostat: 'Thermostat',
-          AirQualitySensor: 'AirQualitySensor',
-        },
-      },
-    },
-    config: {},
-    deviceConf: { 'test-device-id': {} },
-    log: { info: vi.fn(), warn: vi.fn(), debug: vi.fn() },
-    eveService: class {
-      addEntry() {}
-    },
-    storageClientData: null,
-  };
-
-  return { platform, accessory, services };
-}
+    expect(accessory.getService(Service.TemperatureSensor)!.isPrimaryService).toBe(true);
+    expect(accessory.getService(Service.HumiditySensor)!.isPrimaryService).toBe(false);
+  });
+});
 
 describe('SensorThermoDevice', () => {
-  it('sets TemperatureSensor as the primary service on init', () => {
-    const { platform, accessory, services } = createMocks();
-    const device = new SensorThermoDevice(platform as any, accessory as any);
-    device.init();
+  it('applies readings in hundredths', async () => {
+    const { device, value } = setup(SensorThermoDevice);
 
-    const tempService = services.get('TemperatureSensor');
-    expect(tempService).toBeDefined();
-    expect(tempService!.setPrimaryService).toHaveBeenCalledWith(true);
+    await device.externalUpdate({ source: 'HTTP', temperature: 2213, humidity: 5170, battery: 15 });
+
+    // HAP rounds to each characteristic's step: 0.1°C and 1%
+    expect(value(Service.TemperatureSensor, Characteristic.CurrentTemperature)).toBeCloseTo(22.1);
+    expect(value(Service.HumiditySensor, Characteristic.CurrentRelativeHumidity)).toBe(52);
+    expect(value(Service.Battery, Characteristic.BatteryLevel)).toBe(15);
+    expect(value(Service.Battery, Characteristic.StatusLowBattery)).toBe(1);
   });
 
-  it('does not set HumiditySensor as primary', () => {
-    const { platform, accessory, services } = createMocks();
-    const device = new SensorThermoDevice(platform as any, accessory as any);
-    device.init();
+  it('prefers BLE readings over HTTP ones for a while', async () => {
+    const { device, value } = setup(SensorThermoDevice);
 
-    const humiService = services.get('HumiditySensor');
-    expect(humiService).toBeDefined();
-    expect(humiService!.setPrimaryService).not.toHaveBeenCalled();
+    await device.externalUpdate({ source: 'BLE', temperature: 2000 });
+    await device.externalUpdate({ source: 'HTTP', temperature: 2500 });
+
+    expect(value(Service.TemperatureSensor, Characteristic.CurrentTemperature)).toBe(20);
+  });
+
+  it('clears its BLE preference timer on destroy', async () => {
+    vi.useFakeTimers();
+    try {
+      const { device } = setup(SensorThermoDevice);
+      // hap-nodejs keeps timers of its own, so compare against the count before the update
+      const baseline = vi.getTimerCount();
+      await device.externalUpdate({ source: 'BLE', temperature: 2000 });
+      expect(vi.getTimerCount()).toBe(baseline + 1);
+
+      device.destroy();
+
+      expect(vi.getTimerCount()).toBe(baseline);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
 describe('SensorMonitorDevice', () => {
-  it('sets TemperatureSensor as the primary service on init', () => {
-    const { platform, accessory, services } = createMocks();
-    const device = new SensorMonitorDevice(platform as any, accessory as any);
-    device.init();
-
-    const tempService = services.get('TemperatureSensor');
-    expect(tempService).toBeDefined();
-    expect(tempService!.setPrimaryService).toHaveBeenCalledWith(true);
-  });
-
-  it('does not set HumiditySensor as primary', () => {
-    const { platform, accessory, services } = createMocks();
-    const device = new SensorMonitorDevice(platform as any, accessory as any);
-    device.init();
-
-    const humiService = services.get('HumiditySensor');
-    expect(humiService).toBeDefined();
-    expect(humiService!.setPrimaryService).not.toHaveBeenCalled();
-  });
-
   it('applies direct HTTP readings (hundredths) to temperature, humidity, and PM2.5', () => {
-    const { platform, accessory, services } = createMocks();
-    const device = new SensorMonitorDevice(platform as any, accessory as any);
-    device.init();
+    const { device, value } = setup(SensorMonitorDevice);
 
     device.externalUpdate({ source: 'HTTP', temperature: 2410, humidity: 4870, pm25: 6, online: true });
 
-    expect(services.get('TemperatureSensor')!.updateCharacteristic)
-      .toHaveBeenCalledWith('CurrentTemperature', 24.1);
-    expect(services.get('HumiditySensor')!.updateCharacteristic)
-      .toHaveBeenCalledWith('CurrentRelativeHumidity', 49);
-    expect(services.get('AirQualitySensor')!.updateCharacteristic)
-      .toHaveBeenCalledWith('PM2_5Density', 6);
-    expect(services.get('AirQualitySensor')!.updateCharacteristic)
-      .toHaveBeenCalledWith('AirQuality', 1);
+    expect(value(Service.TemperatureSensor, Characteristic.CurrentTemperature)).toBeCloseTo(24.1);
+    expect(value(Service.HumiditySensor, Characteristic.CurrentRelativeHumidity)).toBe(49);
+    expect(value(Service.AirQualitySensor, Characteristic.PM2_5Density)).toBe(6);
+    expect(value(Service.AirQualitySensor, Characteristic.AirQuality)).toBe(1);
   });
 
-  it('does not update characteristics when HTTP readings are unchanged', () => {
-    const { platform, accessory, services } = createMocks();
-    const device = new SensorMonitorDevice(platform as any, accessory as any);
-    device.init();
-
+  it('does not notify HomeKit when HTTP readings are unchanged', () => {
+    const { accessory, device } = setup(SensorMonitorDevice);
     device.externalUpdate({ source: 'HTTP', temperature: 2410, humidity: 4870, pm25: 6 });
-    services.get('TemperatureSensor')!.updateCharacteristic.mockClear();
-    services.get('HumiditySensor')!.updateCharacteristic.mockClear();
-    services.get('AirQualitySensor')!.updateCharacteristic.mockClear();
+    const changes = vi.fn();
+    for (const service of accessory.services) {
+      service.on('characteristic-change' as never, changes as never);
+    }
 
     device.externalUpdate({ source: 'HTTP', temperature: 2410, humidity: 4870, pm25: 6 });
 
-    expect(services.get('TemperatureSensor')!.updateCharacteristic).not.toHaveBeenCalled();
-    expect(services.get('HumiditySensor')!.updateCharacteristic).not.toHaveBeenCalled();
-    expect(services.get('AirQualitySensor')!.updateCharacteristic).not.toHaveBeenCalled();
+    expect(changes).not.toHaveBeenCalled();
   });
 });

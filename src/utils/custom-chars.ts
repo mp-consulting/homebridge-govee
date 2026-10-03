@@ -1,28 +1,28 @@
-import type { API, Characteristic as CharacteristicClass } from 'homebridge';
+import type { API } from 'homebridge';
 
-import type { CustomCharacteristicUUIDs } from '../types.js';
+import type { CharacteristicType, CustomCharacteristicUUIDs } from '../types.js';
 
 export default class CustomCharacteristics {
   public readonly uuids: CustomCharacteristicUUIDs;
-  public readonly ColourMode: typeof CharacteristicClass;
-  public readonly MusicMode: typeof CharacteristicClass;
-  public readonly MusicModeTwo: typeof CharacteristicClass;
-  public readonly Scene: typeof CharacteristicClass;
-  public readonly SceneTwo: typeof CharacteristicClass;
-  public readonly SceneThree: typeof CharacteristicClass;
-  public readonly SceneFour: typeof CharacteristicClass;
-  public readonly DiyMode: typeof CharacteristicClass;
-  public readonly DiyModeTwo: typeof CharacteristicClass;
-  public readonly DiyModeThree: typeof CharacteristicClass;
-  public readonly DiyModeFour: typeof CharacteristicClass;
-  public readonly Segmented: typeof CharacteristicClass;
-  public readonly SegmentedTwo: typeof CharacteristicClass;
-  public readonly SegmentedThree: typeof CharacteristicClass;
-  public readonly SegmentedFour: typeof CharacteristicClass;
-  public readonly VideoMode: typeof CharacteristicClass;
-  public readonly VideoModeTwo: typeof CharacteristicClass;
-  public readonly NightLight: typeof CharacteristicClass;
-  public readonly DisplayLight: typeof CharacteristicClass;
+  public readonly ColourMode: CharacteristicType;
+  public readonly MusicMode: CharacteristicType;
+  public readonly MusicModeTwo: CharacteristicType;
+  public readonly Scene: CharacteristicType;
+  public readonly SceneTwo: CharacteristicType;
+  public readonly SceneThree: CharacteristicType;
+  public readonly SceneFour: CharacteristicType;
+  public readonly DiyMode: CharacteristicType;
+  public readonly DiyModeTwo: CharacteristicType;
+  public readonly DiyModeThree: CharacteristicType;
+  public readonly DiyModeFour: CharacteristicType;
+  public readonly Segmented: CharacteristicType;
+  public readonly SegmentedTwo: CharacteristicType;
+  public readonly SegmentedThree: CharacteristicType;
+  public readonly SegmentedFour: CharacteristicType;
+  public readonly VideoMode: CharacteristicType;
+  public readonly VideoModeTwo: CharacteristicType;
+  public readonly NightLight: CharacteristicType;
+  public readonly DisplayLight: CharacteristicType;
 
   constructor(api: API) {
     this.uuids = {

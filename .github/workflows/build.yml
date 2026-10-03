@@ -32,8 +32,14 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Unused code
+        run: npm run knip
+
       - name: Build
         run: npm run build
 
       - name: Test
-        run: npm test
+        run: npm run test:coverage

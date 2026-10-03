@@ -76,4 +76,3 @@ export class LightSwitchDevice extends GoveeDeviceBase {
   }
 }
 
-export default LightSwitchDevice;

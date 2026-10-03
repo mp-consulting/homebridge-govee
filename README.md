@@ -59,12 +59,20 @@ Configure the plugin using the Homebridge UI or by editing your `config.json`:
 | `username` | Yes | Your Govee account email |
 | `password` | Yes | Your Govee account password |
 | `code` | No | One-time email verification code. Only needed the first time the plugin logs in, or when Govee flags a new device (see [New-device verification](#new-device-verification)). |
-| `refreshTime` | No | Interval in seconds to refresh device states (default: 15) |
-| `httpRefreshTime` | No | Interval in seconds to poll the Govee HTTP API for sensor readings (thermo-hygrometers, leak sensors, air quality monitors) (default: 30) |
-| `controlInterval` | No | Minimum interval in milliseconds between commands (default: 500) |
-| `disableAWS` | No | Disable AWS IoT connection (default: false) |
-| `disableLAN` | No | Disable LAN control (default: false) |
-| `disableBLE` | No | Disable Bluetooth control (default: false) |
+| `ignoreMatter` | No | Skip Matter-capable models, so they can be added to HomeKit natively instead (default: false) |
+| `disableDeviceLogging` | No | Don't log device state changes (default: false) |
+| `debug` | No | Verbose debug logging (default: false) |
+| `httpRefreshTime` | No | Interval in seconds to poll the Govee HTTP API for sensor readings (thermo-hygrometers, leak sensors, air quality monitors) (default: 30, minimum: 30) |
+| `awsDisable` | No | Disable the AWS IoT connection (default: false) |
+| `bleDisable` | No | Disable Bluetooth (default: false) |
+| `bleRefreshTime` | No | Interval in seconds between scans for Bluetooth thermo-hygrometer readings (default: 300, minimum: 60) |
+| `bleControlInterval` | No | Minimum interval in milliseconds between Bluetooth commands (default: 500) |
+| `lanDisable` | No | Disable LAN control (default: false) |
+| `lanRefreshTime` | No | Interval in seconds to poll LAN devices for their state (default: 30) |
+| `lanScanInterval` | No | Interval in seconds to scan the network for LAN devices (default: 60) |
+| `colourSafeMode` | No | Use a slower but more reliable way of setting colours (default: false) |
+
+Each device type also has its own list (`lightDevices`, `switchDevices`, `thermoDevices`, …) for per-device settings such as a label, `ignoreDevice`, and how the device appears in HomeKit (`showAs`). Smart plugs can be shown as a switch (the default), an outlet, an air purifier, heater, cooler, tap, valve or TV-type accessory; lights can be shown as a plain switch.
 
 #### New-device verification
 
@@ -88,7 +96,9 @@ The plugin uses a stable client id derived from your account, so this is a one-t
 
 #### Device Discovery
 
-The config UI can discover the devices on your Govee account and add them to the configuration automatically — no need to type device IDs by hand. Devices found on the local network also have their **LAN IP address pre-filled** (`customIPAddress`), which helps when Homebridge and your devices are on different VLANs and multicast discovery is unreliable.
+The config UI can discover the devices on your Govee account and add them to the configuration automatically — no need to type device IDs by hand.
+
+LAN discovery follows devices to a new IP address automatically. If Homebridge and your devices are on different VLANs, where multicast discovery can't reach them, set the device's **Custom IP Address** (`customIPAddress`) and give it a DHCP reservation. When your Govee account is configured, only devices in your account (or listed in the config) are added from LAN discovery.
 
 #### Scenes
 
@@ -125,7 +135,10 @@ Choose the effect (Rhythm, Energic, Rolling, Spectrum) in the config. Older Gove
 ```shell
 npm run build        # Clean build (compile TS, copy certs, generate UI models)
 npm run lint         # Lint with zero warnings
+npm run typecheck    # Type check the plugin and the tests
+npm run knip         # Find unused files, exports and dependencies
 npm test             # Run unit tests (Vitest)
+npm run test:coverage # Run tests with coverage (thresholds enforced in CI)
 npm run test:watch   # Run tests in watch mode
 npm run watch        # Build, link, and run with nodemon
 ```
@@ -134,7 +147,7 @@ npm run watch        # Build, link, and run with nodemon
 
 The plugin uses a modular architecture:
 
-- **Device Catalog** (`src/catalog/`): Centralized device definitions, command codes, and capabilities
+- **Device Catalog** (`src/catalog/`): Command codes for each device family; model lists live in `src/utils/constants.ts`
 - **Device Handlers** (`src/device/`): Individual handlers for each device type extending a common base class
 - **Connections** (`src/connection/`): AWS IoT, LAN, and BLE connection managers
 

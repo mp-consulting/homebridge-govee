@@ -8,9 +8,6 @@ import {
   isModelSupported,
   getRegisteredCategories,
   initializeModelMappings,
-  getModelDefinition,
-  modelHasCapability,
-  getModelSpeedConfig,
 } from '../../src/device/registry.js';
 import type { DeviceHandlerClass } from '../../src/device/registry.js';
 
@@ -156,46 +153,6 @@ describe('registerModelHandler / getDeviceHandlerForModel', () => {
 
   it('returns undefined for completely unknown model', () => {
     expect(getDeviceHandlerForModel('HABCD')).toBeUndefined();
-  });
-});
-
-describe('getModelDefinition', () => {
-  it('returns definition for models in the catalog', () => {
-    const def = getModelDefinition('H7140');
-    expect(def).toBeDefined();
-    expect(def!.model).toBe('H7140');
-  });
-
-  it('returns undefined for models not in the catalog', () => {
-    // H6001 is a light — it's in the registry but not in the device catalog
-    expect(getModelDefinition('H6001')).toBeUndefined();
-  });
-});
-
-describe('modelHasCapability', () => {
-  it('returns true for existing capabilities', () => {
-    expect(modelHasCapability('H7140', 'onOff')).toBe(true);
-    expect(modelHasCapability('H7140', 'speed')).toBe(true);
-  });
-
-  it('returns false for missing capabilities', () => {
-    expect(modelHasCapability('H7140', 'airQuality')).toBe(false);
-  });
-
-  it('returns false for unknown model', () => {
-    expect(modelHasCapability('HZZZZ', 'onOff')).toBe(false);
-  });
-});
-
-describe('getModelSpeedConfig', () => {
-  it('returns speed config for known model', () => {
-    const speed = getModelSpeedConfig('H7140');
-    expect(speed).toBeDefined();
-    expect(speed!.maxSpeed).toBe(8);
-  });
-
-  it('returns undefined for model without speed', () => {
-    expect(getModelSpeedConfig('HZZZZ')).toBeUndefined();
   });
 });
 

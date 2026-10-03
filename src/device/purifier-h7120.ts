@@ -76,11 +76,9 @@ export class PurifierH7120Device extends GoveeDeviceBase {
     this.cacheLock = this._service.getCharacteristic(this.hapChar.LockPhysicalControls).value === 1 ? 'on' : 'off';
 
     // Night light custom characteristic
-     
     this.nightLightChar = this.addCustomCharacteristic(
       this._service,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (this.platform.cusChar as any)?.NightLight,
+      this.platform.cusChar.NightLight,
       async (value: boolean) => this.internalNightLightUpdate(value),
     );
     if (this.nightLightChar) {
@@ -88,11 +86,9 @@ export class PurifierH7120Device extends GoveeDeviceBase {
     }
 
     // Display light custom characteristic
-     
     this.displayLightChar = this.addCustomCharacteristic(
       this._service,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (this.platform.cusChar as any)?.DisplayLight,
+      this.platform.cusChar.DisplayLight,
       async (value: boolean) => this.internalDisplayLightUpdate(value),
     );
     if (this.displayLightChar) {
@@ -259,4 +255,3 @@ export class PurifierH7120Device extends GoveeDeviceBase {
   }
 }
 
-export default PurifierH7120Device;

@@ -47,7 +47,7 @@ const deviceTypes = {
       { id: 'musicModeLive.sensitivity', label: 'Default Sensitivity', type: 'range', min: 0, max: 100, step: 5,
         default: 50, unit: '%', tab: 'music',
         help: 'How loud a sound must be before the light reacts. This is only the starting value — the tile\'s brightness slider changes it live.' },
-      { id: 'musicModeLive.autoColour', label: 'Auto Colour', type: 'checkbox', tab: 'music',
+      { id: 'musicModeLive.autoColour', label: 'Auto Colour', type: 'checkbox', default: true, tab: 'music',
         help: 'Let the light pick colours from the music itself. Turn this off to choose the colour yourself, from the tile\'s colour picker.' },
       { id: 'musicModeLive.soft', label: 'Soft Rhythm', type: 'checkbox', tab: 'music',
         help: 'Rhythm only: the gentler of its two styles, with slower fades between beats.' },
@@ -86,7 +86,8 @@ const deviceTypes = {
       { id: 'label', label: 'Custom Label', type: 'text' },
       { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' },
       { id: 'showAs', label: 'Show As', type: 'select', options: [
-        { value: 'default', label: 'Outlet (default)' },
+        { value: 'default', label: 'Default (Switch)' },
+        { value: 'outlet', label: 'Outlet' },
         { value: 'switch', label: 'Switch' },
         { value: 'purifier', label: 'Air Purifier' },
         { value: 'heater', label: 'Heater' },
@@ -266,7 +267,7 @@ function renderDeviceField(type, index, field, value) {
       <div class="form-check form-switch mt-1">
         <input class="form-check-input device-field" type="checkbox" id="${fieldId}"
           data-type="${type}" data-index="${index}" data-field="${field.id}"
-          ${value ? 'checked' : ''}>
+          ${(value ?? field.default) ? 'checked' : ''}>
         <label class="form-check-label" for="${fieldId}">${field.label}</label>
       </div>${help}`;
   } else if (field.type === 'iconselect') {
@@ -1170,14 +1171,14 @@ function renderScenePicker(library, diys) {
   const tabs = groups.map((group, i) => `
     <li class="nav-item" role="presentation">
       <button class="nav-link ${i === 0 ? 'active' : ''}" data-bs-toggle="tab"
-        data-bs-target="#${group.id}" type="button" title="${escapeHtml(group.name)}">
+        data-bs-target="#${escapeHtml(group.id)}" type="button" title="${escapeHtml(group.name)}">
         <span class="gv-scene-cat-name">${escapeHtml(group.name)}</span>
         <span class="gv-scene-cat-count">${group.items.length}</span>
       </button>
     </li>`).join('');
 
   const panes = groups.map((group, i) => `
-    <div class="tab-pane fade ${i === 0 ? 'show active' : ''}" id="${group.id}">
+    <div class="tab-pane fade ${i === 0 ? 'show active' : ''}" id="${escapeHtml(group.id)}">
       <div class="gv-scene-grid">
         ${group.items.map(item => `
           <button type="button" class="gv-scene-tile" data-scene-key="${escapeHtml(item.key)}">
@@ -1399,19 +1400,14 @@ function refreshScenePickerSelection() {
         const existing = pluginConfig[deviceType].find(d => d.deviceId === deviceId);
 
         if (!existing) {
-          // Add device with name as label, pre-filling the LAN IP when known
-          const entry = {
+          // Add device with name as label. The discovered LAN IP is deliberately not copied
+          // into customIPAddress: LAN discovery is unauthenticated, and a custom IP is pinned
+          // permanently, whereas discovered devices follow IP changes at runtime.
+          pluginConfig[deviceType].push({
             deviceId: deviceId,
             label: deviceName,
-          };
-          if (device.ip && deviceType === 'lightDevices') {
-            entry.customIPAddress = device.ip;
-          }
-          pluginConfig[deviceType].push(entry);
+          });
           addedCount++;
-        } else if (device.ip && deviceType === 'lightDevices' && !existing.customIPAddress) {
-          // Fill in the discovered LAN IP on existing entries that don't have one set
-          existing.customIPAddress = device.ip;
         }
       }
 

@@ -69,4 +69,3 @@ export class SensorPresenceDevice extends GoveeDeviceBase {
   }
 }
 
-export default SensorPresenceDevice;

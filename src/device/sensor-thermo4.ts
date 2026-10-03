@@ -66,4 +66,3 @@ export class SensorThermo4Device extends GoveeDeviceBase {
   }
 }
 
-export default SensorThermo4Device;

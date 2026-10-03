@@ -17,6 +17,10 @@ import platformLang from '../utils/lang-en.js';
 
 const dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
+// If the connection drops between the `connected` check and the publish, the MQTT client
+// holds the message (and its callback) until it reconnects, which can take minutes
+const PUBLISH_TIMEOUT = 5000;
+
 interface AWSPlatformRef {
   accountTopic: string;
   accountId: string;
@@ -138,20 +142,7 @@ export default class AWSClient {
 
     payload.msg.accountTopic = this.accountTopic;
 
-    return new Promise((resolve, reject) => {
-      this.device.publish(
-        accessory.context.awsTopic!,
-        JSON.stringify(payload),
-        {},
-        (err?: Error) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve();
-          }
-        },
-      );
-    });
+    return this.publish(accessory.context.awsTopic!, JSON.stringify(payload));
   }
 
   async updateDevice(accessory: GoveePlatformAccessoryWithControl, params: AWSParams): Promise<void> {
@@ -174,19 +165,20 @@ export default class AWSClient {
 
     payload.msg.accountTopic = this.accountTopic;
 
+    return this.publish(accessory.context.awsTopic!, JSON.stringify(payload));
+  }
+
+  private publish(topic: string, message: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.device.publish(
-        accessory.context.awsTopic!,
-        JSON.stringify(payload),
-        {},
-        (err?: Error) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve();
-          }
-        },
-      );
+      const timeoutId = setTimeout(() => reject(new Error(platformLang.notAWSConn)), PUBLISH_TIMEOUT);
+      this.device.publish(topic, message, {}, (err?: Error) => {
+        clearTimeout(timeoutId);
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
     });
   }
 

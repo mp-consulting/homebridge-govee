@@ -18,8 +18,6 @@ import platformLang from '../utils/lang-en.js';
 interface HTTPPlatformRef {
   log: GoveeLogging;
   config: GoveePluginConfig;
-  accountToken?: string;
-  accountTokenTTR?: string;
   api: {
     hap: {
       uuid: {
@@ -36,16 +34,14 @@ export default class HTTPClient {
   private log: GoveeLogging;
   private password: string;
   private token?: string;
-  private tokenTTR?: string;
   private username: string;
-  private clientId: string;
+  /** Stable per-account client id, also used for the AWS IoT connection */
+  readonly clientId: string;
   private code?: string;
 
   constructor(platform: HTTPPlatformRef) {
     this.log = platform.log;
     this.password = platform.config.password || '';
-    this.token = platform.accountToken;
-    this.tokenTTR = platform.accountTokenTTR;
     this.username = platform.config.username || '';
     this.code = platform.config.code || undefined;
 
@@ -61,11 +57,8 @@ export default class HTTPClient {
   /**
    * Set the token from cached credentials
    */
-  setToken(token: string, tokenTTR?: string): void {
+  setToken(token: string): void {
     this.token = token;
-    if (tokenTTR) {
-      this.tokenTTR = tokenTTR;
-    }
   }
 
   async login(retryCount = 0): Promise<HTTPLoginResult> {
@@ -120,26 +113,6 @@ export default class HTTPClient {
         throw buildLoginFailureError(res);
       }
 
-      this.log.debug('[HTTP] Primary login successful, fetching TTR token...');
-
-      // The community-API login only provides the optional TTR token — a failure here
-      // must not break the primary login (the community API has broken before, see
-      // upstream issue #1270)
-      try {
-        const ttrRes = await axios({
-          url: GOVEE_API_URLS.loginTTR,
-          method: 'post',
-          data: {
-            email: this.username,
-            password: this.password,
-          },
-          timeout: 30000,
-        });
-        this.tokenTTR = ttrRes.data?.data?.token;
-      } catch (ttrErr) {
-        this.log.debug('[HTTP] Community login for TTR token failed, continuing without it: %s', (ttrErr as Error).message);
-      }
-
       this.token = res.data.client.token;
 
       this.log.debug('[HTTP] %s. AccountId: %s', platformLang.loginSuccess, res.data.client.accountId);
@@ -150,6 +123,7 @@ export default class HTTPClient {
         url: GOVEE_API_URLS.iotKey,
         method: 'get',
         headers: this.headers(),
+        timeout: 30000,
       });
 
       this.log.debug('[HTTP] IoT credentials received. Endpoint: %s', iotRes.data.data.endpoint);
@@ -161,7 +135,6 @@ export default class HTTPClient {
         iot: iotRes.data.data.p12,
         iotPass: iotRes.data.data.p12Pass,
         token: res.data.client.token,
-        tokenTTR: this.tokenTTR,
         topic: res.data.client.topic,
       };
     } catch (err) {
@@ -185,6 +158,7 @@ export default class HTTPClient {
         url: GOVEE_API_URLS.logout,
         method: 'post',
         headers: this.headers(),
+        timeout: 10000,
       });
     } catch (err) {
       this.log.warn('[HTTP] %s %s.', platformLang.logoutFail, parseError(err as Error));

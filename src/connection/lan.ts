@@ -18,6 +18,27 @@ const receiverPort = 4002;
 const devicePort = 4003;
 const getDevicesScanTimeoutMs = 2000;
 
+// LAN discovery is unauthenticated: bound what a host on the network can make us track
+const MAX_LAN_DEVICES = 256;
+const MAX_LOGGED_MESSAGE_LENGTH = 200;
+const DEVICE_ID_PATTERN = /^([0-9A-F]{2}:){5,7}[0-9A-F]{2}$/i;
+
+/**
+ * Whether an IPv4 address is private or link-local, i.e. could belong to a device on the local network
+ */
+export function isLocalIPv4(address: string): boolean {
+  const parts = address.split('.').map(Number);
+  if (parts.length !== 4 || parts.some(p => !Number.isInteger(p) || p < 0 || p > 255)) {
+    return false;
+  }
+  const [a, b] = parts;
+  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254);
+}
+
+function truncate(text: string): string {
+  return text.length > MAX_LOGGED_MESSAGE_LENGTH ? `${text.substring(0, MAX_LOGGED_MESSAGE_LENGTH)}...` : text;
+}
+
 interface LANPlatformRef {
   log: GoveeLogging;
   config: GoveePluginConfig;
@@ -38,6 +59,7 @@ interface LANMessage {
 
 export default class LANClient {
   private log: GoveeLogging;
+  private platform: LANPlatformRef;
   private config: GoveePluginConfig;
   public lanDevices: LANDevice[] = [];
   private receiver: dgram.Socket;
@@ -50,6 +72,7 @@ export default class LANClient {
   constructor(platform: LANPlatformRef) {
     this.log = platform.log;
     this.config = platform.config;
+    this.platform = platform;
 
     Object.keys(platform.deviceConf).forEach((device) => {
       const conf = platform.deviceConf[device] as { customIPAddress?: string };
@@ -68,85 +91,7 @@ export default class LANClient {
     this.latestDeviceScanTimestamp = Date.now();
 
     this.connectionPromise = new Promise((resolve, reject) => {
-      this.receiver.on('message', (msg, rinfo) => {
-        const strMessage = msg.toString();
-        try {
-          const message: LANMessage = JSON.parse(strMessage);
-          if (!message?.msg?.cmd) {
-            this.log.debug('[LAN] Ignoring malformed message (missing msg.cmd): %s', strMessage);
-            return;
-          }
-          const command = message.msg.cmd;
-
-          switch (command) {
-            case commands.scan: {
-              this.latestDeviceScanTimestamp = Date.now();
-              const deviceData = message.msg.data;
-
-              if (!deviceData.device) {
-                return;
-              }
-
-              const existingIndex = this.lanDevices.findIndex(
-                value => value.device === deviceData.device,
-              );
-
-              if (existingIndex === -1) {
-                this.log.debug(
-                  '[LAN] %s [isNew=true,isManual=false] [%s] [%s].',
-                  platformLang.lanFoundDevice,
-                  strMessage,
-                  JSON.stringify(rinfo),
-                );
-                this.lanDevices.push({
-                  device: deviceData.device,
-                  ip: deviceData.ip || rinfo.address,
-                  sku: deviceData.sku as string | undefined,
-                });
-
-                platform.receiveUpdateLAN(deviceData.device, {}, deviceData.ip || rinfo.address);
-              } else if (this.lanDevices[existingIndex].isPendingDiscovery) {
-                this.lanDevices[existingIndex] = {
-                  device: deviceData.device,
-                  ip: deviceData.ip || rinfo.address,
-                  sku: deviceData.sku as string | undefined,
-                  isManual: true,
-                };
-                this.log.debug(
-                  '[LAN] %s [isNew=true,isManual=true] [%s] [%s].',
-                  platformLang.lanFoundDevice,
-                  strMessage,
-                  JSON.stringify(rinfo),
-                );
-                platform.receiveUpdateLAN(deviceData.device, {}, deviceData.ip || rinfo.address);
-              } else {
-                this.log.debug(
-                  '[LAN] %s [isNew=false] [%s] [%s].',
-                  platformLang.lanFoundDevice,
-                  strMessage,
-                  JSON.stringify(rinfo),
-                );
-              }
-              break;
-            }
-            case commands.deviceStatus: {
-              const deviceAddress = rinfo.address;
-              const foundDeviceId = this.lanDevices.find(value => value.ip === deviceAddress);
-
-              if (foundDeviceId) {
-                platform.receiveUpdateLAN(foundDeviceId.device, message.msg.data, deviceAddress);
-              } else {
-                this.log.warn('[LAN] %s [%s].', platformLang.lanUnkDevice, deviceAddress);
-              }
-              break;
-            }
-            default:
-              break;
-          }
-        } catch (err) {
-          this.log('[LAN] %s [%s] [%s].', platformLang.lanParseError, strMessage, parseError(err as Error));
-        }
-      });
+      this.receiver.on('message', (msg, rinfo) => this.handleMessage(msg, rinfo));
 
       this.receiver.on('error', (err) => {
         this.log.warn('[LAN] server error: %s.', parseError(err));
@@ -165,6 +110,81 @@ export default class LANClient {
 
       this.sender.bind();
     });
+
+    // Without a listener, a send failure (e.g. network unreachable after a Wi-Fi drop) would be
+    // emitted as an unhandled 'error' event and crash Homebridge
+    this.sender.on('error', (err) => {
+      this.log.debugWarn('[LAN] sender error: %s.', parseError(err));
+    });
+  }
+
+  handleMessage(msg: Buffer, rinfo: Pick<dgram.RemoteInfo, 'address'>): void {
+    const strMessage = msg.toString();
+    let message: LANMessage;
+    try {
+      message = JSON.parse(strMessage);
+    } catch (err) {
+      this.log.debug('[LAN] %s [%s] [%s].', platformLang.lanParseError, truncate(strMessage), parseError(err as Error));
+      return;
+    }
+    if (typeof message?.msg?.cmd !== 'string' || typeof message.msg.data !== 'object' || message.msg.data === null) {
+      this.log.debug('[LAN] Ignoring malformed message: %s', truncate(strMessage));
+      return;
+    }
+
+    switch (message.msg.cmd) {
+      case commands.scan:
+        this.handleScanReply(message.msg.data, rinfo.address, strMessage);
+        break;
+      case commands.deviceStatus: {
+        const foundDevice = this.lanDevices.find(value => value.ip === rinfo.address);
+        if (foundDevice) {
+          this.platform.receiveUpdateLAN(foundDevice.device, message.msg.data, rinfo.address);
+        } else {
+          this.log.debug('[LAN] %s [%s].', platformLang.lanUnkDevice, rinfo.address);
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  private handleScanReply(deviceData: LANMessage['msg']['data'], address: string, strMessage: string): void {
+    this.latestDeviceScanTimestamp = Date.now();
+
+    // Commands are sent to, and status replies matched by, the packet's real source address,
+    // never the address a packet claims for itself
+    const deviceId = deviceData.device;
+    if (typeof deviceId !== 'string' || !DEVICE_ID_PATTERN.test(deviceId)) {
+      this.log.debug('[LAN] Ignoring scan reply with invalid device id: %s', truncate(strMessage));
+      return;
+    }
+    const sku = typeof deviceData.sku === 'string' ? deviceData.sku : undefined;
+    const existingIndex = this.lanDevices.findIndex(value => value.device === deviceId);
+    const existing = this.lanDevices[existingIndex];
+
+    if (existingIndex === -1) {
+      if (!isLocalIPv4(address) || this.lanDevices.length >= MAX_LAN_DEVICES) {
+        this.log.debug('[LAN] Ignoring scan reply from %s: %s', address, truncate(strMessage));
+        return;
+      }
+      this.log.debug('[LAN] %s [isNew=true,isManual=false] [%s] [%s].', platformLang.lanFoundDevice, truncate(strMessage), address);
+      this.lanDevices.push({ device: deviceId, ip: address, sku });
+      this.platform.receiveUpdateLAN(deviceId, {}, address);
+    } else if (existing.isPendingDiscovery) {
+      // A configured device: keep the user's IP address and just record that it answered
+      this.lanDevices[existingIndex] = { device: deviceId, ip: existing.ip, sku, isManual: true };
+      this.log.debug('[LAN] %s [isNew=true,isManual=true] [%s] [%s].', platformLang.lanFoundDevice, truncate(strMessage), address);
+      this.platform.receiveUpdateLAN(deviceId, {}, existing.ip);
+    } else if (!existing.isManual && existing.ip !== address && isLocalIPv4(address)) {
+      // A discovered device that moved (e.g. a new DHCP lease)
+      this.log.debug('[LAN] %s [%s -> %s].', platformLang.lanFoundDevice, existing.ip, address);
+      this.lanDevices[existingIndex] = { ...existing, ip: address, sku: sku ?? existing.sku };
+      this.platform.receiveUpdateLAN(deviceId, {}, address);
+    } else {
+      this.log.debug('[LAN] %s [isNew=false] [%s] [%s].', platformLang.lanFoundDevice, truncate(strMessage), address);
+    }
   }
 
   sendScanCommand(): void {
@@ -172,7 +192,11 @@ export default class LANClient {
       msg: { cmd: commands.scan, data: { account_topic: 'reserve' } },
     });
     this.log.debug('[LAN] scanning for devices over LAN...');
-    this.sender.send(scanCommand, scanCommandPort, multicastIp);
+    this.sender.send(scanCommand, scanCommandPort, multicastIp, (err) => {
+      if (err) {
+        this.log.debugWarn('[LAN] scan request failed: %s.', parseError(err));
+      }
+    });
   }
 
   async getDevices(): Promise<LANDevice[]> {

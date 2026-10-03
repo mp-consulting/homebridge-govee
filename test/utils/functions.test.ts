@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer';
 import { readFileSync } from 'node:fs';
 import forge from 'node-forge';
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import {
   base64ToHex,
   hexToBase64,
@@ -436,7 +436,7 @@ describe('createDebouncedGuard', () => {
 });
 
 // Helper: generate a test PFX buffer using node-forge
-function generateTestPfx(password: string): Buffer {
+function generateTestPfx(password: string): Buffer<ArrayBuffer> {
   const keys = forge.pki.rsa.generateKeyPair(1024);
   const cert = forge.pki.createCertificate();
   cert.publicKey = keys.publicKey;
@@ -513,5 +513,19 @@ describe('generateRandomString', () => {
     const a = generateRandomString(32);
     const b = generateRandomString(32);
     expect(a).not.toBe(b);
+  });
+});
+
+describe('processCommands opcode fallback', () => {
+  it('prefers an opcode + sub-code handler, then falls back to the opcode alone', () => {
+    const exact = vi.fn();
+    const opcodeOnly = vi.fn();
+    const toBase64 = (hex: string) => Buffer.from(hex.padEnd(40, '0'), 'hex').toString('base64');
+
+    processCommands([toBase64('aa0501'), toBase64('aa0503'), toBase64('bb0501')], { '0501': exact, '05': opcodeOnly });
+
+    expect(exact).toHaveBeenCalledTimes(1);
+    expect(opcodeOnly).toHaveBeenCalledTimes(1);
+    expect(opcodeOnly.mock.calls[0][0].slice(0, 3)).toEqual(['aa', '05', '03']);
   });
 });

@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { existsSync, promises as fs } from 'node:fs';
 import { HomebridgePluginUiServer, RequestError } from '@homebridge/plugin-ui-utils';
@@ -11,6 +12,31 @@ import {
   goveeGetSceneLibrary,
 } from '../dist/utils/govee-content.js';
 import { getOfflineSceneLibrary } from '../dist/utils/scene-catalogue.js';
+
+// Scene icons are only proxied from Govee's asset CDN and web app
+const ICON_HOSTS = ['d1f2504ijhdyjw.cloudfront.net', 'app.govee.com'];
+const ICON_FETCH_TIMEOUT_MS = 10000;
+const ICON_MAX_BYTES = 512 * 1024;
+
+/**
+ * Read a fetch response body, giving up (null) once it exceeds maxBytes
+ */
+async function readBounded(response, maxBytes) {
+  const declared = Number(response.headers.get('content-length'));
+  if (declared > maxBytes) {
+    return null;
+  }
+  const chunks = [];
+  let total = 0;
+  for await (const chunk of response.body) {
+    total += chunk.length;
+    if (total > maxBytes) {
+      return null;
+    }
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
 
 class GoveeUiServer extends HomebridgePluginUiServer {
   storageData = null;
@@ -129,11 +155,14 @@ class GoveeUiServer extends HomebridgePluginUiServer {
     if (!username || !password) {
       throw new RequestError('Enter your Govee credentials in the Settings tab first.', { status: 400 });
     }
-    if (this.session && this.session.username === username) {
+    // Key the cached login on the password too, so a changed or mistyped password is not
+    // silently accepted on the strength of an earlier successful login
+    const credentialKey = createHash('sha256').update(`${username}\0${password}`).digest('hex');
+    if (this.session && this.session.credentialKey === credentialKey) {
       return this.session;
     }
     const login = await goveeLogin(username, password, code);
-    this.session = { username, token: login.token, clientId: login.clientId };
+    this.session = { credentialKey, token: login.token, clientId: login.clientId };
     return this.session;
   }
 
@@ -232,12 +261,15 @@ class GoveeUiServer extends HomebridgePluginUiServer {
       return null;
     }
 
-    const allowedHosts = ['d1f2504ijhdyjw.cloudfront.net', 's3.amazonaws.com', 'app.govee.com'];
-    if (parsed.protocol !== 'https:' || !allowedHosts.includes(parsed.hostname)) {
+    if (parsed.protocol !== 'https:' || !ICON_HOSTS.includes(parsed.hostname)) {
       return null;
     }
 
-    const response = await fetch(parsed.toString());
+    // Redirects could lead off the allowlist, so they are refused rather than followed
+    const response = await fetch(parsed.toString(), {
+      redirect: 'error',
+      signal: AbortSignal.timeout(ICON_FETCH_TIMEOUT_MS),
+    });
     if (!response.ok) {
       return null;
     }
@@ -247,7 +279,10 @@ class GoveeUiServer extends HomebridgePluginUiServer {
       return null;
     }
 
-    const buffer = Buffer.from(await response.arrayBuffer());
+    const buffer = await readBounded(response, ICON_MAX_BYTES);
+    if (!buffer) {
+      return null;
+    }
     const dataUri = `data:${contentType};base64,${buffer.toString('base64')}`;
 
     // Bound the cache so a long settings session cannot grow it without limit

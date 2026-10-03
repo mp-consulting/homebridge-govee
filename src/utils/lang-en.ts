@@ -1,9 +1,10 @@
-export interface PlatformLang {
+interface PlatformLang {
   abnormalMessage: string;
   accNotFound: string;
   accTokenFail: string;
   accTokenFromCache: string;
   accTokenNoExist: string;
+  accTokenRejected: string;
   accTokenStoreErr: string;
   accTokenUserChange: string;
   alDisabled: string;
@@ -97,6 +98,7 @@ export interface PlatformLang {
   lanDevRemoved: string;
   lanFoundDevice: string;
   lanParseError: string;
+  lanUnknownSkipped: string;
   lanReqError: string;
   lanServerStarted: string;
   lanUnkDevice: string;
@@ -136,6 +138,7 @@ const platformLang: PlatformLang = {
   accTokenFail: 'could not use existing access token as',
   accTokenFromCache: 'retrieved access token from cache',
   accTokenNoExist: 'does not exist, this is normally not an issue',
+  accTokenRejected: 'account token was rejected, logging in again',
   accTokenStoreErr: 'could not store access token as',
   accTokenUserChange: 'username has changed',
   alDisabled: 'adaptive lighting disabled due to significant colour change',
@@ -229,6 +232,7 @@ const platformLang: PlatformLang = {
   lanDevRemoved: 'removed device due to connection error',
   lanFoundDevice: 'found device',
   lanParseError: 'could not parse message',
+  lanUnknownSkipped: 'device found on the network is not in your Govee account or config, add it to the config to use it',
   lanReqError: 'could not request device status as',
   lanServerStarted: 'server started listening on',
   lanUnkDevice: 'received update from unknown device',

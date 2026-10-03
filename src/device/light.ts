@@ -1,6 +1,7 @@
 import type { Service, AdaptiveLightingController } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
 import type {
+  CharacteristicType,
   GoveePlatformAccessoryWithControl,
   ExternalUpdateParams,
   LightDeviceConfig,
@@ -45,6 +46,10 @@ const SCENE_SERVICE_PREFIX = 'gv-scene-';
 /** Subtype for the live music-mode service. */
 const MUSIC_SERVICE_SUBTYPE = 'gv-music';
 
+// HomeKit's ColorTemperature range in mired
+const MIN_MIRED = 140;
+const MAX_MIRED = 500;
+
 /**
  * A scene the accessory can apply, whether it came from the new `scenes` array or one
  * of the legacy fixed slots.
@@ -68,8 +73,7 @@ export class LightDevice extends GoveeDeviceBase {
   private alController?: AdaptiveLightingController;
 
   // Custom characteristics reference
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private cusChar: Record<string, any>;
+  private cusChar: Record<string, CharacteristicType>;
 
   // Configuration
   private readonly alShift: number;
@@ -100,6 +104,9 @@ export class LightDevice extends GoveeDeviceBase {
   private cacheKelvin = 0;
   private cacheMired = 0;
   private cacheScene = '';
+
+  // Incremented on every on/off request so a quickly following one supersedes it
+  private stateRequestSeq = 0;
 
   // Debounce guards
   private debounceBright = createDebouncedGuard(350);
@@ -224,8 +231,7 @@ export class LightDevice extends GoveeDeviceBase {
    * which is a hand-pasted code bound to a custom Eve characteristic or a switch.
    */
   private setupLegacySceneSlots(): void {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const deviceConf = this.deviceConf as any;
+    const deviceConf = this.deviceConf;
 
     for (const charName of SCENE_CHAR_NAMES) {
       const confName = charName.charAt(0).toLowerCase() + charName.slice(1);
@@ -233,7 +239,7 @@ export class LightDevice extends GoveeDeviceBase {
 
       if (!confCode?.sceneCode) {
         // Remove the characteristic if the slot is no longer configured
-        if (this.cusChar[charName] && this._service.testCharacteristic(this.cusChar[charName])) {
+        if (this.cusChar[charName] && this.hasCharacteristic(this._service, this.cusChar[charName])) {
           this._service.removeCharacteristic(this._service.getCharacteristic(this.cusChar[charName]));
         }
         continue;
@@ -306,7 +312,7 @@ export class LightDevice extends GoveeDeviceBase {
   private setupSceneAsSwitch(scene: ActiveScene, subtype: string): void {
     // A switch and an Eve characteristic are mutually exclusive representations
     const charName = scene.legacyChar ?? (subtype as SceneCharName);
-    if (this.cusChar[charName] && this._service.testCharacteristic(this.cusChar[charName])) {
+    if (this.cusChar[charName] && this.hasCharacteristic(this._service, this.cusChar[charName])) {
       this._service.removeCharacteristic(this._service.getCharacteristic(this.cusChar[charName]));
     }
 
@@ -338,7 +344,7 @@ export class LightDevice extends GoveeDeviceBase {
     }
 
     // Add the Eve switch
-    if (this.cusChar[charName] && !this._service.testCharacteristic(this.cusChar[charName])) {
+    if (this.cusChar[charName] && !this.hasCharacteristic(this._service, this.cusChar[charName])) {
       this._service.addCharacteristic(this.cusChar[charName]);
     }
 
@@ -454,7 +460,7 @@ export class LightDevice extends GoveeDeviceBase {
       );
 
       // Music mode replaces whatever mode was active
-      setTimeout(() => {
+      this.schedule(() => {
         this._service.updateCharacteristic(this.hapChar.On, true);
         if (this.cusChar.ColourMode) {
           this._service.updateCharacteristic(this.cusChar.ColourMode, false);
@@ -480,7 +486,7 @@ export class LightDevice extends GoveeDeviceBase {
       if (scene.key === exceptKey) {
         continue;
       }
-      if (scene.legacyChar && this.cusChar[scene.legacyChar] && this._service.testCharacteristic(this.cusChar[scene.legacyChar])) {
+      if (scene.legacyChar && this.cusChar[scene.legacyChar] && this.hasCharacteristic(this._service, this.cusChar[scene.legacyChar])) {
         this._service.updateCharacteristic(this.cusChar[scene.legacyChar], false);
       }
       const sceneSwitch = this.accessory.getServiceById(this.hapServ.Switch, scene.key);
@@ -499,7 +505,7 @@ export class LightDevice extends GoveeDeviceBase {
     // only extra mode configured.
     if (this.hasScenes || this.musicService) {
       // Add the colour mode characteristic if not already
-      if (this.cusChar.ColourMode && !this._service.testCharacteristic(this.cusChar.ColourMode)) {
+      if (this.cusChar.ColourMode && !this.hasCharacteristic(this._service, this.cusChar.ColourMode)) {
         this._service.addCharacteristic(this.cusChar.ColourMode);
       }
 
@@ -514,7 +520,7 @@ export class LightDevice extends GoveeDeviceBase {
           })
           .updateValue(false);
       }
-    } else if (this.cusChar.ColourMode && this._service.testCharacteristic(this.cusChar.ColourMode)) {
+    } else if (this.cusChar.ColourMode && this.hasCharacteristic(this._service, this.cusChar.ColourMode)) {
       // Remove the characteristic if it exists already (no need for it)
       this._service.removeCharacteristic(this._service.getCharacteristic(this.cusChar.ColourMode));
     }
@@ -571,14 +577,16 @@ export class LightDevice extends GoveeDeviceBase {
   private async internalStateUpdate(value: boolean): Promise<void> {
     try {
       const newValue = value ? 'on' : 'off';
-
-      // Don't continue if the new value is the same as before
-      if (newValue === this.cacheState) {
-        return;
-      }
+      const seq = ++this.stateRequestSeq;
 
       // Await slightly longer than brightness and colour so on/off is sent last
       await sleep(400);
+
+      // Only the latest of several quick taps is sent, and only if it changes the state.
+      // Comparing after the wait matters: On then Off within the window must end up off.
+      if (seq !== this.stateRequestSeq || newValue === this.cacheState) {
+        return;
+      }
 
       // Send the request to the platform sender function
       await this.sendDeviceUpdate({
@@ -620,7 +628,7 @@ export class LightDevice extends GoveeDeviceBase {
 
       // Govee considers 0% brightness to be off
       if (value === 0) {
-        setTimeout(() => {
+        this.schedule(() => {
           this.cacheState = 'off';
           if (this._service.getCharacteristic(this.hapChar.On).value) {
             this._service.updateCharacteristic(this.hapChar.On, false);
@@ -654,7 +662,7 @@ export class LightDevice extends GoveeDeviceBase {
 
       if (!this.colourSafeMode) {
         // Updating the cct to the lowest value mimics native adaptive lighting
-        this._service.updateCharacteristic(this.hapChar.ColorTemperature, 140);
+        this._service.updateCharacteristic(this.hapChar.ColorTemperature, MIN_MIRED);
       }
 
       // Don't continue if the new value is the same as before
@@ -681,7 +689,7 @@ export class LightDevice extends GoveeDeviceBase {
 
       // Switch off any custom mode/scene indicators and turn the on switch to on
       if (this.hasScenes || this.musicService) {
-        setTimeout(() => {
+        this.schedule(() => {
           this._service.updateCharacteristic(this.hapChar.On, true);
           if (this.cusChar.ColourMode) {
             this._service.updateCharacteristic(this.cusChar.ColourMode, true);
@@ -692,6 +700,7 @@ export class LightDevice extends GoveeDeviceBase {
 
       // Cache the new state and log if appropriate
       this.cacheHue = value;
+      this.cacheSat = currentSat;
       this.cacheKelvin = 0;
       this.cacheScene = '';
       if (this.cacheR !== newRGB[0] || this.cacheG !== newRGB[1] || this.cacheB !== newRGB[2]) {
@@ -757,7 +766,7 @@ export class LightDevice extends GoveeDeviceBase {
 
       // Switch off any custom mode/scene indicators and turn the on switch to on
       if (this.hasScenes || this.musicService) {
-        setTimeout(() => {
+        this.schedule(() => {
           this._service.updateCharacteristic(this.hapChar.On, true);
           if (this.cusChar.ColourMode) {
             this._service.updateCharacteristic(this.cusChar.ColourMode, true);
@@ -813,7 +822,7 @@ export class LightDevice extends GoveeDeviceBase {
       }
 
       // Turn all other mode indicators off and turn the on switch to on
-      setTimeout(() => {
+      this.schedule(() => {
         this._service.updateCharacteristic(this.hapChar.On, true);
         if (this.cusChar.ColourMode) {
           this._service.updateCharacteristic(this.cusChar.ColourMode, false);
@@ -881,7 +890,8 @@ export class LightDevice extends GoveeDeviceBase {
     let sigColourChange = false;
 
     if (params.kelvin) {
-      mired = Math.round(1000000 / params.kelvin);
+      // HomeKit only accepts 140-500 mired (~7143-2000K), while Govee lights report up to 9000K
+      mired = Math.min(Math.max(Math.round(1000000 / params.kelvin), MIN_MIRED), MAX_MIRED);
       hs = m2hs(mired);
       rgb = hs2rgb(hs[0], hs[1]);
 
@@ -899,8 +909,8 @@ export class LightDevice extends GoveeDeviceBase {
       rgb = [params.rgb.r, params.rgb.g, params.rgb.b];
       hs = rgb2hs(rgb[0], rgb[1], rgb[2]);
 
-      // Check for a colour change
-      if (hs[0] !== this.cacheHue) {
+      // Check for a colour change: a hue change, or the same hue at a different saturation
+      if (hs[0] !== this.cacheHue || hs[1] !== this.cacheSat) {
         colourChange = true;
 
         // Check for a significant colour change
@@ -921,7 +931,7 @@ export class LightDevice extends GoveeDeviceBase {
       this._service.updateCharacteristic(this.hapChar.Hue, hs[0]);
       this._service.updateCharacteristic(this.hapChar.Saturation, hs[1]);
       [this.cacheR, this.cacheG, this.cacheB] = rgb;
-      [this.cacheHue] = hs;
+      [this.cacheHue, this.cacheSat] = hs;
 
       if (mired !== undefined && params.kelvin) {
         if (!this.colourSafeMode) {
@@ -943,4 +953,3 @@ export class LightDevice extends GoveeDeviceBase {
   }
 }
 
-export default LightDevice;

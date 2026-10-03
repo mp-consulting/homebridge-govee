@@ -61,10 +61,10 @@ export class ValveDevice extends GoveeDeviceBase {
           this._service.updateCharacteristic(this.hapChar.RemainingDuration, value);
 
           if (this.timer) {
-            clearTimeout(this.timer);
+            this.cancel(this.timer);
           }
 
-          this.timer = setTimeout(() => {
+          this.timer = this.schedule(() => {
             this._service.setCharacteristic(this.hapChar.Active, 0);
           }, (value as number) * 1000);
         }
@@ -87,7 +87,7 @@ export class ValveDevice extends GoveeDeviceBase {
       // Set up a one-minute timeout for the plugin to ignore incoming updates
       const timerKey = generateRandomString(5);
       this.updateTimeout = timerKey;
-      setTimeout(() => {
+      this.schedule(() => {
         if (this.updateTimeout === timerKey) {
           this.updateTimeout = false;
         }
@@ -107,12 +107,12 @@ export class ValveDevice extends GoveeDeviceBase {
       if (value === 0) {
         this._service.updateCharacteristic(this.hapChar.RemainingDuration, 0);
         if (this.timer) {
-          clearTimeout(this.timer);
+          this.cancel(this.timer);
         }
       } else {
         const duration = this._service.getCharacteristic(this.hapChar.SetDuration).value as number;
         this._service.updateCharacteristic(this.hapChar.RemainingDuration, duration);
-        this.timer = setTimeout(() => {
+        this.timer = this.schedule(() => {
           this._service.setCharacteristic(this.hapChar.Active, 0);
         }, duration * 1000);
       }
@@ -142,7 +142,7 @@ export class ValveDevice extends GoveeDeviceBase {
           this._service.updateCharacteristic(this.hapChar.RemainingDuration, duration);
           this.accessory.log(`${platformLang.curState} [${this.cacheState}]`);
 
-          this.timer = setTimeout(() => {
+          this.timer = this.schedule(() => {
             this._service.setCharacteristic(this.hapChar.Active, 0);
           }, duration * 1000);
         }
@@ -151,18 +151,18 @@ export class ValveDevice extends GoveeDeviceBase {
         this._service.updateCharacteristic(this.hapChar.InUse, 0);
         this._service.updateCharacteristic(this.hapChar.RemainingDuration, 0);
         if (this.timer) {
-          clearTimeout(this.timer);
+          this.cancel(this.timer);
         }
       }
     }
   }
 
   override destroy(): void {
+    super.destroy();
     if (this.timer) {
-      clearTimeout(this.timer);
+      this.cancel(this.timer);
       this.timer = undefined;
     }
   }
 }
 
-export default ValveDevice;
