@@ -1,8 +1,9 @@
-/* @mp-consulting/homebridge-ui-kit v1.0.1 */
+/* @mp-consulting/homebridge-ui-kit v1.1.0 */
 
 /* ── Design tokens ──────────────────────────────────────────────────────────
    CSS custom properties used throughout the design system.
    Override these in your plugin's styles.css to customize per-plugin.
+   Light values live on :root; dark values follow Bootstrap's data-bs-theme.
    ────────────────────────────────────────────────────────────────────────── */
 
 :root {
@@ -10,7 +11,7 @@
   --mp-primary: #4f46e5;
   --mp-primary-rgb: 79, 70, 229;
   --mp-primary-hover: #4338ca;
-  --mp-primary-subtle: rgba(79, 70, 229, 0.12);
+  --mp-primary-text: #4f46e5; /* brand color for text; meets WCAG AA on the body bg */
 
   /* Status */
   --mp-status-online: #10b981;
@@ -19,11 +20,18 @@
   --mp-status-checking: #94a3b8;
 
   /* Surfaces */
-  --mp-surface: rgba(255, 255, 255, 0.03);
-  --mp-border: rgba(255, 255, 255, 0.08);
+  --mp-surface: rgba(0, 0, 0, 0.02);
+  --mp-border: rgba(0, 0, 0, 0.1);
 
   /* Shape */
   --mp-radius: 0.5rem;
+  --mp-shadow-hover: 0 0.5rem 1rem rgba(0, 0, 0, 0.12);
+}
+
+[data-bs-theme="dark"] {
+  --mp-primary-text: #818cf8;
+  --mp-surface: rgba(255, 255, 255, 0.03);
+  --mp-border: rgba(255, 255, 255, 0.08);
   --mp-shadow-hover: 0 0.5rem 1rem rgba(0, 0, 0, 0.3);
 }
 
@@ -40,6 +48,8 @@
   --bs-btn-active-bg: var(--mp-primary-hover);
   --bs-btn-active-border-color: var(--mp-primary-hover);
   --bs-btn-focus-shadow-rgb: var(--mp-primary-rgb);
+  --bs-btn-disabled-bg: var(--mp-primary);
+  --bs-btn-disabled-border-color: var(--mp-primary);
 }
 
 /* Primary spinner */
@@ -122,6 +132,11 @@
   box-shadow: var(--mp-shadow-hover) !important;
 }
 
+.mp-device-card:focus-visible {
+  outline: 2px solid var(--mp-primary);
+  outline-offset: 2px;
+}
+
 /* ── Settings surface card ──────────────────────────────── */
 
 .mp-settings-card {
@@ -184,20 +199,20 @@
 .mp-tabs .nav-link {
   color: var(--bs-secondary-color);
   border: none;
+  border-bottom: 2px solid transparent; /* reserve space so the active tab doesn't shift */
   padding: 0.75rem 1.25rem;
   font-weight: 500;
 }
 
 .mp-tabs .nav-link:hover {
   color: var(--bs-body-color);
-  border: none;
+  border-color: transparent;
 }
 
 .mp-tabs .nav-link.active {
-  color: var(--mp-primary);
+  color: var(--mp-primary-text);
   background: transparent;
-  border: none;
-  border-bottom: 2px solid var(--mp-primary);
+  border-bottom-color: var(--mp-primary);
 }
 
 /* ── Metadata label ─────────────────────────────────────── */
@@ -244,10 +259,34 @@
 }
 
 .mp-footer a:hover {
-  color: var(--mp-primary);
+  color: var(--mp-primary-text);
+}
+
+.mp-footer-icon {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+  fill: currentColor;
 }
 
 .mp-footer-sep {
   color: var(--mp-border);
   user-select: none;
+}
+
+/* ── Reduced motion ─────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .mp-status-checking {
+    animation: none;
+  }
+
+  .mp-device-card,
+  .mp-footer a {
+    transition: none;
+  }
+
+  .mp-device-card:hover {
+    transform: none;
+  }
 }
