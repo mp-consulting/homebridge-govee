@@ -2,6 +2,47 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - 2026-10-03
+
+### Fixed
+
+- **Changes made outside HomeKit now show up in HomeKit.** Status from the Govee cloud, the LAN and the app was cut down to on/off and a few sensor readings before it reached the devices, so brightness, colour, colour temperature, PM2.5 and every appliance's mode/speed/lock/display updates were dropped. LAN status polling forwarded nothing at all. All of it is now passed through.
+- **H7122/H7123/H7124 purifiers** ignored every status update (speed, lock, display light, air quality) because their update table used the wrong key format.
+- **Double outlets and switches** never received status updates; they now decode the same `stateDual` reports as the triple models.
+- **The `showAs` setting had no effect.** Lights shown as a switch, and smart plugs shown as an outlet, purifier, heater, cooler, tap, valve or TV accessory, now get the chosen service. `default` keeps the current behaviour (a switch) so existing setups don't change.
+- **`ignoreMatter`, `awsBrightnessNoScale` and `awsColourMode` had no effect** and now work as documented, as do the per-model brightness scales and BLE colour command variants.
+- **Settings for dehumidifiers, diffusers, kettles and ice makers were ignored**, including `ignoreDevice`.
+- **Bluetooth thermo-hygrometers (H5075, H5101, …) never reported readings**: sensor scanning was never started. It now runs every `bleRefreshTime` seconds.
+- **Bluetooth commands were limited to one every 5 seconds** instead of the documented 500 ms, and quickly repeated commands (such as dragging a slider) queued up. A newer command of the same kind now replaces a queued one, and each step of a Bluetooth operation has its own timeout so operations no longer overlap.
+- **Startup could hang forever** waiting for the AWS connection; it now connects in the background.
+- **An expired account token disabled the cloud connection permanently**; the plugin now logs in again, both at startup and while running.
+- **Two Homebridge instances on one Govee account kicked each other off AWS IoT**: every install used the same client id. Each account now uses its own stable id.
+- **A network error on the LAN socket could crash Homebridge.**
+- **Commands with no working connection reported success**, leaving HomeKit showing a state the device never received.
+- **Lights**: a colour change that kept the hue but changed the saturation was ignored (also on H7142/H7160 humidifier night lights); colour temperatures above ~7100K produced HAP warnings; tapping On then Off quickly could leave a light on while HomeKit showed off.
+- **The config UI showed music mode Auto Colour as off** when it was on.
+- Pending timers are now cleared when a device is removed or Homebridge shuts down, and the AWS connection is closed on shutdown.
+
+### Security
+
+- LAN discovery no longer trusts the IP address a packet claims: commands go to the packet's real source, the discovered device list is capped, and LAN-only devices are only added when they are in your Govee account or config. The config UI no longer copies a discovered IP into `customIPAddress`.
+- The AWS IoT certificate and the credentials cache are now readable by the Homebridge user only.
+- Your password is no longer sent to `community-api.govee.com` (the token it returned was never used).
+- The config UI's cached login is tied to the password, and the scene-icon proxy no longer follows redirects, has a timeout and a size limit, and only fetches from Govee's CDN.
+- Requests that had no timeout now have one.
+
+### Changed
+
+- Smart plugs gained an explicit **Outlet** option for `showAs`.
+- Leak sensors only fetch the alert list when the sensor reports a new event (or every 5 minutes while an alert is active), instead of every 30 seconds.
+
+### Internal
+
+- Duplicated handlers were merged: double/triple outlets and switches into one class, H7122/H7123 purifiers, Heater1a/1b, and H7142/H7160 humidifiers now share code. Removed unused modules (`service-factory`, the capability catalog, an unregistered purifier handler) and unused exports, and every `any`.
+- Command encoding and credential storage moved out of `platform.ts` into `src/connection/`.
+- The model → config mapping has one source, which the config UI now gets from the compiled plugin.
+- Tests: from 283 to 450, on a harness using real hap-nodejs services, with coverage from 14% to 41% and enforced thresholds. CI also type checks the tests, checks the config UI against the schema, and runs `knip`.
+
 ## [1.4.2] - 2026-09-10
 
 ### Changed
