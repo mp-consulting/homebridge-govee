@@ -18,7 +18,7 @@ Homebridge plugin (`@mp-consulting/homebridge-govee`) that integrates Govee smar
 - `npm run lint` — Lint with zero warnings allowed
 - `npm run lint:fix` — Auto-fix lint issues
 - `npm run typecheck` — Type check `src/` and `test/` (tests are type checked via `tsconfig.test.json`)
-- `npm run knip` — Report unused files, exports and dependencies (CI fails on findings)
+- `npm run knip` — Report unused files, exports and dependencies (CI fails on findings; run after `npm run build`, as the UI server imports from `dist/`)
 - `npm test` — Run unit tests with Vitest
 - `npm run test:coverage` — Run tests with coverage; thresholds in `vitest.config.mts` are a ratchet (raise, never lower)
 - `npm run test:watch` — Run tests in watch mode
