@@ -89,7 +89,7 @@ describe('goveeLogin', () => {
     expect(result.clientId).toBe(generateClientId('user@example.com'));
     // Login body should carry the derived, stable client id.
     expect(mockedAxios).toHaveBeenCalledTimes(1);
-    const loginCall = mockedAxios.mock.calls[0][0] as { url: string; data: Record<string, unknown> };
+    const loginCall = mockedAxios.mock.calls[0][0] as unknown as { url: string; data: Record<string, unknown> };
     expect(loginCall.url).toBe(GOVEE_API_URLS.login);
     expect(loginCall.data.client).toBe(result.clientId);
     expect(loginCall.data.code).toBeUndefined();
@@ -105,7 +105,7 @@ describe('goveeLogin', () => {
     await expect(goveeLogin('user@example.com', 'pw')).rejects.toBeInstanceOf(GoveeTwoFactorRequiredError);
 
     expect(mockedAxios).toHaveBeenCalledTimes(2);
-    const verifyCall = mockedAxios.mock.calls[1][0] as { url: string; data: Record<string, unknown> };
+    const verifyCall = mockedAxios.mock.calls[1][0] as unknown as { url: string; data: Record<string, unknown> };
     expect(verifyCall.url).toBe(GOVEE_API_URLS.verification);
     expect(verifyCall.data.email).toBe('user@example.com');
   });
@@ -117,7 +117,7 @@ describe('goveeLogin', () => {
 
     // Only the login call — no second verification request.
     expect(mockedAxios).toHaveBeenCalledTimes(1);
-    const loginCall = mockedAxios.mock.calls[0][0] as { data: Record<string, unknown> };
+    const loginCall = mockedAxios.mock.calls[0][0] as unknown as { data: Record<string, unknown> };
     expect(loginCall.data.code).toBe('0000');
   });
 

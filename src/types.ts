@@ -1,20 +1,16 @@
-import type FakeGatoHistory from 'fakegato-history';
 import type {
-  API,
   Characteristic,
-  DynamicPlatformPlugin,
   Logging,
   PlatformAccessory,
   PlatformConfig,
+  WithUUID,
 } from 'homebridge';
-import type PQueue from 'p-queue';
-import type { LocalStorage } from 'node-persist';
 
 // ============================================================================
 // Configuration Types
 // ============================================================================
 
-export interface SceneConfig {
+interface SceneConfig {
   sceneCode?: string;
   bleCode?: string;
   showAs?: 'default' | 'switch';
@@ -89,22 +85,22 @@ export interface LightDeviceConfig {
   segmentedFour?: SceneConfig;
 }
 
-export interface SwitchDeviceConfig {
+interface SwitchDeviceConfig {
   label?: string;
   deviceId: string;
   ignoreDevice?: boolean;
-  showAs?: 'default' | 'switch' | 'purifier' | 'heater' | 'cooler' | 'tap' | 'valve' | 'audio' | 'box' | 'stick';
+  showAs?: 'default' | 'outlet' | 'switch' | 'purifier' | 'heater' | 'cooler' | 'tap' | 'valve' | 'audio' | 'box' | 'stick';
   temperatureSource?: string;
 }
 
-export interface LeakDeviceConfig {
+interface LeakDeviceConfig {
   label?: string;
   deviceId: string;
   ignoreDevice?: boolean;
   lowBattThreshold?: number;
 }
 
-export interface ThermoDeviceConfig {
+interface ThermoDeviceConfig {
   label?: string;
   deviceId: string;
   ignoreDevice?: boolean;
@@ -119,20 +115,20 @@ export interface FanDeviceConfig {
   hideLight?: boolean;
 }
 
-export interface HeaterDeviceConfig {
+interface HeaterDeviceConfig {
   label?: string;
   deviceId: string;
   ignoreDevice?: boolean;
   tempReporting?: boolean;
 }
 
-export interface BasicDeviceConfig {
+interface BasicDeviceConfig {
   label?: string;
   deviceId: string;
   ignoreDevice?: boolean;
 }
 
-export interface KettleDeviceConfig {
+interface KettleDeviceConfig {
   label?: string;
   deviceId: string;
   ignoreDevice?: boolean;
@@ -190,19 +186,6 @@ export type SensorDeviceConfig = LeakDeviceConfig | ThermoDeviceConfig;
 // ============================================================================
 // Device Types
 // ============================================================================
-
-export interface GoveeDevice {
-  device: string;
-  deviceName: string;
-  model: string;
-  sku?: string;
-  ip?: string;
-  isLanDevice?: boolean;
-  isLanOnly?: boolean;
-  httpInfo?: GoveeHTTPDeviceInfo;
-  supportCmds?: string[];
-  properties?: Record<string, unknown>;
-}
 
 export interface GoveeHTTPDeviceInfo {
   device: string;
@@ -284,7 +267,7 @@ export type GoveePlatformAccessory = PlatformAccessory<GoveeAccessoryContext>;
 // Command Types
 // ============================================================================
 
-export type CommandType =
+type CommandType =
   | 'state'
   | 'stateDual'
   | 'stateOutlet'
@@ -305,7 +288,7 @@ export type CommandType =
   | 'displayLight'
   | 'lock';
 
-export interface DeviceUpdateParams {
+interface DeviceUpdateParams {
   cmd: CommandType | string;
   value: unknown;
   data?: unknown;
@@ -330,15 +313,22 @@ export interface LANParams {
   data: Record<string, unknown>;
 }
 
-export interface CommandData {
-  awsParams?: AWSParams;
-  bleParams?: BLEParams;
-  lanParams?: LANParams;
-}
-
 // Aliases for device handlers
 export type DeviceCommand = DeviceUpdateParams;
 export type ExternalUpdateParams = DeviceStateUpdate;
+
+/** A characteristic class (custom or HAP) as accepted by Service.getCharacteristic/addCharacteristic */
+export type CharacteristicType = WithUUID<new () => Characteristic>;
+
+/**
+ * A status payload as received from a connection, before normalisation: AWS and LAN
+ * report most values inside a `state` object rather than as a flat 'on'/'off'
+ */
+export interface RawDeviceUpdate {
+  source?: DeviceStateUpdate['source'];
+  state?: 'on' | 'off' | Record<string, unknown>;
+  [key: string]: unknown;
+}
 
 // ============================================================================
 // Connection Types
@@ -352,13 +342,6 @@ export interface AWSMessage {
     command?: string[];
   };
   state?: Record<string, unknown>;
-}
-
-export interface LANMessage {
-  msg: {
-    cmd: string;
-    data: Record<string, unknown>;
-  };
 }
 
 export interface BLESensorReading {
@@ -383,7 +366,7 @@ export interface DecodedSensorValues {
 // Update Types
 // ============================================================================
 
-export interface DeviceStateUpdate {
+interface DeviceStateUpdate {
   source?: 'AWS' | 'BLE' | 'LAN' | 'HTTP';
   online?: boolean;
   onOff?: number | boolean;
@@ -448,7 +431,7 @@ export interface EveCharacteristicUUIDs {
 // Device Controller Interface
 // ============================================================================
 
-export interface DeviceController {
+interface DeviceController {
   externalUpdate(params: DeviceStateUpdate): void | Promise<void>;
   destroy?(): void;
 }
@@ -456,29 +439,6 @@ export interface DeviceController {
 // ============================================================================
 // Platform Types
 // ============================================================================
-
-export interface GoveePlatform extends DynamicPlatformPlugin {
-  readonly api: API;
-  readonly log: GoveeLogging;
-  readonly config: GoveePluginConfig;
-  readonly cusChar: CustomCharacteristics;
-  readonly eveChar: EveCharacteristics;
-  readonly eveService: ReturnType<typeof FakeGatoHistory>;
-  readonly deviceConf: Record<string, Partial<DeviceConfigEntry>>;
-  readonly ignoredDevices: string[];
-  readonly isBeta: boolean;
-
-  httpClient: HTTPClient | false;
-  lanClient: LANClient | false;
-  awsClient: AWSClient | false;
-  bleClient: BLEClient | false;
-  queue: PQueue;
-  storageClientData: boolean;
-  storageData?: LocalStorage;
-
-  sendDeviceUpdate(accessory: GoveePlatformAccessory, params: DeviceUpdateParams): Promise<void>;
-  receiveDeviceUpdate(accessory: GoveePlatformAccessory, params: DeviceStateUpdate): void;
-}
 
 export interface GoveeLogging extends Logging {
   debug: (msg: string, ...args: unknown[]) => void;
@@ -489,13 +449,6 @@ export interface GoveeLogging extends Logging {
 // Client Interfaces
 // ============================================================================
 
-export interface HTTPClient {
-  login(): Promise<HTTPLoginResult>;
-  logout(): Promise<void>;
-  getDevices(isSync?: boolean): Promise<GoveeHTTPDeviceInfo[]>;
-  getLeakDeviceWarning(deviceId: string, deviceSku: string): Promise<unknown[]>;
-}
-
 export interface HTTPLoginResult {
   accountId: string;
   client: string;
@@ -503,70 +456,12 @@ export interface HTTPLoginResult {
   iot: string;
   iotPass: string;
   token: string;
-  tokenTTR?: string;
   topic: string;
-}
-
-export interface AWSClient {
-  connected: boolean;
-  connect(): Promise<void>;
-  requestUpdate(accessory: GoveePlatformAccessory): Promise<void>;
-  updateDevice(accessory: GoveePlatformAccessory, params: AWSParams): Promise<void>;
-}
-
-export interface LANClient {
-  lanDevices: LANDevice[];
-  getDevices(): Promise<LANDevice[]>;
-  updateDevice(accessory: GoveePlatformAccessory, params: LANParams): Promise<void>;
-  sendDeviceStateRequest(device: LANDevice): Promise<void>;
-  startDevicesPolling(): void;
-  startStatusPolling(): void;
-  close(): void;
-}
-
-export interface BLEClient {
-  isScanning: boolean;
-  isConnecting: boolean;
-  updateDevice(accessory: GoveePlatformAccessory, params: BLEParams): Promise<void>;
-  startDiscovery(callback: (reading: BLESensorReading) => void): Promise<void>;
-  stopDiscovery(): Promise<void>;
-  shutdown(): void;
 }
 
 // ============================================================================
 // Custom Characteristics Class Types
 // ============================================================================
-
-export interface CustomCharacteristics {
-  uuids: CustomCharacteristicUUIDs;
-  ColourMode: typeof Characteristic;
-  MusicMode: typeof Characteristic;
-  MusicModeTwo: typeof Characteristic;
-  Scene: typeof Characteristic;
-  SceneTwo: typeof Characteristic;
-  SceneThree: typeof Characteristic;
-  SceneFour: typeof Characteristic;
-  DiyMode: typeof Characteristic;
-  DiyModeTwo: typeof Characteristic;
-  DiyModeThree: typeof Characteristic;
-  DiyModeFour: typeof Characteristic;
-  Segmented: typeof Characteristic;
-  SegmentedTwo: typeof Characteristic;
-  SegmentedThree: typeof Characteristic;
-  SegmentedFour: typeof Characteristic;
-  VideoMode: typeof Characteristic;
-  VideoModeTwo: typeof Characteristic;
-  NightLight: typeof Characteristic;
-  DisplayLight: typeof Characteristic;
-}
-
-export interface EveCharacteristics {
-  uuids: EveCharacteristicUUIDs;
-  CurrentConsumption: typeof Characteristic;
-  Voltage: typeof Characteristic;
-  ElectricCurrent: typeof Characteristic;
-  LastActivation: typeof Characteristic;
-}
 
 // ============================================================================
 // Accessory with Control
@@ -594,17 +489,3 @@ export interface IotCertificate {
   cert: string;
   key: string;
 }
-
-// ============================================================================
-// Re-export homebridge types for convenience
-// ============================================================================
-
-export type {
-  API,
-  Characteristic,
-  CharacteristicValue,
-  Logging,
-  PlatformAccessory,
-  PlatformConfig,
-  Service,
-} from 'homebridge';

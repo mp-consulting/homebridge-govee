@@ -7,7 +7,7 @@ import type {
   WithUUID,
 } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
-import type { GoveePlatformAccessoryWithControl, DeviceCommand, ExternalUpdateParams } from '../types.js';
+import type { CharacteristicType, GoveePlatformAccessoryWithControl, DeviceCommand, ExternalUpdateParams } from '../types.js';
 import { platformLang } from '../utils/index.js';
 import { parseError } from '../utils/functions.js';
 
@@ -32,6 +32,9 @@ export abstract class GoveeDeviceBase {
 
   // Device configuration
   protected readonly deviceConf: Record<string, unknown>;
+
+  // Pending timers, cleared on destroy so none fire after removal or shutdown
+  private readonly timers = new Set<ReturnType<typeof setTimeout>>();
 
   constructor(platform: GoveePlatform, accessory: GoveePlatformAccessoryWithControl) {
     this.platform = platform;
@@ -66,7 +69,32 @@ export abstract class GoveeDeviceBase {
    * Override in subclasses that allocate persistent resources.
    */
   destroy(): void {
-    // Default no-op; subclasses override as needed
+    for (const timer of this.timers) {
+      clearTimeout(timer);
+    }
+    this.timers.clear();
+  }
+
+  /**
+   * setTimeout that is automatically cancelled when the device is destroyed
+   */
+  protected schedule(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
+    const timer = setTimeout(() => {
+      this.timers.delete(timer);
+      callback();
+    }, delay);
+    this.timers.add(timer);
+    return timer;
+  }
+
+  /**
+   * Cancel a timer created with schedule()
+   */
+  protected cancel(timer: ReturnType<typeof setTimeout> | undefined): void {
+    if (timer) {
+      clearTimeout(timer);
+      this.timers.delete(timer);
+    }
   }
 
   /**
@@ -100,7 +128,7 @@ export abstract class GoveeDeviceBase {
   ): never {
     this.accessory.logWarn(`${platformLang.devNotUpdated} ${parseError(err)}`);
 
-    setTimeout(() => {
+    this.schedule(() => {
       characteristic.updateValue(revertValue);
     }, revertDelay);
 
@@ -130,23 +158,31 @@ export abstract class GoveeDeviceBase {
   }
 
   /**
+   * Whether a service has a characteristic. hap-nodejs types testCharacteristic() more
+   * narrowly than getCharacteristic(), which custom characteristic classes don't satisfy.
+   */
+  protected hasCharacteristic(service: Service, CharacteristicClass: CharacteristicType): boolean {
+    return service.testCharacteristic(CharacteristicClass as unknown as WithUUID<typeof Characteristic>);
+  }
+
+  /**
    * Get or add a service by service type
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getOrAddService(ServiceClass: any): Service {
+  protected getOrAddService(ServiceClass: WithUUID<typeof Service>): Service {
     const existing = this.accessory.getService(ServiceClass);
     if (existing) {
       return existing;
     }
-    return this.accessory.addService(ServiceClass);
+    // HAP service subclasses only take optional constructor arguments, which the generic
+    // addService() signature can't infer from the base Service type
+    return this.accessory.addService(ServiceClass as never);
   }
 
   /**
    * Add a characteristic to a service if it doesn't exist
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected addCharacteristicIfMissing(service: Service, CharacteristicClass: any): Characteristic {
-    if (!service.testCharacteristic(CharacteristicClass)) {
+  protected addCharacteristicIfMissing(service: Service, CharacteristicClass: CharacteristicType): Characteristic {
+    if (!this.hasCharacteristic(service, CharacteristicClass)) {
       service.addCharacteristic(CharacteristicClass);
     }
     return service.getCharacteristic(CharacteristicClass);
@@ -158,22 +194,20 @@ export abstract class GoveeDeviceBase {
    */
   protected addCustomCharacteristic(
     service: Service,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    characteristicClass: any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onSetHandler?: (value: any) => Promise<void>,
+    characteristicClass: CharacteristicType | undefined,
+    onSetHandler?: (value: boolean) => Promise<void>,
   ): Characteristic | undefined {
     if (!characteristicClass) {
       return undefined;
     }
 
-    if (!service.testCharacteristic(characteristicClass)) {
+    if (!this.hasCharacteristic(service, characteristicClass)) {
       service.addCharacteristic(characteristicClass);
     }
 
     const characteristic = service.getCharacteristic(characteristicClass);
     if (onSetHandler) {
-      characteristic.onSet(onSetHandler);
+      characteristic.onSet(async value => onSetHandler(value as boolean));
     }
     return characteristic;
   }
@@ -181,9 +215,8 @@ export abstract class GoveeDeviceBase {
   /**
    * Remove a characteristic from a service if it exists
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected removeCharacteristicIfExists(service: Service, CharacteristicClass: any): void {
-    if (service.testCharacteristic(CharacteristicClass)) {
+  protected removeCharacteristicIfExists(service: Service, CharacteristicClass: CharacteristicType): void {
+    if (this.hasCharacteristic(service, CharacteristicClass)) {
       const char = service.getCharacteristic(CharacteristicClass);
       service.removeCharacteristic(char);
     }
@@ -242,4 +275,3 @@ export abstract class GoveeDeviceBase {
   }
 }
 
-export default GoveeDeviceBase;

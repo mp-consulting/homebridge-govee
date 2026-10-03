@@ -12,30 +12,23 @@ import {
   processCommands,
   speedPercentToValue,
   speedValueToPercent,
+  type CommandHandlerFn,
 } from '../utils/functions.js';
+import { HUMIDIFIER_H7142_SPEED_CODES } from '../catalog/index.js';
 
-// Speed codes for H7160 model (9 speeds)
-const SPEED_VALUE_CODES: Record<number, string> = {
-  1: 'MwUBAQAAAAAAAAAAAAAAAAAAADY=',
-  2: 'MwUBAgAAAAAAAAAAAAAAAAAAADU=',
-  3: 'MwUBAwAAAAAAAAAAAAAAAAAAADQ=',
-  4: 'MwUBBAAAAAAAAAAAAAAAAAAAADM=',
-  5: 'MwUBBQAAAAAAAAAAAAAAAAAAADI=',
-  6: 'MwUBBgAAAAAAAAAAAAAAAAAAADE=',
-  7: 'MwUBBwAAAAAAAAAAAAAAAAAAADA=',
-  8: 'MwUBCAAAAAAAAAAAAAAAAAAAAD8=',
-  9: 'MwUBCQAAAAAAAAAAAAAAAAAAAD4=',
-};
+// H7160 and H7142 share the 9-level mist codes
+const SPEED_VALUE_CODES = HUMIDIFIER_H7142_SPEED_CODES;
 
 const MAX_SPEED = 9;
 
 /**
  * Humidifier device handler for H7160 model.
  * Has 9 speed levels and RGB night light support.
+ * HumidifierH7142Device extends this with a humidity sensor and UV light.
  */
 export class HumidifierH7160Device extends GoveeDeviceBase {
-  private _service!: Service;
-  private lightService!: Service;
+  protected _service!: Service;
+  protected lightService!: Service;
 
   // Cached values
   private cacheSpeed = 0;
@@ -61,8 +54,7 @@ export class HumidifierH7160Device extends GoveeDeviceBase {
     // Add the fan service
     this._service = this.getOrAddService(this.hapServ.Fan);
 
-    // Remove humidity sensor service if it exists (use Fan instead)
-    this.removeServiceIfExists('HumiditySensor');
+    this.setupHumiditySensor();
 
     // Add the night light service
     this.lightService = this.getOrAddService(this.hapServ.Lightbulb);
@@ -101,6 +93,16 @@ export class HumidifierH7160Device extends GoveeDeviceBase {
     this.initialised = true;
   }
 
+  /** This model has no humidity sensor, so drop any left over from an older version */
+  protected setupHumiditySensor(): void {
+    this.removeServiceIfExists('HumiditySensor');
+  }
+
+  /** Called after a power change was sent, before it is cached */
+  protected async afterPowerChange(_on: boolean): Promise<void> {
+    // No extra commands for this model
+  }
+
   private async internalStateUpdate(value: boolean): Promise<void> {
     try {
       const newValue = value ? 'on' : 'off';
@@ -109,14 +111,16 @@ export class HumidifierH7160Device extends GoveeDeviceBase {
       }
 
       await this.sendDeviceUpdate({ cmd: 'stateHumi', value: value ? 1 : 0 });
+      await this.afterPowerChange(value);
 
       this.cacheState = newValue;
       this.accessory.log(`${platformLang.curState} [${this.cacheState}]`);
 
-      // Also turn the light off if turning off
+      // The night light goes off with the humidifier
       if (!value && this.cacheLightState === 'on') {
+        this.cacheLightState = 'off';
         this.lightService.updateCharacteristic(this.hapChar.On, false);
-        this.accessory.log(`current light state [${this.cacheLightState}]`);
+        this.accessory.log(`${platformLang.curLight} [${this.cacheLightState}]`);
       }
     } catch (err) {
       this.handleUpdateError(
@@ -200,7 +204,7 @@ export class HumidifierH7160Device extends GoveeDeviceBase {
 
       // Govee considers 0% brightness to be off
       if (value === 0) {
-        setTimeout(() => {
+        this.schedule(() => {
           this.cacheLightState = 'off';
           if (this.lightService.getCharacteristic(this.hapChar.On).value) {
             this.lightService.updateCharacteristic(this.hapChar.On, false);
@@ -259,18 +263,18 @@ export class HumidifierH7160Device extends GoveeDeviceBase {
     }
 
     if (params.commands) {
-      processCommands(
-        params.commands,
-        {
-          '0501': (hexParts) => this.handleSpeedExternalUpdate(hexParts),
-          '1b00': (hexParts) => this.handleNightLightUpdate('off', hexParts),
-          '1b01': (hexParts) => this.handleNightLightUpdate('on', hexParts),
-        },
-        (command, hexString) => {
-          this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
-        },
-      );
+      processCommands(params.commands, this.commandHandlers(), (command, hexString) => {
+        this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
+      });
     }
+  }
+
+  protected commandHandlers(): Record<string, CommandHandlerFn> {
+    return {
+      '0501': (hexParts) => this.handleSpeedExternalUpdate(hexParts),
+      '1b00': (hexParts) => this.handleNightLightUpdate('off', hexParts),
+      '1b01': (hexParts) => this.handleNightLightUpdate('on', hexParts),
+    };
   }
 
   private handleSpeedExternalUpdate(hexParts: string[]): void {
@@ -302,7 +306,7 @@ export class HumidifierH7160Device extends GoveeDeviceBase {
       const newG = hexToDecimal(getTwoItemPosition(hexParts, 6));
       const newB = hexToDecimal(getTwoItemPosition(hexParts, 7));
       const hs = rgb2hs(newR, newG, newB);
-      if (hs[0] !== this.cacheHue) {
+      if (hs[0] !== this.cacheHue || hs[1] !== this.cacheSat) {
         this.cacheHue = hs[0];
         this.cacheSat = hs[1];
         this.lightService.updateCharacteristic(this.hapChar.Hue, this.cacheHue);
@@ -313,4 +317,3 @@ export class HumidifierH7160Device extends GoveeDeviceBase {
   }
 }
 
-export default HumidifierH7160Device;

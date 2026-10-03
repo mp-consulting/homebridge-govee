@@ -115,7 +115,7 @@ export class SensorThermoSwitchDevice extends GoveeDeviceBase {
       // Since BLE will be more accurate and may not have updated with the cloud yet
       const bleKey = generateRandomString(5);
       this.bleKey = bleKey;
-      setTimeout(() => {
+      this.schedule(() => {
         if (this.bleKey === bleKey) {
           this.bleKey = false;
         }
@@ -200,4 +200,3 @@ export class SensorThermoSwitchDevice extends GoveeDeviceBase {
   }
 }
 
-export default SensorThermoSwitchDevice;

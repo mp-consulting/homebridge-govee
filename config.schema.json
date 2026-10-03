@@ -155,7 +155,9 @@
             "adaptiveLightingShift": {
               "title": "Adaptive Lighting Shift",
               "type": "integer",
-              "description": "Shift the adaptive lighting curve (in mired)."
+              "minimum": -1,
+              "default": 0,
+              "description": "Shift the adaptive lighting curve (in mired). Set to -1 to disable adaptive lighting."
             },
             "awsBrightnessNoScale": {
               "title": "AWS Brightness No Scale",
@@ -178,6 +180,7 @@
               "type": "integer",
               "minimum": 1,
               "maximum": 100,
+              "default": 1,
               "description": "Step size for brightness adjustments."
             },
             "scenes": {
@@ -412,7 +415,8 @@
               "type": "string",
               "default": "default",
               "oneOf": [
-                { "title": "Outlet (default)", "enum": ["default"] },
+                { "title": "Default (Switch)", "enum": ["default"] },
+                { "title": "Outlet", "enum": ["outlet"] },
                 { "title": "Switch", "enum": ["switch"] },
                 { "title": "Air Purifier", "enum": ["purifier"] },
                 { "title": "Heater", "enum": ["heater"] },

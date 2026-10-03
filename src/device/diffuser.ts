@@ -90,4 +90,3 @@ export class DiffuserDevice extends GoveeDeviceBase {
   }
 }
 
-export default DiffuserDevice;

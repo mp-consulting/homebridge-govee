@@ -254,4 +254,3 @@ export class FanDevice extends GoveeDeviceBase {
   }
 }
 
-export default FanDevice;

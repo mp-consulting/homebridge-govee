@@ -161,6 +161,10 @@ export type CommandHandlerFn = (hexParts: string[], hexString: string) => void;
  * Process device commands with a map of handlers.
  * Parses base64-encoded commands and dispatches to appropriate handlers.
  *
+ * Status frames start with `aa`, then an opcode byte and usually a sub-code byte. A handler
+ * is looked up by opcode + sub-code (4 hex chars, e.g. `'0501'` for `aa 05 01 …`), falling back
+ * to the opcode alone (2 hex chars, e.g. `'05'`) for handlers that parse the sub-code themselves.
+ *
  * @param commands - Array of base64-encoded commands
  * @param handlers - Map of device function codes to handler functions
  * @param defaultHandler - Optional handler for unknown commands
@@ -179,8 +183,9 @@ export function processCommands(
       continue;
     }
 
-    const deviceFunction = `${getTwoItemPosition(hexParts, 2)}${getTwoItemPosition(hexParts, 3)}`;
-    const handler = handlers[deviceFunction];
+    const opcode = getTwoItemPosition(hexParts, 2);
+    const deviceFunction = `${opcode}${getTwoItemPosition(hexParts, 3)}`;
+    const handler = handlers[deviceFunction] ?? handlers[opcode];
 
     if (handler) {
       handler(hexParts, hexString);

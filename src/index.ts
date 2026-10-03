@@ -1,6 +1,7 @@
 import type { API } from 'homebridge';
 
-import { GoveePlatform, PLATFORM_NAME } from './platform.js';
+import { GoveePlatform } from './platform.js';
+import { PLATFORM_NAME } from './settings.js';
 
 /**
  * This method registers the platform with Homebridge

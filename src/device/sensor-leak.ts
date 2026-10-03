@@ -1,6 +1,6 @@
-import type { Service, Characteristic } from 'homebridge';
+import type { Service } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
-import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams, SensorDeviceConfig, EveHistoryService } from '../types.js';
+import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams, SensorDeviceConfig, EveHistoryService, CharacteristicType } from '../types.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformConsts, platformLang } from '../utils/index.js';
 import { hasProperty } from '../utils/functions.js';
@@ -12,7 +12,7 @@ import { hasProperty } from '../utils/functions.js';
 export class SensorLeakDevice extends GoveeDeviceBase {
   private _service!: Service;
   private battService!: Service;
-  private eveChar: Record<string, typeof Characteristic>;
+  private eveChar: Record<string, CharacteristicType>;
 
   // Configuration
   private readonly lowBattThreshold: number;
@@ -24,7 +24,7 @@ export class SensorLeakDevice extends GoveeDeviceBase {
 
   constructor(platform: GoveePlatform, accessory: GoveePlatformAccessoryWithControl) {
     super(platform, accessory);
-    this.eveChar = platform.eveChar as Record<string, typeof Characteristic>;
+    this.eveChar = platform.eveChar;
 
     // Set up custom variables for this device type
     const deviceConf = this.deviceConf as unknown as SensorDeviceConfig;
@@ -96,8 +96,7 @@ export class SensorLeakDevice extends GoveeDeviceBase {
       // Add the alert to Eve if a leak has been detected
       if (this.cacheLeak && this.eveChar.LastActivation && this.accessory.eveService) {
         this._service.updateCharacteristic(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          this.eveChar.LastActivation as any,
+          this.eveChar.LastActivation,
           Math.round(new Date().valueOf() / 1000) - this.accessory.eveService.getInitialTime(),
         );
       }
@@ -110,4 +109,3 @@ export class SensorLeakDevice extends GoveeDeviceBase {
   }
 }
 
-export default SensorLeakDevice;

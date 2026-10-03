@@ -432,15 +432,7 @@
       </button>
     </div>
 
-    <div class="mp-footer">
-      <a href="https://github.com/mp-consulting/homebridge-govee" target="_blank" rel="noopener">
-        <i class="bi bi-github"></i>GitHub
-      </a>
-      <span class="mp-footer-sep">|</span>
-      <a href="https://www.npmjs.com/package/@mp-consulting/homebridge-govee" target="_blank" rel="noopener">
-        <i class="bi bi-box-seam"></i>npm
-      </a>
-    </div>
+    <div class="mp-footer"></div>
   </div><!-- /.container -->
 
   <!-- Confirm Modal -->
@@ -465,6 +457,7 @@
   <!-- Scene Picker Modal -->
   <script src="lib/bootstrap.bundle.min.js"></script>
   <script src="lib/kit.js"></script>
+  <script>MpKit.Footer.render({ github: 'https://github.com/mp-consulting/homebridge-govee', npm: 'https://www.npmjs.com/package/@mp-consulting/homebridge-govee' });</script>
   <script src="models.js"></script>
   <script src="script.js"></script>
 </body>

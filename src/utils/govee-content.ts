@@ -16,7 +16,7 @@ import { encodeDiy, encodeScene, framesToCode } from './scene-codes.js';
  * without notice, so every caller must be able to carry on without them.
  */
 
-export const GOVEE_CONTENT_URLS = {
+const GOVEE_CONTENT_URLS = {
   /** Per-device scene library, including icon URLs and effect payloads. */
   scenes: 'https://app2.govee.com/appsku/v2/scences',
   /** The account's saved scenes for a device. */
@@ -91,7 +91,7 @@ interface RawCategory {
  * One selectable effect within a scene. Most scenes have a single variant; where a
  * scene ships several, they are the speed/style alternatives the Govee app offers.
  */
-export interface SceneVariant {
+interface SceneVariant {
   /** `scenceParamId` — stable identity for the variant. */
   id: number;
   name: string;
@@ -101,7 +101,7 @@ export interface SceneVariant {
   supportedDirections: number[];
 }
 
-export interface SceneEntry {
+interface SceneEntry {
   sceneId: number;
   name: string;
   category: string;
@@ -113,7 +113,7 @@ export interface SceneEntry {
   code: string;
 }
 
-export interface SceneCategory {
+interface SceneCategory {
   id: number;
   name: string;
   scenes: SceneEntry[];
@@ -133,12 +133,6 @@ export interface DiyEntry {
   group?: string;
   iconUrl?: string;
   code: string;
-}
-
-export interface SnapshotEntry {
-  snapshotId: number;
-  name: string;
-  iconUrl?: string;
 }
 
 /** Modes the Govee app can show for a device, keyed by its internal mode id. */
@@ -257,7 +251,8 @@ export function normaliseSceneLibrary(
 
     if (scenes.length > 0) {
       normalised.push({
-        id: category.categoryId ?? 0,
+        // Rendered into element ids in the config UI, so never trust it to be numeric
+        id: Number(category.categoryId) || 0,
         name: category.categoryName ?? 'Scenes',
         scenes,
       });
@@ -346,40 +341,6 @@ export async function goveeGetDiyEffects(
   }
 
   return entries;
-}
-
-/**
- * Fetch a device's saved snapshots. Snapshots are applied through the Govee cloud
- * rather than by a byte payload, so only their identity is returned.
- */
-export async function goveeGetSnapshots(
-  token: string,
-  clientId: string,
-  ref: GoveeDeviceRef,
-): Promise<SnapshotEntry[]> {
-  const res = await axios({
-    url: GOVEE_CONTENT_URLS.snapshots,
-    method: 'get',
-    headers: goveeHeaders(token, clientId),
-    params: {
-      sku: ref.sku,
-      device: ref.device,
-      snapshotId: 0,
-      sortType: 0,
-    },
-    timeout: REQUEST_TIMEOUT,
-  });
-
-  const list = res.data?.data?.snapshots ?? res.data?.data?.list;
-  if (!Array.isArray(list)) {
-    return [];
-  }
-
-  return list.map((snapshot: Record<string, unknown>) => ({
-    snapshotId: Number(snapshot.snapshotId ?? snapshot.id ?? 0),
-    name: String(snapshot.name ?? snapshot.snapshotName ?? 'Snapshot'),
-    iconUrl: typeof snapshot.iconUrl === 'string' ? snapshot.iconUrl : undefined,
-  }));
 }
 
 /**

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "homebridge-ui/server.js",
+    "scripts/*.js"
+  ],
+  "project": [
+    "src/**/*.ts",
+    "scripts/**/*.js",
+    "test/**/*.ts"
+  ],
+  "ignoreBinaries": [
+    "perl"
+  ],
+  "ignoreDependencies": [
+    "@mp-consulting/homebridge-ui-kit",
+    "bootstrap",
+    "bootstrap-icons",
+    "homebridge-config-ui-x",
+    "class-transformer",
+    "class-validator",
+    "@homebridge/hap-nodejs"
+  ]
+}

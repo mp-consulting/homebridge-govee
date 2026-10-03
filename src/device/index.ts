@@ -1,71 +1,11 @@
-// Base class and registry
-export { GoveeDeviceBase } from './base.js';
-export {
-  registerDeviceHandler,
-  registerModelsForCategory,
-  registerModelHandler,
-  getCategoryForModel,
-  getDeviceHandler,
-  getDeviceHandlerForModel,
-  createDeviceInstance,
-  initializeModelMappings,
-  getRegisteredCategories,
-  isModelSupported,
-} from './registry.js';
-export type { DeviceCategory, DeviceHandlerClass } from './registry.js';
-
-// Device implementations
-export { LightDevice } from './light.js';
-export { OutletSingleDevice } from './outlet-single.js';
-export { OutletDoubleDevice } from './outlet-double.js';
-export { OutletTripleDevice } from './outlet-triple.js';
-export { SwitchSingleDevice } from './switch-single.js';
-export { SwitchDoubleDevice } from './switch-double.js';
-export { SwitchTripleDevice } from './switch-triple.js';
-export { SensorThermoDevice } from './sensor-thermo.js';
-export { SensorLeakDevice } from './sensor-leak.js';
-export { FanDevice } from './fan.js';
-export { FanLightDevice } from './fan-light.js';
-export { HumidifierDevice } from './humidifier.js';
-export { HumidifierH7160Device } from './humidifier-h7160.js';
-export { HumidifierH7142Device } from './humidifier-h7142.js';
-export { HeaterSingleDevice } from './heater-single.js';
-export { Heater1aDevice } from './heater1a.js';
-export { Heater1bDevice } from './heater1b.js';
-export { Heater2Device } from './heater2.js';
-export { CoolerSingleDevice } from './cooler-single.js';
-export { DehumidifierDevice } from './dehumidifier.js';
-export { DiffuserDevice } from './diffuser.js';
-export { PurifierDevice } from './purifier.js';
-export { PurifierFullDevice } from './purifier-full.js';
-export { PurifierH7126Device } from './purifier-h7126.js';
-export { PurifierH7122Device } from './purifier-h7122.js';
-export { PurifierH7120Device } from './purifier-h7120.js';
-export { PurifierH7123Device } from './purifier-h7123.js';
-export { PurifierH7127Device } from './purifier-h7127.js';
-export { IceMakerDevice } from './ice-maker.js';
-export { KettleDevice } from './kettle.js';
-export { SensorButtonDevice } from './sensor-button.js';
-export { SensorContactDevice } from './sensor-contact.js';
-export { SensorPresenceDevice } from './sensor-presence.js';
-export { SensorMonitorDevice } from './sensor-monitor.js';
-export { SensorThermoSwitchDevice } from './sensor-thermo-switch.js';
-export { TapDevice } from './tap.js';
-export { ValveDevice } from './valve.js';
-export { TVDevice } from './tv.js';
-export { LightSwitchDevice } from './light-switch.js';
-export { SensorThermo4Device } from './sensor-thermo4.js';
-export { TemplateDevice } from './template.js';
+export { createDeviceInstance } from './registry.js';
 
 // Initialize device handlers
 import { registerDeviceHandler, registerModelHandler, initializeModelMappings } from './registry.js';
 import { LightDevice } from './light.js';
 import { OutletSingleDevice } from './outlet-single.js';
-import { OutletDoubleDevice } from './outlet-double.js';
-import { OutletTripleDevice } from './outlet-triple.js';
+import { OutletDoubleDevice, OutletTripleDevice, SwitchDoubleDevice, SwitchTripleDevice } from './multi-channel.js';
 import { SwitchSingleDevice } from './switch-single.js';
-import { SwitchDoubleDevice } from './switch-double.js';
-import { SwitchTripleDevice } from './switch-triple.js';
 import { SensorThermoDevice } from './sensor-thermo.js';
 import { SensorLeakDevice } from './sensor-leak.js';
 import { FanDevice } from './fan.js';
@@ -85,7 +25,6 @@ import { PurifierH7126Device } from './purifier-h7126.js';
 import { PurifierH7122Device } from './purifier-h7122.js';
 import { PurifierH7120Device } from './purifier-h7120.js';
 import { PurifierH7123Device } from './purifier-h7123.js';
-import { PurifierH7127Device } from './purifier-h7127.js';
 import { IceMakerDevice } from './ice-maker.js';
 import { KettleDevice } from './kettle.js';
 import { SensorButtonDevice } from './sensor-button.js';
@@ -159,10 +98,10 @@ export function initializeDeviceHandlers(): void {
   registerModelHandler('H7123', PurifierH7123Device); // 5-speed, air quality (no PM2.5), lock, display
   registerModelHandler('H7124', PurifierH7123Device); // Same as H7123
   registerModelHandler('H7126', PurifierH7126Device); // 3-speed, lock, display
-  registerModelHandler('H7127', PurifierH7127Device); // 3-speed, lock, display
-  registerModelHandler('H7128', PurifierH7127Device); // Same as H7127
-  registerModelHandler('H7129', PurifierH7127Device); // Same as H7127
-  registerModelHandler('H712C', PurifierH7127Device); // Same as H7127
+  registerModelHandler('H7127', PurifierH7126Device); // 3-speed, lock, display
+  registerModelHandler('H7128', PurifierH7126Device); // Same as H7127
+  registerModelHandler('H7129', PurifierH7126Device); // Same as H7127
+  registerModelHandler('H712C', PurifierH7126Device); // Same as H7127
 
   registerDeviceHandler('kettle', KettleDevice);
   registerDeviceHandler('iceMaker', IceMakerDevice);

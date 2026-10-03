@@ -1,6 +1,7 @@
 import type { Service } from 'homebridge';
 import type { GoveePlatform } from '../platform.js';
 import type { GoveePlatformAccessoryWithControl, ExternalUpdateParams } from '../types.js';
+import type { CommandHandlerFn } from '../utils/functions.js';
 import { GoveeDeviceBase } from './base.js';
 import { platformLang } from '../utils/index.js';
 import {
@@ -22,26 +23,32 @@ import {
 const HEATER_SPEED_STEP = 33;
 const HEATER_SPEED_VALUES = [0, 33, 66, 99];
 
-// Temperature threshold for reporting warning
-const TEMP_THRESHOLD = 100;
+// Temperatures are reported in hundredths of °F; a converted value above this is not a real reading
+export const TEMP_THRESHOLD = 100;
 
 /**
  * Heater 1A device handler for H7130 (without temperature reporting).
  * Uses Fanv2 service with Low/Medium/High speed modes.
+ * Heater1bDevice extends this with temperature reporting.
  */
 export class Heater1aDevice extends GoveeDeviceBase {
-  private _service!: Service;
+  protected _service!: Service;
 
   // Cached values
-  private cacheSpeed = 33;
-  private cacheSwing: 'on' | 'off' = 'off';
-  private cacheLock: 'on' | 'off' = 'off';
+  protected cacheSpeed = HEATER_SPEED_STEP;
+  protected cacheSwing: 'on' | 'off' = 'off';
+  protected cacheLock: 'on' | 'off' = 'off';
 
   constructor(platform: GoveePlatform, accessory: GoveePlatformAccessoryWithControl) {
     super(platform, accessory);
   }
 
   get service(): Service {
+    return this._service;
+  }
+
+  /** The service carrying the speed control */
+  protected get speedService(): Service {
     return this._service;
   }
 
@@ -53,22 +60,21 @@ export class Heater1aDevice extends GoveeDeviceBase {
 
     // Add the Fanv2 service
     this._service = this.getOrAddService(this.hapServ.Fanv2);
+    this.setupPowerSwingAndLock();
+    this.setupSpeed();
 
+    // Output the customised options to the log
+    this.logInitOptions({ tempReporting: false });
+
+    this.initialised = true;
+  }
+
+  protected setupPowerSwingAndLock(): void {
     // Set up Active characteristic
     this._service
       .getCharacteristic(this.hapChar.Active)
       .onSet(async (value) => this.internalStateUpdate(value as number));
     this.cacheState = this._service.getCharacteristic(this.hapChar.Active).value === 1 ? 'on' : 'off';
-
-    // Set up Rotation Speed characteristic
-    this._service
-      .getCharacteristic(this.hapChar.RotationSpeed)
-      .setProps({
-        minStep: HEATER_SPEED_STEP,
-        validValues: HEATER_SPEED_VALUES,
-      })
-      .onSet(async (value) => this.internalSpeedUpdate(value as number));
-    this.cacheSpeed = this._service.getCharacteristic(this.hapChar.RotationSpeed).value as number;
 
     // Set up Swing Mode characteristic (oscillation)
     this._service
@@ -81,11 +87,22 @@ export class Heater1aDevice extends GoveeDeviceBase {
       .getCharacteristic(this.hapChar.LockPhysicalControls)
       .onSet(async (value) => this.internalLockUpdate(value as number));
     this.cacheLock = this._service.getCharacteristic(this.hapChar.LockPhysicalControls).value === 1 ? 'on' : 'off';
+  }
 
-    // Output the customised options to the log
-    this.logInitOptions({ tempReporting: false });
+  protected setupSpeed(): void {
+    this.speedService
+      .getCharacteristic(this.hapChar.RotationSpeed)
+      .setProps({
+        minStep: HEATER_SPEED_STEP,
+        validValues: HEATER_SPEED_VALUES,
+      })
+      .onSet(async (value) => this.internalSpeedUpdate(value as number));
+    this.cacheSpeed = this.speedService.getCharacteristic(this.hapChar.RotationSpeed).value as number;
+  }
 
-    this.initialised = true;
+  /** Called when the heater power state changes (from HomeKit or the device) */
+  protected onStateChange(_state: 'on' | 'off'): void {
+    // No-op: the Fanv2 service carries power itself
   }
 
   private async internalStateUpdate(value: number): Promise<void> {
@@ -102,6 +119,7 @@ export class Heater1aDevice extends GoveeDeviceBase {
 
       this.cacheState = newValue;
       this.accessory.log(`${platformLang.curState} [${newValue}]`);
+      this.onStateChange(newValue);
     } catch (err) {
       this.handleUpdateError(err, this._service.getCharacteristic(this.hapChar.Active), this.cacheState === 'on' ? 1 : 0);
     }
@@ -156,7 +174,7 @@ export class Heater1aDevice extends GoveeDeviceBase {
       this.cacheSpeed = value;
       this.accessory.log(`${platformLang.curSpeed} [${HEATER_SPEED_LABELS[value]}]`);
     } catch (err) {
-      this.handleUpdateError(err, this._service.getCharacteristic(this.hapChar.RotationSpeed), this.cacheSpeed);
+      this.handleUpdateError(err, this.speedService.getCharacteristic(this.hapChar.RotationSpeed), this.cacheSpeed);
     }
   }
 
@@ -166,36 +184,40 @@ export class Heater1aDevice extends GoveeDeviceBase {
       this.cacheState = params.state;
       this._service.updateCharacteristic(this.hapChar.Active, this.cacheState === 'on' ? 1 : 0);
       this.accessory.log(`${platformLang.curState} [${this.cacheState}]`);
+      this.onStateChange(this.cacheState);
     }
 
-    // Check for temperature (should not be reported for this device)
+    this.handleTemperatures(params);
+
+    if (params.commands) {
+      processCommands(params.commands, this.commandHandlers(), (command, hexString) => {
+        this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
+      });
+    }
+  }
+
+  protected handleTemperatures(params: ExternalUpdateParams): void {
+    // This model variant has no temperature reporting: a plausible reading means it should
     if (hasProperty(params, 'temperature')) {
       const newTemp = nearestHalf(farToCen(params.temperature! / TEMP_THRESHOLD));
       if (newTemp <= TEMP_THRESHOLD) {
-        // Device must be one that DOES support ambient temperature
         this.accessory.logWarn('you should enable `tempReporting` in the config for this device');
       }
     }
+  }
 
-    if (params.commands) {
-      processCommands(
-        params.commands,
-        {
-          '1800': (hexParts) => this.handleSwingExternalUpdate(hexParts),
-          '1801': (hexParts) => this.handleSwingExternalUpdate(hexParts),
-          '1000': (hexParts) => this.handleLockExternalUpdate(hexParts),
-          '1001': (hexParts) => this.handleLockExternalUpdate(hexParts),
-          '0501': (hexParts) => this.handleSpeedExternalUpdate(hexParts),
-          '0502': (hexParts) => this.handleSpeedExternalUpdate(hexParts),
-          '0503': (hexParts) => this.handleSpeedExternalUpdate(hexParts),
-          '1a00': () => {}, // Target temperature - ignore
-          '1a01': () => {}, // Target temperature - ignore
-        },
-        (command, hexString) => {
-          this.accessory.logDebugWarn(`${platformLang.newScene}: [${command}] [${hexString}]`);
-        },
-      );
-    }
+  protected commandHandlers(): Record<string, CommandHandlerFn> {
+    return {
+      '1800': (hexParts) => this.handleSwingExternalUpdate(hexParts),
+      '1801': (hexParts) => this.handleSwingExternalUpdate(hexParts),
+      '1000': (hexParts) => this.handleLockExternalUpdate(hexParts),
+      '1001': (hexParts) => this.handleLockExternalUpdate(hexParts),
+      '0501': (hexParts) => this.handleSpeedExternalUpdate(hexParts),
+      '0502': (hexParts) => this.handleSpeedExternalUpdate(hexParts),
+      '0503': (hexParts) => this.handleSpeedExternalUpdate(hexParts),
+      '1a00': () => {}, // Target temperature - ignore
+      '1a01': () => {}, // Target temperature - ignore
+    };
   }
 
   private handleSwingExternalUpdate(hexParts: string[]): void {
@@ -216,7 +238,7 @@ export class Heater1aDevice extends GoveeDeviceBase {
     }
   }
 
-  private handleSpeedExternalUpdate(hexParts: string[]): void {
+  protected handleSpeedExternalUpdate(hexParts: string[]): void {
     const speedByte = getTwoItemPosition(hexParts, 3);
     // Map hex speed byte to percentage: 01=33%, 02=66%, 03=99%
     const speedByteMap: Record<string, number> = {
@@ -230,10 +252,9 @@ export class Heater1aDevice extends GoveeDeviceBase {
     }
     if (this.cacheSpeed !== newSpeed) {
       this.cacheSpeed = newSpeed;
-      this._service.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
+      this.speedService.updateCharacteristic(this.hapChar.RotationSpeed, this.cacheSpeed);
       this.accessory.log(`${platformLang.curSpeed} [${HEATER_SPEED_LABELS[this.cacheSpeed]}]`);
     }
   }
 }
 
-export default Heater1aDevice;

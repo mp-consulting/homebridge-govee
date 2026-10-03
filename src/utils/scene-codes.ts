@@ -32,7 +32,6 @@ export const COMMAND_MODE = 0x05;
  */
 export const SUB_MODE_SCENE = 0x04;
 export const SUB_MODE_DIY = 0x0a;
-export const SUB_MODE_COLOUR = 0x0b;
 export const SUB_MODE_MUSIC_LEGACY = 0x0c;
 export const SUB_MODE_MUSIC_MODERN = 0x13;
 
@@ -276,16 +275,14 @@ export function encodeDiy(effectStr: string, diyCode: number): string[] {
  * Which generation of the music protocol a device speaks. The app keys this off an
  * internal per-model table; the plugin exposes it as a per-device config choice.
  */
-export type MusicProtocol = 'modern' | 'legacy';
+type MusicProtocol = 'modern' | 'legacy';
 
 /**
  * Music effect ids differ between the two protocol generations, so effects are named
  * here and resolved to the right byte at encode time. `rhythm` additionally supports a
  * "soft" variant, carried in the dynamic byte.
  */
-export const MUSIC_EFFECTS = ['energic', 'rolling', 'spectrum', 'rhythm'] as const;
-
-export type MusicEffect = (typeof MUSIC_EFFECTS)[number];
+export type MusicEffect = 'energic' | 'rolling' | 'spectrum' | 'rhythm';
 
 const MUSIC_EFFECT_CODES: Record<MusicProtocol, Record<MusicEffect, number>> = {
   // BleProtocol.value_sub_mode_new_music_*

@@ -187,7 +187,7 @@ export class KettleDevice extends GoveeDeviceBase {
       this.accessory.log(`${platformLang.curMode} [${service.displayName}]`);
 
       // Turn off the switch after 3 seconds
-      setTimeout(() => {
+      this.schedule(() => {
         service.updateCharacteristic(this.hapChar.On, false);
       }, 3000);
     } catch (err) {
@@ -224,4 +224,3 @@ export class KettleDevice extends GoveeDeviceBase {
   }
 }
 
-export default KettleDevice;

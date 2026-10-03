@@ -231,4 +231,3 @@ export class SensorMonitorDevice extends GoveeDeviceBase {
   }
 }
 
-export default SensorMonitorDevice;

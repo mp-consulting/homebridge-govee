@@ -2,8 +2,6 @@ import type { GoveePlatform } from '../platform.js';
 import type { GoveePlatformAccessoryWithControl } from '../types.js';
 import type { GoveeDeviceBase } from './base.js';
 import { platformConsts } from '../utils/index.js';
-import { getDeviceDefinition } from '../catalog/index.js';
-import type { DeviceModelDefinition } from '../catalog/index.js';
 
 // Device handler type
 export type DeviceHandlerClass = new (
@@ -66,7 +64,7 @@ export function registerDeviceHandler(
 /**
  * Register model numbers for a category
  */
-export function registerModelsForCategory(
+function registerModelsForCategory(
   category: DeviceCategory,
   models: readonly string[],
 ): void {
@@ -120,6 +118,47 @@ export function getDeviceHandlerForModel(model: string): DeviceHandlerClass | un
   return undefined;
 }
 
+// Handlers an outlet-type device can be shown as, by its `showAs` setting
+const SINGLE_SWITCH_SHOW_AS: Record<string, DeviceCategory> = {
+  outlet: 'outletSingle',
+  switch: 'switchSingle',
+  purifier: 'purifier',
+  heater: 'heater',
+  cooler: 'cooler',
+  tap: 'tap',
+  valve: 'valve',
+  audio: 'tv',
+  box: 'tv',
+  stick: 'tv',
+};
+
+/**
+ * The category a device's handler comes from: its model category, unless the device
+ * config picks another presentation (`showAs`, `showExtraSwitch`, `tempReporting`).
+ * 'default' keeps the model category, so existing accessories never change service type.
+ */
+export function resolveCategory(model: string, deviceConf: Record<string, unknown> = {}): DeviceCategory | undefined {
+  const category = getCategoryForModel(model);
+  const showAs = typeof deviceConf.showAs === 'string' ? deviceConf.showAs : 'default';
+
+  switch (category) {
+    case 'light':
+      return showAs === 'switch' ? 'lightSwitch' : category;
+    case 'switchSingle':
+      return SINGLE_SWITCH_SHOW_AS[showAs] ?? category;
+    case 'switchDouble':
+      return showAs === 'outlet' ? 'outletDouble' : category;
+    case 'switchTriple':
+      return showAs === 'outlet' ? 'outletTriple' : category;
+    case 'sensorThermo':
+      return deviceConf.showExtraSwitch ? 'sensorThermoSwitch' : category;
+    case 'heater':
+      return deviceConf.tempReporting ? 'heater1b' : category;
+    default:
+      return category;
+  }
+}
+
 /**
  * Create a device instance for the given model
  */
@@ -128,38 +167,19 @@ export function createDeviceInstance(
   platform: GoveePlatform,
   accessory: GoveePlatformAccessoryWithControl,
 ): GoveeDeviceBase | undefined {
-  // Check for config-based handler overrides
-  const deviceId = accessory.context.gvDeviceId;
-  const deviceConf = platform.deviceConf[deviceId] as Record<string, unknown> | undefined;
+  const deviceConf = platform.deviceConf[accessory.context.gvDeviceId] as Record<string, unknown> | undefined;
+  const category = resolveCategory(model, deviceConf);
 
-  // Special case: thermo sensors with showExtraSwitch use the thermoSwitch handler
-  const category = getCategoryForModel(model);
-  if (category === 'sensorThermo' && deviceConf?.showExtraSwitch) {
-    const thermoSwitchHandler = getDeviceHandler('sensorThermoSwitch');
-    if (thermoSwitchHandler) {
-      const instance = new thermoSwitchHandler(platform, accessory);
-      instance.init();
-      return instance;
-    }
+  // A config override picks a category handler; otherwise model-specific handlers win
+  const Handler = category && category !== getCategoryForModel(model)
+    ? getDeviceHandler(category)
+    : getDeviceHandlerForModel(model);
+  if (!Handler) {
+    return undefined;
   }
-
-  // Special case: heater1 models with tempReporting use the heater1b handler
-  if (category === 'heater' && deviceConf?.tempReporting) {
-    const heater1bHandler = getDeviceHandler('heater1b');
-    if (heater1bHandler) {
-      const instance = new heater1bHandler(platform, accessory);
-      instance.init();
-      return instance;
-    }
-  }
-
-  const Handler = getDeviceHandlerForModel(model);
-  if (Handler) {
-    const instance = new Handler(platform, accessory);
-    instance.init();
-    return instance;
-  }
-  return undefined;
+  const instance = new Handler(platform, accessory);
+  instance.init();
+  return instance;
 }
 
 /**
@@ -226,44 +246,3 @@ export function isModelSupported(model: string): boolean {
   return modelCategoryMap.has(model.toUpperCase());
 }
 
-/**
- * Get the device definition from the catalog for a model
- */
-export function getModelDefinition(model: string): DeviceModelDefinition | undefined {
-  return getDeviceDefinition(model);
-}
-
-/**
- * Check if a model has a specific capability in the catalog
- */
-export function modelHasCapability(
-  model: string,
-  capability: keyof DeviceModelDefinition['capabilities'],
-): boolean {
-  const definition = getDeviceDefinition(model);
-  return definition?.capabilities?.[capability] !== undefined;
-}
-
-/**
- * Get the speed configuration for a model from the catalog
- */
-export function getModelSpeedConfig(model: string): DeviceModelDefinition['capabilities']['speed'] {
-  const definition = getDeviceDefinition(model);
-  return definition?.capabilities?.speed;
-}
-
-export default {
-  registerDeviceHandler,
-  registerModelsForCategory,
-  registerModelHandler,
-  getCategoryForModel,
-  getDeviceHandler,
-  getDeviceHandlerForModel,
-  createDeviceInstance,
-  initializeModelMappings,
-  getRegisteredCategories,
-  isModelSupported,
-  getModelDefinition,
-  modelHasCapability,
-  getModelSpeedConfig,
-};

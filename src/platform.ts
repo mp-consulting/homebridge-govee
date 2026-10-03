@@ -1,5 +1,4 @@
-import { Buffer } from 'node:buffer';
-import { existsSync, mkdirSync, promises } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import process from 'node:process';
 
@@ -28,90 +27,51 @@ import type {
   GoveeAccessoryContext,
   DeviceCommand,
   ExternalUpdateParams,
-  AWSParams,
-  BLEParams,
-  LANParams,
+  BLESensorReading,
+  CharacteristicType,
+  RawDeviceUpdate,
 } from './types.js';
-import { k2rgb } from './utils/colour.js';
 import {
   platformConsts,
   platformLang,
   CustomCharacteristics,
   EveCharacteristics,
 } from './utils/index.js';
+import { buildTransportCommands } from './connection/commands.js';
+import { type AccountCredentials, CredentialStore } from './connection/credentials.js';
+import { normaliseDeviceUpdate } from './utils/device-update.js';
+import { type DeviceConfigKey, getDeviceTypeFromModel } from './utils/device-types.js';
 import {
   hasProperty,
   parseDeviceId,
   parseError,
   pfxToCertAndKey,
 } from './utils/functions.js';
-import { codeToFrames, encodeMusicMode, type MusicModeOptions } from './utils/scene-codes.js';
+import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js';
 
-const PLUGIN_NAME = '@mp-consulting/homebridge-govee';
-export const PLATFORM_NAME = 'Govee';
 
-// Device type configuration keys
-type DeviceTypeKey = 'lightDevices' | 'switchDevices' | 'thermoDevices' | 'leakDevices' |
-  'fanDevices' | 'heaterDevices' | 'humidifierDevices' | 'dehumidifierDevices' |
-  'purifierDevices' | 'diffuserDevices' | 'kettleDevices' | 'iceMakerDevices';
+// How long each periodic BLE sensor scan listens for advertisements
+const BLE_SCAN_WINDOW_MS = 30000;
+
+// Minimum time between forwarding two BLE advertisements from the same sensor
+const BLE_READING_THROTTLE_MS = 10000;
+
+// Minimum time between two runtime re-login attempts after the account token is rejected
+const REAUTH_MIN_INTERVAL_MS = 10 * 60 * 1000;
+
+// While a leak alert is active, re-check whether it has been read in the Govee app at most this often
+const LEAK_RECHECK_MS = 5 * 60 * 1000;
+
+// Commands that set a light's colour mode: a newer one makes any queued older one obsolete
+const BLE_COLOUR_COMMANDS = new Set(['color', 'colorTem', 'rgbScene', 'musicMode']);
 
 /**
- * Determine the device type configuration key from a model SKU
+ * Whether an error means the Govee account token was rejected (as opposed to a network failure)
  */
-function getDeviceTypeFromModel(model: string): DeviceTypeKey {
-  if (!model) {
-    return 'lightDevices';
-  }
-
-  const sku = model.toUpperCase();
-  const models = platformConsts.models;
-
-  // Check specific categories first
-  if (models.switchSingle.includes(sku) ||
-      models.switchDouble.includes(sku) ||
-      models.switchTriple.includes(sku)) {
-    return 'switchDevices';
-  }
-  if (models.sensorLeak.includes(sku)) {
-    return 'leakDevices';
-  }
-  if (models.sensorThermo.includes(sku) ||
-      models.sensorThermo4.includes(sku) ||
-      models.sensorMonitor.includes(sku) ||
-      models.sensorButton.includes(sku) ||
-      models.sensorContact.includes(sku) ||
-      models.sensorPresence.includes(sku)) {
-    return 'thermoDevices';
-  }
-  if (models.fan.includes(sku)) {
-    return 'fanDevices';
-  }
-  if (models.heater1.includes(sku) || models.heater2.includes(sku)) {
-    return 'heaterDevices';
-  }
-  if (models.humidifier.includes(sku)) {
-    return 'humidifierDevices';
-  }
-  if (models.dehumidifier.includes(sku)) {
-    return 'dehumidifierDevices';
-  }
-  if (models.purifier.includes(sku)) {
-    return 'purifierDevices';
-  }
-  if (models.diffuser.includes(sku)) {
-    return 'diffuserDevices';
-  }
-  if (models.iceMaker.includes(sku)) {
-    return 'iceMakerDevices';
-  }
-  if (models.kettle.includes(sku)) {
-    return 'kettleDevices';
-  }
-
-  // Default to light for RGB models and unknown
-  return 'lightDevices';
+function isAuthFailure(err: unknown): boolean {
+  const status = (err as { response?: { status?: number } })?.response?.status;
+  return status === 401 || status === 403 || (err as Error)?.message === platformLang.noDevices;
 }
-
 
 export interface ExtendedLogging extends Logging {
   debug: (msg: string, ...args: unknown[]) => void;
@@ -139,22 +99,17 @@ export class GoveePlatform implements DynamicPlatformPlugin {
   public lanClient: LANClient | false = false;
 
   // Custom characteristics
-  public cusChar: Record<string, typeof Characteristic> = {};
-  public eveChar: Record<string, typeof Characteristic> = {};
+  public cusChar: Record<string, CharacteristicType> = {};
+  public eveChar: Record<string, CharacteristicType> = {};
   public eveService!: ReturnType<typeof FakeGatoHistory>;
 
   // Storage
   public storageData!: typeof storage;
   public storageClientData = false;
 
-  // AWS connection info
-  public accountTopic?: string;
-  public accountToken?: string;
-  public accountId?: string;
-  public accountTokenTTR?: string;
-  public clientId?: string;
-  public iotEndpoint?: string;
-  public iotPass?: string;
+  // Govee account credentials, from the cache or a login
+  private credentialStore?: CredentialStore;
+  private credentials?: AccountCredentials;
 
   // Device state (instance-level, not module-level)
   private readonly devicesInHB = new Map<string, GoveePlatformAccessoryWithControl>();
@@ -170,6 +125,12 @@ export class GoveePlatform implements DynamicPlatformPlugin {
   private refreshAWSInterval?: ReturnType<typeof setInterval>;
   private awsSyncInProgress = false;
   private httpSyncInProgress = false;
+  private bleSyncInProgress = false;
+  private lastReauth = 0;
+  private bleCommandSeq = 0;
+  private readonly bleLatestCommand = new Map<string, number>();
+  private readonly bleLastReading = new Map<string, number>();
+  private readonly leakState = new Map<string, { lastTime: number; checkedAt: number; leak: boolean }>();
 
   constructor(log: Logging, config: PlatformConfig, api: API) {
     this.api = api;
@@ -242,10 +203,8 @@ export class GoveePlatform implements DynamicPlatformPlugin {
     }
 
     // Apply device configurations
-    const deviceArrayKeys = [
-      'lightDevices', 'switchDevices', 'fanDevices', 'heaterDevices',
-      'humidifierDevices', 'purifierDevices', 'thermoDevices', 'leakDevices',
-    ];
+    // Every per-device-type array in the config (lightDevices, kettleDevices, ...)
+    const deviceArrayKeys = Object.keys(platformConsts.defaultConfig).filter(key => key.endsWith('Devices'));
     for (const key of deviceArrayKeys) {
       if (Array.isArray(config[key])) {
         for (const deviceConfig of config[key]) {
@@ -275,8 +234,8 @@ export class GoveePlatform implements DynamicPlatformPlugin {
         : (() => {});
 
       // Initialize custom characteristics
-      this.cusChar = new CustomCharacteristics(this.api) as unknown as Record<string, typeof Characteristic>;
-      this.eveChar = new EveCharacteristics(this.api) as unknown as Record<string, typeof Characteristic>;
+      this.cusChar = new CustomCharacteristics(this.api) as unknown as Record<string, CharacteristicType>;
+      this.eveChar = new EveCharacteristics(this.api) as unknown as Record<string, CharacteristicType>;
 
       // Initialize fakegato-history for Eve app support
       this.eveService = FakeGatoHistory(this.api);
@@ -288,16 +247,20 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       const cachePath = join(this.api.user.storagePath(), '/govee_cache');
       const persistPath = join(this.api.user.storagePath(), '/persist');
 
-      if (!existsSync(cachePath)) {
-        mkdirSync(cachePath);
-      }
-      if (!existsSync(persistPath)) {
-        mkdirSync(persistPath);
+      // Both directories hold account credentials (token, IoT certificate and its password)
+      for (const dir of [cachePath, persistPath]) {
+        if (!existsSync(dir)) {
+          mkdirSync(dir, { mode: 0o700 });
+        }
+        try {
+          chmodSync(dir, 0o700);
+        } catch (err) {
+          this.log.debugWarn('[Storage] Could not restrict permissions on %s: %s', dir, parseError(err));
+        }
       }
 
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        this.storageData = (storage as any).create({ dir: cachePath, forgiveParseErrors: true });
+        this.storageData = storage.create({ dir: cachePath, forgiveParseErrors: true }) as typeof storage;
         await this.storageData.init();
         this.storageClientData = true;
       } catch (err) {
@@ -315,11 +278,13 @@ export class GoveePlatform implements DynamicPlatformPlugin {
         ? bleControlInterval / 1000
         : bleControlInterval;
 
+      // No queue-level timeout: the BLE client bounds every step of an update itself, and a
+      // queue timeout would only reject the caller while the BLE operation kept running and
+      // overlapped with the next queued one.
       this.queue = new PQueue({
         concurrency: 1,
         interval: bleInterval * 1000,
         intervalCap: 1,
-        timeout: 10000,
       });
 
       // Initialize devices
@@ -361,57 +326,51 @@ export class GoveePlatform implements DynamicPlatformPlugin {
 
       this.log.debug('[HTTP] Username: %s', this.config.username);
 
-      const iotFile = join(persistPath, 'govee.pfx');
-      this.httpClient = new HTTPClient(this);
+      const httpClient = new HTTPClient(this);
+      this.httpClient = httpClient;
+      const store = new CredentialStore(
+        this.storageClientData ? this.storageData : undefined,
+        this.config.username,
+        join(persistPath, 'govee.pfx'),
+        this.log,
+      );
+      this.credentialStore = store;
 
-      try {
-        this.log.debug('[HTTP] Checking for cached credentials...');
-        const storedData = await this.storageData.getItem('Govee_All_Devices_temp');
-        const splitData = storedData?.split(':::');
-        if (!Array.isArray(splitData) || splitData.length !== 7) {
-          throw new Error(platformLang.accTokenNoExist);
-        }
-        if (splitData[2] !== this.config.username) {
-          throw new Error(platformLang.accTokenUserChange);
-        }
-        await promises.access(iotFile, 0);
-
-        [this.accountTopic, this.accountToken, , this.accountId, this.iotEndpoint, this.iotPass, this.accountTokenTTR] = splitData;
-        // Set the token on the HTTP client from cache
-        this.httpClient.setToken(this.accountToken!, this.accountTokenTTR);
-        this.log.debug('[HTTP] %s.', platformLang.accTokenFromCache);
-      } catch (cacheErr) {
-        this.log.debug('[HTTP] Cache not available (%s), performing fresh login...', parseError(cacheErr));
-        const data = await this.httpClient.login();
-        this.accountId = data.accountId;
-        this.accountTopic = data.topic;
-        this.iotEndpoint = data.endpoint;
-        this.iotPass = data.iotPass;
-
-        await promises.writeFile(iotFile, Buffer.from(data.iot, 'base64'));
-        try {
-          await this.storageData.setItem(
-            'Govee_All_Devices_temp',
-            `${this.accountTopic}:::${data.token}:::${this.config.username}:::${this.accountId}:::${this.iotEndpoint}:::${this.iotPass}:::${data.tokenTTR ?? ''}`,
-          );
-        } catch (e) {
-          this.log.warn('[HTTP] %s %s.', platformLang.accTokenStoreErr, parseError(e));
-        }
+      this.credentials = await store.load();
+      const usedCache = !!this.credentials;
+      if (this.credentials) {
+        httpClient.setToken(this.credentials.token);
+      } else {
+        await this.login();
       }
 
-      const devices = await this.httpClient.getDevices();
+      let devices;
+      try {
+        devices = await httpClient.getDevices();
+      } catch (err) {
+        // A cached token can expire or be revoked: discard it and log in again once
+        if (!usedCache || !isAuthFailure(err)) {
+          throw err;
+        }
+        this.log.warn('[HTTP] %s', platformLang.accTokenRejected);
+        await store.clear();
+        await this.login();
+        devices = await httpClient.getDevices();
+      }
       for (const d of devices) {
         this.httpDevices.push(d as unknown as Record<string, unknown>);
       }
       this.log.info('[HTTP] %s.', platformLang.availableWithDevices(devices.length));
 
-      if (!this.config.awsDisable && this.iotPass && this.accountTopic && this.accountId) {
-        const iotFileData = await pfxToCertAndKey(iotFile, this.iotPass);
+      const creds = this.credentials;
+      if (!this.config.awsDisable && creds?.iotPass && creds.topic && creds.accountId) {
+        const iotFileData = await pfxToCertAndKey(store.iotFile, creds.iotPass);
         this.awsClient = new AWSClient({
-          accountTopic: this.accountTopic,
-          accountId: this.accountId,
-          clientId: this.clientId ?? 'homebridge-govee',
-          iotEndpoint: this.iotEndpoint ?? '',
+          accountTopic: creds.topic,
+          accountId: creds.accountId,
+          // Must be unique per connection: AWS IoT drops an existing connection with the same id
+          clientId: httpClient.clientId,
+          iotEndpoint: creds.endpoint,
           log: this.log,
           receiveUpdateAWS: (payload) => this.receiveUpdateAWS(payload as Record<string, unknown>),
         }, iotFileData);
@@ -421,6 +380,41 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       this.log.warn('[HTTP] %s %s.', platformLang.disableClient, parseError(err));
       this.httpClient = false;
       this.awsClient = false;
+    }
+  }
+
+  /**
+   * Log in to the Govee account and persist the result
+   */
+  private async login(): Promise<void> {
+    if (!this.httpClient || !this.credentialStore) {
+      return;
+    }
+    const data = await this.httpClient.login();
+    this.credentials = {
+      topic: data.topic,
+      token: data.token,
+      accountId: data.accountId,
+      endpoint: data.endpoint,
+      iotPass: data.iotPass,
+    };
+    await this.credentialStore.save(this.credentials, data.iot);
+  }
+
+  /**
+   * Re-login at runtime after the account token was rejected, at most once per REAUTH_MIN_INTERVAL_MS
+   */
+  private async reauthenticate(): Promise<void> {
+    if (!this.httpClient || !this.credentialStore || Date.now() - this.lastReauth < REAUTH_MIN_INTERVAL_MS) {
+      return;
+    }
+    this.lastReauth = Date.now();
+    this.log.warn('[HTTP] %s', platformLang.accTokenRejected);
+    try {
+      await this.credentialStore.clear();
+      await this.login();
+    } catch (err) {
+      this.log.warn('[HTTP] %s %s.', platformLang.syncFail, parseError(err));
     }
   }
 
@@ -464,7 +458,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
         deviceId: string;
         deviceName: string;
         model: string;
-        deviceType: DeviceTypeKey;
+        deviceType: DeviceConfigKey;
         ip?: string;
         goodsType?: number;
         pactType?: number;
@@ -529,6 +523,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
   private async initializeDevices(): Promise<void> {
     let lanDevicesInitialised = false;
     let httpDevicesInitialised = false;
+    const skippedLanDevices = new Set<string>();
 
     // Store discovered devices for UI auto-population
     await this.storeDiscoveredDevices();
@@ -540,11 +535,11 @@ export class GoveePlatform implements DynamicPlatformPlugin {
         httpDevice.device = deviceId;
       }
 
-      if (this.ignoredDevices.includes(deviceId)) {
+      const model = httpDevice.sku as string;
+      if (this.isIgnored(deviceId, model)) {
         continue;
       }
 
-      const model = httpDevice.sku as string;
       const lanDevice = this.lanDevices.find(el => el.device === deviceId);
 
       if (lanDevice) {
@@ -559,7 +554,14 @@ export class GoveePlatform implements DynamicPlatformPlugin {
 
     for (const lanDevice of this.lanDevices.filter(el => !(el as Record<string, unknown>).initialised)) {
       const deviceId = lanDevice.device as string;
-      if (this.ignoredDevices.includes(deviceId)) {
+      if (this.isIgnored(deviceId, lanDevice.sku as string | undefined)) {
+        continue;
+      }
+      // LAN discovery is unauthenticated, so when the account device list is available only
+      // devices from that list, or ones the user configured explicitly, become accessories
+      if (this.httpClient && !this.deviceConf[deviceId]) {
+        this.log.info('[LAN] %s [%s].', platformLang.lanUnknownSkipped, deviceId);
+        skippedLanDevices.add(deviceId);
         continue;
       }
       this.initialiseDevice({
@@ -580,15 +582,19 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       const deviceId = accessory.context.gvDeviceId;
       if (
         (!this.httpDevices.some(el => el.device === deviceId) && !this.lanDevices.some(el => el.device === deviceId)) ||
-        this.ignoredDevices.includes(deviceId)
+        this.isIgnored(deviceId, accessory.context.gvModel) ||
+        skippedLanDevices.has(deviceId)
       ) {
         this.removeAccessory(accessory);
       }
     });
 
     if (this.awsClient && this.awsDevices.length > 0) {
-      await this.awsClient.connect();
-      this.goveeAWSSync();
+      // The subscription only completes once the broker is reachable, which may be never
+      // (firewall, revoked certificate), so it must not hold up the rest of the setup
+      this.awsClient.connect()
+        .then(() => this.goveeAWSSync())
+        .catch(err => this.log.warn('[AWS] %s %s.', platformLang.disableClient, parseError(err)));
       this.refreshAWSInterval = setInterval(() => this.goveeAWSSync(), 60000);
     }
 
@@ -614,36 +620,65 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       this.lanClient.startDevicesPolling();
       this.lanClient.startStatusPolling();
     }
+
+    // Thermo-hygrometers broadcast their readings over BLE, so scan for them periodically
+    if (this.bleClient && [...this.devicesInHB.values()].some(acc => this.isBLESensor(acc))) {
+      this.goveeBLESync();
+      this.refreshBLEInterval = setInterval(
+        () => this.goveeBLESync(),
+        (this.config.bleRefreshTime ?? platformConsts.defaultValues.bleRefreshTime) * 1000,
+      );
+    }
+  }
+
+  /**
+   * Devices the user excluded: individually (ignoreDevice), or every Matter-capable model
+   * when ignoreMatter is set (they can be added to HomeKit natively instead)
+   */
+  private isIgnored(deviceId: string, model?: string): boolean {
+    return this.ignoredDevices.includes(deviceId)
+      || (!!this.config.ignoreMatter && !!model && platformConsts.matterModels.includes(model.toUpperCase()));
+  }
+
+  private isBLESensor(accessory: GoveePlatformAccessoryWithControl): boolean {
+    const { gvModel, bleAddress } = accessory.context;
+    return !!bleAddress && (
+      platformConsts.models.sensorThermo.includes(gvModel) || platformConsts.models.sensorThermo4.includes(gvModel)
+    );
   }
 
   pluginShutdown(): void {
-    try {
-      // Destroy all device handlers (clears intervals, timers, listeners)
-      for (const accessory of this.devicesInHB.values()) {
-        try {
-          accessory.control?.destroy?.();
-        } catch (err) {
-          this.log.debug('[%s] destroy error: %s', accessory.displayName, parseError(err));
-        }
-      }
+    // Destroy all device handlers (clears intervals, timers, listeners)
+    for (const accessory of this.devicesInHB.values()) {
+      this.safely('destroy', () => accessory.control?.destroy?.(), accessory.displayName);
+    }
 
-      if (this.refreshBLEInterval) {
-        clearInterval(this.refreshBLEInterval);
+    for (const interval of [this.refreshBLEInterval, this.refreshHTTPInterval, this.refreshAWSInterval]) {
+      if (interval) {
+        clearInterval(interval);
       }
-      if (this.refreshHTTPInterval) {
-        clearInterval(this.refreshHTTPInterval);
-      }
-      if (this.refreshAWSInterval) {
-        clearInterval(this.refreshAWSInterval);
-      }
-      if (this.lanClient) {
-        this.lanClient.close();
-      }
-      if (this.bleClient) {
-        this.bleClient.shutdown();
-      }
+    }
+
+    // Each client is torn down independently so one failure doesn't leave the others running
+    if (this.awsClient) {
+      const awsClient = this.awsClient;
+      this.safely('AWS shutdown', () => awsClient.disconnect());
+    }
+    if (this.lanClient) {
+      const lanClient = this.lanClient;
+      this.safely('LAN shutdown', () => lanClient.close());
+    }
+    if (this.bleClient) {
+      const bleClient = this.bleClient;
+      this.safely('BLE shutdown', () => bleClient.shutdown());
+    }
+  }
+
+  private safely(step: string, fn: () => void, name = 'Shutdown'): void {
+    try {
+      fn();
     } catch (err) {
-      this.log.error('***** %s. *****', parseError(err));
+      this.log.warn('[%s] %s error: %s', name, step, parseError(err));
     }
   }
 
@@ -839,15 +874,7 @@ export class GoveePlatform implements DynamicPlatformPlugin {
           if (platformConsts.models.sensorLeak.includes(device.sku)) {
             accessory.logDebug?.(`[HTTP] raw sensor data: ${JSON.stringify({ ...parsedData, ...parsedSettings })}`);
 
-            // A leak is considered detected if any unread leakage alert messages exist
-            let hasUnreadLeak = false;
-            if ((parsedData.lastTime as number) > 0) {
-              const msgs = await this.httpClient.getLeakDeviceWarning(deviceId, device.sku) as Array<Record<string, unknown>>;
-              accessory.logDebug?.(`[HTTP] raw messages: ${JSON.stringify(msgs)}`);
-              hasUnreadLeak = msgs.some(
-                msg => !msg.read && String(msg.message).toLowerCase().replaceAll(/\s+/g, '').startsWith('leakagealert'),
-              );
-            }
+            const hasUnreadLeak = await this.checkLeakAlerts(accessory, deviceId, device.sku, Number(parsedData.lastTime) || 0);
 
             if (hasProperty(parsedSettings, 'battery')) {
               toReturn.battery = parsedSettings.battery as number;
@@ -887,8 +914,86 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       }
     } catch (err) {
       this.log.warn('[HTTP] %s %s.', platformLang.syncFail, parseError(err));
+      if (isAuthFailure(err)) {
+        await this.reauthenticate();
+      }
     } finally {
       this.httpSyncInProgress = false;
+    }
+  }
+
+  /**
+   * A leak is considered detected while any unread leakage alert exists. The alert list is a
+   * separate request, so only fetch it when the sensor reports a new event (`lastTime` changed),
+   * or periodically while an alert is active to notice it being read in the Govee app.
+   */
+  private async checkLeakAlerts(
+    accessory: GoveePlatformAccessoryWithControl,
+    deviceId: string,
+    sku: string,
+    lastTime: number,
+  ): Promise<boolean> {
+    if (!this.httpClient || lastTime <= 0) {
+      return false;
+    }
+    const cached = this.leakState.get(deviceId);
+    const now = Date.now();
+    if (cached && cached.lastTime === lastTime && (!cached.leak || now - cached.checkedAt < LEAK_RECHECK_MS)) {
+      return cached.leak;
+    }
+    try {
+      const msgs = await this.httpClient.getLeakDeviceWarning(deviceId, sku) as Array<Record<string, unknown>>;
+      accessory.logDebug?.(`[HTTP] raw messages: ${JSON.stringify(msgs)}`);
+      const leak = msgs.some(
+        msg => !msg.read && String(msg.message).toLowerCase().replaceAll(/\s+/g, '').startsWith('leakagealert'),
+      );
+      this.leakState.set(deviceId, { lastTime, checkedAt: now, leak });
+      return leak;
+    } catch (err) {
+      // Keep the last known state rather than clearing an active alert on a transient failure,
+      // and wait a full recheck interval before retrying
+      accessory.logDebugWarn?.(`[HTTP] ${platformLang.syncFail} ${parseError(err)}`);
+      const leak = cached?.leak ?? false;
+      this.leakState.set(deviceId, { lastTime: cached?.lastTime ?? lastTime, checkedAt: now, leak });
+      return leak;
+    }
+  }
+
+  async goveeBLESync(): Promise<void> {
+    if (!this.bleClient || this.bleSyncInProgress) {
+      return;
+    }
+    this.bleSyncInProgress = true;
+    try {
+      await this.bleClient.scanFor(reading => this.receiveBLEReading(reading), BLE_SCAN_WINDOW_MS);
+    } catch (err) {
+      this.log.debugWarn('[BLE] %s %s.', platformLang.syncFail, parseError(err));
+    } finally {
+      this.bleSyncInProgress = false;
+    }
+  }
+
+  receiveBLEReading(reading: BLESensorReading): void {
+    const address = reading.address?.toLowerCase();
+    if (!address) {
+      return;
+    }
+    // Sensors advertise several times a second while scanning
+    const now = Date.now();
+    if (now - (this.bleLastReading.get(address) ?? 0) < BLE_READING_THROTTLE_MS) {
+      return;
+    }
+    for (const accessory of this.devicesInHB.values()) {
+      if (accessory.context.bleAddress === address && this.isBLESensor(accessory)) {
+        this.bleLastReading.set(address, now);
+        // Handlers expect HTTP-style readings in hundredths
+        this.receiveDeviceUpdate(accessory, {
+          source: 'BLE',
+          battery: reading.battery,
+          temperature: Math.round(reading.tempInC * 100),
+          humidity: Math.round(reading.humidity * 100),
+        });
+      }
     }
   }
 
@@ -918,73 +1023,10 @@ export class GoveePlatform implements DynamicPlatformPlugin {
   }
 
   async sendDeviceUpdate(accessory: GoveePlatformAccessoryWithControl, params: DeviceCommand): Promise<boolean> {
-    const data: { awsParams?: AWSParams; bleParams?: BLEParams; lanParams?: LANParams } = {};
+    const deviceConf = this.deviceConf[accessory.context.gvDeviceId] ?? {};
+    const model = (accessory.context.gvModel ?? '').toUpperCase();
 
-    switch (params.cmd) {
-      case 'state':
-        data.awsParams = { cmd: 'turn', data: { val: params.value === 'on' ? 1 : 0 } };
-        data.bleParams = { cmd: 0x01, data: params.value === 'on' ? 0x1 : 0x0 };
-        data.lanParams = { cmd: 'turn', data: { value: params.value === 'on' ? 1 : 0 } };
-        break;
-      case 'brightness': {
-        const val = params.value as number;
-        data.awsParams = { cmd: 'brightness', data: { val: Math.round(val * 2.54) } };
-        data.bleParams = { cmd: 0x04, data: Math.floor((val / 100) * 0xff) };
-        data.lanParams = { cmd: 'brightness', data: { value: val } };
-        break;
-      }
-      case 'color': {
-        const rgb = params.value as { r: number; g: number; b: number };
-        data.awsParams = { cmd: 'colorwc', data: { color: rgb, colorTemInKelvin: 0 } };
-        data.bleParams = { cmd: 0x05, data: [0x02, rgb.r, rgb.g, rgb.b] };
-        data.lanParams = { cmd: 'colorwc', data: { color: rgb, colorTemInKelvin: 0 } };
-        break;
-      }
-      case 'colorTem': {
-        const kelvin = params.value as number;
-        const [r, g, b] = k2rgb(kelvin);
-        data.awsParams = { cmd: 'colorwc', data: { color: { r, g, b }, colorTemInKelvin: kelvin } };
-        data.bleParams = { cmd: 0x05, data: [0x02, 0xff, 0xff, 0xff, 0x01, r, g, b] };
-        data.lanParams = { cmd: 'colorwc', data: { color: { r, g, b }, colorTemInKelvin: kelvin } };
-        break;
-      }
-      case 'stateOutlet':
-      case 'stateHumi':
-        data.awsParams = { cmd: 'turn', data: { val: params.value === 'on' || params.value === 1 ? 1 : 0 } };
-        break;
-      case 'stateDual':
-        data.awsParams = { cmd: 'turn', data: { val: params.value } };
-        break;
-      case 'ptReal': {
-        const code = params.value as string;
-        data.awsParams = { cmd: 'ptReal', data: { command: [code] } };
-        // The BLE client base64-decodes this itself, so pass the code through as-is.
-        data.bleParams = { cmd: 'ptReal', data: code };
-        break;
-      }
-      case 'rgbScene': {
-        const [awsCode, bleCode] = params.value as [string, string | undefined];
-        // A scene is a sequence of 20-byte frames. AWS takes them in one message;
-        // BLE writes them in order over a single connection.
-        const awsFrames = awsCode ? codeToFrames(awsCode) : [];
-        const bleFrames = codeToFrames(bleCode || awsCode || '');
-        if (awsFrames.length > 0) {
-          data.awsParams = { cmd: 'ptReal', data: { command: awsFrames } };
-        }
-        if (bleFrames.length > 0) {
-          data.bleParams = { cmd: 'ptReal', data: bleFrames };
-        }
-        break;
-      }
-      case 'musicMode': {
-        const frames = encodeMusicMode(params.value as MusicModeOptions);
-        data.awsParams = { cmd: 'ptReal', data: { command: frames } };
-        data.bleParams = { cmd: 'ptReal', data: frames };
-        break;
-      }
-      default:
-        throw new Error('Invalid command');
-    }
+    const data = buildTransportCommands(params, model, deviceConf);
 
     if (accessory.context.useLanControl && data.lanParams && this.lanClient) {
       try {
@@ -1004,11 +1046,28 @@ export class GoveePlatform implements DynamicPlatformPlugin {
       }
     }
 
+    // Commands without a BLE form have nowhere else to go: report the failure to HomeKit
+    // rather than letting it show a state the device never received
     if (!data.bleParams) {
-      return true;
+      throw new Error(platformLang.noConnMethod);
+    }
+
+    // BLE commands are slow and rate-limited, so a newer command of the same kind for the
+    // same device makes a still-queued older one obsolete (e.g. dragging a slider)
+    const kind = BLE_COLOUR_COMMANDS.has(params.cmd) ? 'colour' : params.cmd;
+    const coalesceKey = kind === 'ptReal' ? undefined : `${accessory.context.gvDeviceId}:${kind}`;
+    const seq = ++this.bleCommandSeq;
+    if (coalesceKey) {
+      this.bleLatestCommand.set(coalesceKey, seq);
     }
 
     return this.queue.add(async () => {
+      if (coalesceKey) {
+        if (this.bleLatestCommand.get(coalesceKey) !== seq) {
+          return true;
+        }
+        this.bleLatestCommand.delete(coalesceKey);
+      }
       if (accessory.context.useBleControl && data.bleParams && this.bleClient) {
         try {
           await this.bleClient.updateDevice(accessory, data.bleParams);
@@ -1033,7 +1092,8 @@ export class GoveePlatform implements DynamicPlatformPlugin {
           accessory.log?.(`[LAN] ${platformLang.curIP} [${ipAddress}]`);
         }
         if (Object.keys(params).length > 0) {
-          this.receiveDeviceUpdate(accessory, { source: 'LAN', state: params.state as 'on' | 'off' });
+          // LAN status replies are { onOff, brightness, color, colorTemInKelvin }
+          this.receiveDeviceUpdate(accessory, { ...params, source: 'LAN' });
         }
       }
     });
@@ -1042,46 +1102,27 @@ export class GoveePlatform implements DynamicPlatformPlugin {
   receiveUpdateAWS(payload: Record<string, unknown>): void {
     const accessory = this.devicesInHB.get(this.api.hap.uuid.generate(payload.device as string));
     if (accessory) {
-      this.receiveDeviceUpdate(accessory, { source: 'AWS', ...payload } as ExternalUpdateParams);
+      this.receiveDeviceUpdate(accessory, { ...payload, source: 'AWS' } as RawDeviceUpdate);
     }
   }
 
-  receiveDeviceUpdate(accessory: GoveePlatformAccessoryWithControl, params: ExternalUpdateParams): void {
+  receiveDeviceUpdate(accessory: GoveePlatformAccessoryWithControl, params: RawDeviceUpdate): void {
     if (!accessory?.control?.externalUpdate) {
       return;
     }
 
-    const data: ExternalUpdateParams = { source: params.source };
-    if (params.state && typeof params.state === 'object' && hasProperty(params.state, 'onOff')) {
-      const onOff = (params.state as Record<string, unknown>).onOff;
-      const onOffNum = typeof onOff === 'number' ? onOff : Number(onOff);
-      data.state = !Number.isNaN(onOffNum) && [1, 17].includes(onOffNum) ? 'on' : 'off';
-    } else if (typeof params.state === 'string') {
-      data.state = params.state;
+    const data = normaliseDeviceUpdate(params, accessory.context.gvModel);
+    if (Object.keys(data).length <= 1) {
+      return;
     }
 
-    if (hasProperty(params, 'battery')) {
-      data.battery = Math.min(Math.max(params.battery!, 0), 100);
-    }
-    if (hasProperty(params, 'leakDetected')) {
-      data.leakDetected = params.leakDetected;
-    }
-    if (hasProperty(params, 'temperature')) {
-      data.temperature = params.temperature;
-    }
-    if (hasProperty(params, 'humidity')) {
-      data.humidity = params.humidity;
-    }
-    if (hasProperty(params, 'online')) {
-      data.online = params.online;
-    }
-
-    if (Object.keys(data).length > 1) {
-      try {
-        accessory.control.externalUpdate(data);
-      } catch (err) {
-        this.log.warn('[%s] %s %s.', accessory.displayName, platformLang.devNotUpdated, parseError(err));
-      }
+    const onError = (err: unknown) =>
+      this.log.warn('[%s] %s %s.', accessory.displayName, platformLang.devNotUpdated, parseError(err));
+    try {
+      // Some handlers are async: catch their rejections too
+      Promise.resolve(accessory.control.externalUpdate(data)).catch(onError);
+    } catch (err) {
+      onError(err);
     }
   }
 
@@ -1090,4 +1131,3 @@ export class GoveePlatform implements DynamicPlatformPlugin {
   }
 }
 
-export default GoveePlatform;

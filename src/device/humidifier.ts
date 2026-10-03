@@ -197,4 +197,3 @@ export class HumidifierDevice extends GoveeDeviceBase {
   }
 }
 
-export default HumidifierDevice;

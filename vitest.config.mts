@@ -14,6 +14,13 @@ export default defineConfig({
       provider: 'v8',
       include: ['src/**/*.ts'],
       exclude: ['src/**/*.{test,spec}.ts', 'src/**/__tests__/**'],
+      // A ratchet: raise these as coverage grows, never lower them
+      thresholds: {
+        statements: 40,
+        branches: 31,
+        functions: 35,
+        lines: 40,
+      },
     },
   },
   oxc: {
