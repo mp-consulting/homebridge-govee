@@ -174,7 +174,7 @@
 
   // ── Assistant (AI) ─────────────────────────────────────────────────────────
   // Talks to the plugin's server-side routes registered by
-  // @mp-consulting/homebridge-ai-kit (`registerAiRoutes`) through the global
+  // @mp-consulting/homebridge-ai-core/plugin (`registerAiRoutes`) through the global
   // `homebridge` object from @homebridge/plugin-ui-utils.
 
   // Generic four-point sparkle (not a product logo).
