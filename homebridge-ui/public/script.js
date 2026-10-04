@@ -214,6 +214,103 @@ const capabilityCache = {};
 /** Scene icons already inlined by the server, keyed by source URL. */
 const iconCache = new Map();
 
+// ── Assistant (Homebridge AI Kit) ──────────────────────────────
+// Shown only when the shared HomebridgeAiKit platform is set up and enabled.
+
+let assistantEnabled = false;
+
+/**
+ * Error text sent to the Assistant: email addresses, IP addresses and Govee device IDs
+ * (they can appear in Govee's error bodies) are masked.
+ */
+function scrubForAssistant(text) {
+  return String(text ?? '')
+    .replace(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, '<email>')
+    .replace(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g, '<IP address>')
+    .replace(/\b[0-9a-f]{2}(?::[0-9a-f]{2}){5,7}\b/gi, '<device id>');
+}
+
+/** Device facts the Assistant may see: no device ID, IP address, credentials or tokens. */
+function assistantDevice(type, device) {
+  const meta = deviceMeta[device.deviceId] || {};
+  return {
+    label: device.label,
+    model: meta.model || device.model,
+    configList: type,
+    foundInGoveeAccount: meta.goodsType !== undefined,
+    customIpAddressSet: !!device.customIPAddress,
+    ignored: !!device.ignoreDevice,
+  };
+}
+
+/** Plugin settings the Assistant may see, from the Settings tab (never the login itself). */
+function assistantContext(extra) {
+  const checked = id => !!document.getElementById(id)?.checked;
+  const credentials = currentCredentials();
+  const disabled = [['awsDisable', 'AWS IoT'], ['lanDisable', 'LAN'], ['bleDisable', 'BLE']]
+    .filter(([id]) => checked(id))
+    .map(([, name]) => name);
+  const deviceCount = Object.keys(deviceTypes).reduce((count, type) => count + (pluginConfig[type]?.length || 0), 0);
+  return [
+    extra,
+    credentials.username && credentials.password
+      ? 'Govee account email and password are entered.'
+      : 'No Govee account credentials are entered (LAN and BLE only).',
+    credentials.code ? 'A verification code is entered.' : '',
+    disabled.length ? `Disabled connections: ${disabled.join(', ')}.` : 'AWS IoT, LAN and BLE are all enabled.',
+    checked('ignoreMatter') ? 'Matter-capable models are ignored.' : '',
+    `${deviceCount} device(s) in the configuration.`,
+  ].filter(Boolean).join(' ');
+}
+
+/** Streams an explanation of `error` into `answerEl`. */
+async function explainWithAssistant(button, answerEl, { error, context, device, title }) {
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  answerEl.classList.remove('d-none');
+  const answer = MpKit.ai.renderAnswer(answerEl, { title });
+  try {
+    const res = await MpKit.ai.explain({ error: scrubForAssistant(error), context, device }, { onChunk: answer.append });
+    answer.done(res);
+  } catch (e) {
+    answer.error(e);
+  } finally {
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+  }
+}
+
+/**
+ * Shows an error alert in `container`, with an "Explain" button when the Assistant is on.
+ * Without the Assistant it renders the same plain alert as before.
+ */
+function showProblem(container, { message, variant = 'danger', context, device, title }) {
+  if (!container) {
+    return;
+  }
+  if (!assistantEnabled) {
+    container.innerHTML = `<div class="alert alert-${variant}">${escapeHtml(message)}</div>`;
+    return;
+  }
+  container.innerHTML = `
+    <div class="alert alert-${variant} mb-0">
+      <div class="d-flex justify-content-between align-items-start gap-2">
+        <div>${escapeHtml(message)}</div>
+        ${MpKit.ai.renderButton({ label: 'Explain', size: 'sm', className: 'flex-shrink-0 js-explain' })}
+      </div>
+    </div>
+    <div class="assistant-answer mt-2 d-none"></div>
+  `;
+  const button = container.querySelector('.js-explain');
+  const answerEl = container.querySelector('.assistant-answer');
+  button.addEventListener('click', () => explainWithAssistant(button, answerEl, {
+    error: message,
+    context: assistantContext(context),
+    device,
+    title,
+  }));
+}
+
 /** Reads a possibly dotted path, e.g. `musicModeLive.effect`. */
 function getFieldValue(obj, path) {
   return path.split('.').reduce((acc, key) => (acc == null ? undefined : acc[key]), obj);
@@ -1094,7 +1191,15 @@ async function loadScenePicker(type, index) {
     renderScenePicker(library, diys);
     body.dataset.loadedFor = device.deviceId;
   } catch (err) {
-    body.innerHTML = `<div class="alert alert-danger mb-0">${escapeHtml(err.message || 'Could not load scenes')}</div>`;
+    showProblem(body, {
+      message: err.message || 'Could not load scenes',
+      context: 'Loading the Govee scene library and DIY effects for one device in the plugin settings failed '
+        + '(the bundled catalogue had no entry for this model either).',
+      device: assistantDevice(type, device),
+      title: 'Why did the scenes not load?',
+    });
+    // The plugin's own alerts in the picker have no bottom margin
+    body.querySelector('.alert')?.classList.add('mb-0');
   }
 }
 
@@ -1312,10 +1417,87 @@ function refreshScenePickerSelection() {
   const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
   tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
 
+  // Assistant: on only when the shared HomebridgeAiKit block is set up and enabled
+  let assistantAvailable = false;
+  try {
+    if (window.MpKit && MpKit.ai) {
+      const status = await MpKit.ai.status();
+      assistantAvailable = true;
+      assistantEnabled = !!(status && status.enabled);
+    }
+  } catch {
+    // Routes missing or older Homebridge UI: no Assistant
+  }
+  if (assistantAvailable && !assistantEnabled) {
+    document.getElementById('assistant-hint').classList.remove('d-none');
+  }
+
   // Field mappings
   const textFields = ['username', 'password', 'code'];
   const numberFields = ['httpRefreshTime', 'lanRefreshTime', 'lanScanInterval', 'bleRefreshTime', 'bleControlInterval'];
   const booleanFields = ['ignoreMatter', 'disableDeviceLogging', 'colourSafeMode', 'awsDisable', 'lanDisable', 'bleDisable'];
+
+  // Fill the Settings tab from pluginConfig
+  const fillSettingsForm = () => {
+    // Load text fields
+    textFields.forEach(field => {
+      const el = document.getElementById(field);
+      if (el) {
+        el.value = pluginConfig[field] || '';
+      }
+    });
+
+    // Load number fields
+    numberFields.forEach(field => {
+      const el = document.getElementById(field);
+      if (el && pluginConfig[field] !== undefined) {
+        el.value = pluginConfig[field];
+      }
+    });
+
+    // Load boolean fields
+    booleanFields.forEach(field => {
+      const el = document.getElementById(field);
+      if (el) {
+        el.checked = pluginConfig[field] || false;
+      }
+    });
+  };
+
+  // Copy the Settings tab into `target` (pluginConfig, or a draft of it)
+  const readSettingsForm = (target) => {
+    // Save text fields
+    textFields.forEach(field => {
+      const el = document.getElementById(field);
+      if (el) {
+        const value = el.value.trim();
+        if (value) {
+          target[field] = value;
+        } else {
+          delete target[field];
+        }
+      }
+    });
+
+    // Save number fields
+    numberFields.forEach(field => {
+      const el = document.getElementById(field);
+      if (el) {
+        const value = parseInt(el.value, 10);
+        if (!isNaN(value)) {
+          target[field] = value;
+        }
+      }
+    });
+
+    // Save boolean fields
+    booleanFields.forEach(field => {
+      const el = document.getElementById(field);
+      if (el) {
+        target[field] = el.checked;
+      }
+    });
+  };
 
   // Load configuration
   const loadConfig = async () => {
@@ -1323,29 +1505,7 @@ function refreshScenePickerSelection() {
       const config = await homebridge.getPluginConfig();
       pluginConfig = config[0] || { platform: 'Govee', name: 'Govee' };
 
-      // Load text fields
-      textFields.forEach(field => {
-        const el = document.getElementById(field);
-        if (el) {
-          el.value = pluginConfig[field] || '';
-        }
-      });
-
-      // Load number fields
-      numberFields.forEach(field => {
-        const el = document.getElementById(field);
-        if (el && pluginConfig[field] !== undefined) {
-          el.value = pluginConfig[field];
-        }
-      });
-
-      // Load boolean fields
-      booleanFields.forEach(field => {
-        const el = document.getElementById(field);
-        if (el) {
-          el.checked = pluginConfig[field] || false;
-        }
-      });
+      fillSettingsForm();
 
       // Auto-populate devices from cached discovery (from plugin startup)
       await loadCachedDevices();
@@ -1429,37 +1589,7 @@ function refreshScenePickerSelection() {
     saveBtn.disabled = true;
 
     try {
-      // Save text fields
-      textFields.forEach(field => {
-        const el = document.getElementById(field);
-        if (el) {
-          const value = el.value.trim();
-          if (value) {
-            pluginConfig[field] = value;
-          } else {
-            delete pluginConfig[field];
-          }
-        }
-      });
-
-      // Save number fields
-      numberFields.forEach(field => {
-        const el = document.getElementById(field);
-        if (el) {
-          const value = parseInt(el.value, 10);
-          if (!isNaN(value)) {
-            pluginConfig[field] = value;
-          }
-        }
-      });
-
-      // Save boolean fields
-      booleanFields.forEach(field => {
-        const el = document.getElementById(field);
-        if (el) {
-          pluginConfig[field] = el.checked;
-        }
-      });
+      readSettingsForm(pluginConfig);
 
       // Clean up empty device arrays
       Object.keys(deviceTypes).forEach(type => {
@@ -1539,14 +1669,25 @@ function refreshScenePickerSelection() {
         document.getElementById('code').focus();
       } else {
         homebridge.toast.warning(response.message || 'Connection failed');
-        loginResult.innerHTML = `<div class="alert alert-warning">${escapeHtml(response.message || 'Connection failed')}</div>`;
+        showProblem(loginResult, {
+          message: response.message || 'Connection failed',
+          variant: 'warning',
+          context: response.twoFactorInvalid
+            ? 'Test Connection logged in to the Govee cloud with a verification code, and Govee rejected the code.'
+            : 'Test Connection tried to log in to the Govee cloud (app2.govee.com) from the plugin settings and Govee refused.',
+          title: 'Why did the Govee login fail?',
+        });
         if (response.twoFactorInvalid) {
           document.getElementById('code').focus();
         }
       }
     } catch (err) {
       homebridge.toast.error(err.message || 'Connection failed');
-      loginResult.innerHTML = `<div class="alert alert-danger">${escapeHtml(err.message || 'Connection failed')}</div>`;
+      showProblem(loginResult, {
+        message: err.message || 'Connection failed',
+        context: 'Test Connection could not complete a Govee cloud login from the plugin settings.',
+        title: 'Why did the connection test fail?',
+      });
     } finally {
       spinner.classList.add('d-none');
       btn.disabled = false;
@@ -1686,7 +1827,11 @@ function refreshScenePickerSelection() {
       }
     } catch (err) {
       homebridge.toast.error(err.message || 'Discovery failed');
-      deviceList.innerHTML = `<div class="alert alert-danger">Error: ${escapeHtml(err.message || 'Unknown error')}</div>`;
+      showProblem(deviceList, {
+        message: `Error: ${err.message || 'Unknown error'}`,
+        context: 'Discover Devices logged in to the Govee cloud and asked for the account\'s device list, and it failed.',
+        title: 'Why did discovery fail?',
+      });
     } finally {
       spinner.classList.add('d-none');
       btn.disabled = false;
@@ -1753,16 +1898,113 @@ function refreshScenePickerSelection() {
         resultDiv.innerHTML = `<div class="alert alert-success">${escapeHtml(response.message)}</div>`;
       } else {
         homebridge.toast.warning(response.message || 'Cache partially cleared');
-        resultDiv.innerHTML = `<div class="alert alert-warning">${escapeHtml(response.message || 'Cache partially cleared')}</div>`;
+        showProblem(resultDiv, {
+          message: response.message || 'Cache partially cleared',
+          variant: 'warning',
+          context: 'Clear Cache deletes the files in govee_cache and the AWS IoT certificate persist/govee.pfx in the Homebridge storage folder; some could not be removed.',
+          title: 'Why was the cache only partly cleared?',
+        });
       }
     } catch (err) {
       homebridge.toast.error(err.message || 'Failed to clear cache');
-      resultDiv.innerHTML = `<div class="alert alert-danger">${escapeHtml(err.message || 'Failed to clear cache')}</div>`;
+      showProblem(resultDiv, {
+        message: err.message || 'Failed to clear cache',
+        context: 'Clear Cache (govee_cache folder and persist/govee.pfx in the Homebridge storage folder) failed.',
+        title: 'Why did clearing the cache fail?',
+      });
     } finally {
       spinner.classList.add('d-none');
       btn.disabled = false;
     }
   });
+
+  // ── Assistant: describe your setup ─────────────────────────────
+  // Only the General and Connection settings are sent and changed; the Govee login
+  // (username, password, verification code) and the device lists stay in the browser.
+
+  const ASSISTANT_SECRET_KEYS = ['username', 'password', 'code'];
+  const isAssistantSetting = (key, schemaProps) => key in schemaProps
+    && !ASSISTANT_SECRET_KEYS.includes(key)
+    && !(key in deviceTypes);
+
+  if (assistantEnabled) {
+    document.getElementById('assistant-config-card').classList.remove('d-none');
+    document.getElementById('assistant-config-badge').innerHTML = MpKit.ai.renderBadge();
+    document.getElementById('assistant-config-action').innerHTML = MpKit.ai.renderButton({ label: 'Suggest changes', id: 'btn-assistant-config' });
+
+    document.getElementById('btn-assistant-config').addEventListener('click', async () => {
+      const request = document.getElementById('assistant-config-request').value.trim();
+      if (!request) {
+        homebridge.toast.error('Describe what you want to change first');
+        return;
+      }
+      const button = document.getElementById('btn-assistant-config');
+      const result = document.getElementById('assistant-config-result');
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      result.innerHTML = MpKit.ai.renderThinking('Preparing a suggestion…');
+      try {
+        const fullSchema = await homebridge.getPluginConfigSchema();
+        const schemaProps = (fullSchema.schema || fullSchema).properties || {};
+        // Settings as currently shown in the form, without the login or device lists
+        const draft = { ...pluginConfig };
+        readSettingsForm(draft);
+        const shareable = {};
+        Object.keys(draft).forEach(k => {
+          if (isAssistantSetting(k, schemaProps)) {
+            shareable[k] = draft[k];
+          }
+        });
+        const properties = {};
+        Object.keys(schemaProps).forEach(k => {
+          if (isAssistantSetting(k, schemaProps)) {
+            properties[k] = schemaProps[k];
+          }
+        });
+        const schema = { pluginAlias: fullSchema.pluginAlias, pluginType: fullSchema.pluginType, schema: { type: 'object', properties } };
+
+        const res = await MpKit.ai.config({ schema, request, current: shareable });
+        const proposed = res.config || {};
+        // Keep the current key order, then any newly suggested settings; drop anything else
+        const suggested = {};
+        Object.keys(shareable).forEach(k => {
+          suggested[k] = k in proposed ? proposed[k] : shareable[k];
+        });
+        Object.keys(proposed).forEach(k => {
+          if (isAssistantSetting(k, schemaProps) && !(k in suggested)) {
+            suggested[k] = proposed[k];
+          }
+        });
+
+        result.innerHTML = '<div class="assistant-explanation mb-2"></div><div class="assistant-diff"></div>';
+        MpKit.ai.renderAnswer(result.querySelector('.assistant-explanation'), { text: res.explanation, streaming: false, title: 'Suggested change' });
+        MpKit.ai.renderDiff(result.querySelector('.assistant-diff'), {
+          before: shareable,
+          after: suggested,
+          applyLabel: 'Apply',
+          onApply: async () => {
+            // Keep the typed login and every device list; replace only the suggested settings
+            readSettingsForm(pluginConfig);
+            Object.keys(shareable).forEach(k => {
+              if (!(k in suggested)) {
+                delete pluginConfig[k];
+              }
+            });
+            Object.assign(pluginConfig, suggested);
+            fillSettingsForm();
+            await homebridge.updatePluginConfig([pluginConfig]);
+            homebridge.toast.success('Change applied. Click Save Configuration to keep it.');
+          },
+        });
+      } catch (e) {
+        result.innerHTML = '';
+        MpKit.ai.renderAnswer(result, { streaming: false }).error(e);
+      } finally {
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+      }
+    });
+  }
 
   // Make functions globally available
   window.addDevice = addDevice;

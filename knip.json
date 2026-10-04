@@ -6,14 +6,11 @@
   ],
   "project": [
     "src/**/*.ts",
+    "homebridge-ui/*.js",
     "scripts/**/*.js",
     "test/**/*.ts"
   ],
-  "ignoreBinaries": [
-    "perl"
-  ],
   "ignoreDependencies": [
-    "@mp-consulting/homebridge-ui-kit",
     "bootstrap",
     "bootstrap-icons",
     "homebridge-config-ui-x",

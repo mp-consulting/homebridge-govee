@@ -94,6 +94,32 @@ The plugin uses a stable client id derived from your account, so this is a one-t
 - **LAN**: Local network control (faster, no internet required for supported devices)
 - **BLE**: Bluetooth control for nearby devices
 
+#### Assistant (optional)
+
+The config UI can explain problems and suggest settings with the **Assistant**. It is
+off until you set up an AI provider once for all MP Consulting plugins in
+[Homebridge AI Kit](https://github.com/mp-consulting/homebridge-ai-kit) (or the
+Homebridge Glass UI): the plugin reads the shared `HomebridgeAiKit` platform block from
+`config.json` and has no AI settings of its own. When it is not set up, the UI looks
+exactly as before, with a small tip in the Settings tab.
+
+When it is enabled:
+
+- **Explain** buttons appear next to a failed **Test Connection**, a failed
+  **Discover Devices**, a scene library that could not be loaded, and a failed
+  **Clear Cache**. The answer streams into an Assistant panel below.
+- **Describe Your Setup** (Settings tab) turns a request such as *"I only use Bluetooth
+  sensors, no cloud"* into a change to the General and Connection settings, shown as a
+  diff to apply or reject. Applied changes are kept after you click **Save Configuration**.
+
+What is sent to the provider: the error message (email addresses, IP addresses and device
+IDs masked), which connections are disabled, whether credentials and a verification code
+are entered (yes/no only), `ignoreMatter`, the number of configured devices, and for a
+device its label, model, device list and found-in-account / custom-IP-set / ignored flags.
+Describe Your Setup sends only the General and Connection settings and their schema. Your
+Govee email, password, verification code, tokens, device IDs, IP addresses and device
+lists are never sent, and the provider's API key stays on the Homebridge server.
+
 #### Device Discovery
 
 The config UI can discover the devices on your Govee account and add them to the configuration automatically — no need to type device IDs by hand.
@@ -142,6 +168,12 @@ npm run test:coverage # Run tests with coverage (thresholds enforced in CI)
 npm run test:watch   # Run tests in watch mode
 npm run watch        # Build, link, and run with nodemon
 ```
+
+The build vendors `@mp-consulting/homebridge-ui-kit` and Bootstrap into
+`homebridge-ui/public/lib/` with `mp-ui-kit-copy --vendor`. Until
+`@mp-consulting/homebridge-ai-kit` 2.0.0 and `@mp-consulting/homebridge-ui-kit` 1.2.0
+are published, both are installed from sibling checkouts (`file:../homebridge-mcp-server`
+and `file:../homebridge-ui-kit`); they must become `^2.0.0` and `^1.2.0` before release.
 
 ### Architecture
 

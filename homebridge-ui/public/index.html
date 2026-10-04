@@ -391,6 +391,27 @@
           </div>
         </div>
 
+        <!-- Assistant: describe your setup (shown only when the Assistant is enabled) -->
+        <div class="card d-none" id="assistant-config-card">
+          <div class="card-header d-flex align-items-center gap-2">
+            <h5 class="mb-0">Describe Your Setup</h5>
+            <span id="assistant-config-badge"></span>
+          </div>
+          <div class="card-body">
+            <label class="form-label" for="assistant-config-request">What should change?</label>
+            <textarea class="form-control mb-2" id="assistant-config-request" rows="2"
+              placeholder="e.g. I only use Bluetooth sensors on a Raspberry Pi, no cloud"></textarea>
+            <div class="form-text mb-3">The Assistant suggests changes to the General and Connection settings for you to review. Your Govee login and device list are never sent.</div>
+            <div id="assistant-config-action"></div>
+            <div id="assistant-config-result" class="mt-3"></div>
+          </div>
+        </div>
+
+        <p id="assistant-hint" class="small text-body-secondary d-none">
+          <i class="bi bi-info-circle me-1"></i>Tip: install and enable <strong>Homebridge AI Kit</strong> to get the Assistant,
+          which explains login, discovery and scene errors here.
+        </p>
+
       </div><!-- /#settings -->
 
       <!-- ── Tools Tab ─────────────────────────────────────────── -->

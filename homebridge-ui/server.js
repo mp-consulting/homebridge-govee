@@ -12,6 +12,7 @@ import {
   goveeGetSceneLibrary,
 } from '../dist/utils/govee-content.js';
 import { getOfflineSceneLibrary } from '../dist/utils/scene-catalogue.js';
+import { registerAssistant } from './assistant.js';
 
 // Scene icons are only proxied from Govee's asset CDN and web app
 const ICON_HOSTS = ['d1f2504ijhdyjw.cloudfront.net', 'app.govee.com'];
@@ -72,6 +73,9 @@ class GoveeUiServer extends HomebridgePluginUiServer {
     // Fetch scene icons in batches and return them inline, so the browser never has
     // to reach a third-party CDN
     this.onRequest('/scene-icons', this.getSceneIcons.bind(this));
+
+    // Assistant: /ai/status, /ai/explain, /ai/ask, /ai/config (configured in Homebridge AI Kit)
+    registerAssistant(this);
 
     // Initialize storage
     this.initStorage();
