@@ -48,7 +48,7 @@ src/
   fakegato/             # FakeGato (Eve history) type declarations
 homebridge-ui/          # Custom Homebridge UI (vanilla JS/HTML/CSS, not compiled by TS)
   server.js             # UI server-side handler
-  assistant.js          # Registers the Assistant routes (/ai/*, from @mp-consulting/homebridge-ai-kit/plugin) with the Govee system context; tested in test/ui/
+  assistant.js          # Registers the Assistant routes (/ai/*, from @mp-consulting/homebridge-ai-core/plugin) with the Govee system context; tested in test/ui/
   public/               # UI client-side assets
 config.schema.json      # Homebridge plugin configuration schema
 ```

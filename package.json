@@ -52,7 +52,7 @@
   },
   "dependencies": {
     "@homebridge/plugin-ui-utils": "^2.2.6",
-    "@mp-consulting/homebridge-ai-kit": "file:../homebridge-mcp-server",
+    "@mp-consulting/homebridge-ai-core": "file:../homebridge-mcp-server/packages/ai-core",
     "aws-iot-device-sdk": "^2.2.16",
     "axios": "^1.20.0",
     "fakegato-history": "^0.6.7",

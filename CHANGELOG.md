@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file.
 
 - **Assistant in the config UI.** When an AI provider is set up in Homebridge AI Kit (the shared `HomebridgeAiKit` platform block), an **Explain** button appears next to a failed Test Connection, a failed Discover Devices, a scene library that could not be loaded and a failed Clear Cache. The explanation streams into an Assistant panel, with Govee context (LAN / AWS IoT / BLE / HTTP connections, the new-device verification code, common login and connection errors). Only the error (emails, IPs and device IDs masked), which connections are disabled, yes/no credential flags and non-sensitive device facts (label, model, flags) are sent: never the Govee login, verification code, tokens, device IDs or IP addresses. Without the AI Kit nothing changes, apart from a small tip in the Settings tab.
 - **Describe Your Setup** (Settings tab): describe a change in plain language and the Assistant proposes a change to the General and Connection settings as a diff to apply or reject. The Govee login and device lists are kept out of the request and left untouched on apply.
-- `homebridge-ui/server.js` registers the `/ai/status`, `/ai/explain`, `/ai/ask` and `/ai/config` routes with `registerAiRoutes` from `@mp-consulting/homebridge-ai-kit/plugin` (new runtime dependency), via the new `homebridge-ui/assistant.js`.
+- `homebridge-ui/server.js` registers the `/ai/status`, `/ai/explain`, `/ai/ask` and `/ai/config` routes with `registerAiRoutes` from `@mp-consulting/homebridge-ai-core/plugin` (new runtime dependency), via the new `homebridge-ui/assistant.js`.
 
 ### Changed
 
@@ -17,7 +17,7 @@ All notable changes to this project will be documented in this file.
 
 ### Release blockers
 
-- `@mp-consulting/homebridge-ai-kit` (`file:../homebridge-mcp-server`) and `@mp-consulting/homebridge-ui-kit` (`file:../homebridge-ui-kit`) are local, unpublished checkouts. Change them to `^2.0.0` and `^1.2.0` once published, and regenerate `package-lock.json`.
+- `@mp-consulting/homebridge-ai-core` (`file:../homebridge-mcp-server/packages/ai-core`) and `@mp-consulting/homebridge-ui-kit` (`file:../homebridge-ui-kit`) are local, unpublished checkouts. Change them to `^2.0.0` and `^1.2.0` once published, and regenerate `package-lock.json`.
 
 ## [1.5.2] - 2026-10-03
 

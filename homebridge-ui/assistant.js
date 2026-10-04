@@ -1,4 +1,4 @@
-import { registerAiRoutes } from '@mp-consulting/homebridge-ai-kit/plugin';
+import { registerAiRoutes } from '@mp-consulting/homebridge-ai-core/plugin';
 
 /**
  * Govee background the Assistant gets with every request from this plugin's
