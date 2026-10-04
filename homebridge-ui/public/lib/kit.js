@@ -1,4 +1,4 @@
-/* @mp-consulting/homebridge-ui-kit v1.2.0
+/* @mp-consulting/homebridge-ui-kit v1.2.1
    Brand design system for Homebridge plugins
    https://github.com/mp-consulting/homebridge-ui-kit */
 
