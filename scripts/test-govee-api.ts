@@ -161,7 +161,7 @@ function buildHeaders(
     'User-Agent': endpoint.userAgent,
   };
   if (token) {
-    h['Authorization'] = `Bearer ${token}`;
+    h.Authorization = `Bearer ${token}`;
   }
   return h;
 }

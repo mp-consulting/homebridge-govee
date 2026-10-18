@@ -46,7 +46,7 @@ async function main(): Promise<void> {
   const devices = devData.devices as Array<Record<string, unknown>>;
 
   // Load catalog to check which models are supported
-  let catalogModels: Set<string> = new Set();
+  const catalogModels: Set<string> = new Set();
   try {
     const catalogPath = resolve(__dirname, '../src/catalog/devices.ts');
     const catalogSrc = readFileSync(catalogPath, 'utf-8');
