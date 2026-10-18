@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.3] - 2026-10-18
+
+### Added
+
+- **Govee API diagnostic scripts** for debugging. `scripts/test-govee-api.ts` checks API endpoint connectivity when tracking down HTTP client issues, and `scripts/dump-devices.ts` dumps device details to verify catalog coverage.
+
+### Notes
+
+- Development tooling only: `scripts/` is outside the published `files`, so the published package is identical to 1.6.2 and nothing changes for users.
+
 ## [1.6.2] - 2026-10-04
 
 ### Fixed
