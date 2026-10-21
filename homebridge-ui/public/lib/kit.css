@@ -1,9 +1,18 @@
-/* @mp-consulting/homebridge-ui-kit v1.2.2 */
+/* @mp-consulting/homebridge-ui-kit v1.4.0 */
 
 /* ── Design tokens ──────────────────────────────────────────────────────────
    CSS custom properties used throughout the design system.
    Override these in your plugin's styles.css to customize per-plugin.
-   Light values live on :root; dark values follow Bootstrap's data-bs-theme.
+   Light values live on :root. Dark values apply under Bootstrap's
+   [data-bs-theme="dark"] or under the selector-agnostic .mp-theme-dark class,
+   for hosts whose dark mode does not use Bootstrap's attribute (e.g. a
+   `body.dark-mode` app): add .mp-theme-dark next to your own class instead of
+   copying these values.
+
+   The kit's rules are deliberately NOT wrapped in a cascade layer:
+   unlayered styles beat every layered style regardless of specificity or
+   order, so unlayered Bootstrap would then override the kit's Bootstrap
+   remaps (primary button, tabs, spinner) and break them.
    ────────────────────────────────────────────────────────────────────────── */
 
 :root {
@@ -19,13 +28,30 @@
   --mp-status-offline: #ef4444;
   --mp-status-checking: #94a3b8;
 
+  /* Accessible text and focus colours (plain values, so they hold contrast
+     whether or not the host switches Bootstrap's variables) */
+  --mp-text-subtle: #5c636a;           /* secondary hints; 6.1:1 on white */
+  --mp-focus-ring: #4f46e5;            /* focus outlines; 6.3:1 on white */
+
   /* Surfaces */
   --mp-surface: rgba(0, 0, 0, 0.02);
   --mp-border: rgba(0, 0, 0, 0.1);
 
+  /* Skeleton shimmer */
+  --mp-skeleton-base: rgba(0, 0, 0, 0.08);
+  --mp-skeleton-shine: rgba(0, 0, 0, 0.03);
+
   /* Shape */
   --mp-radius: 0.5rem;
   --mp-shadow-hover: 0 0.5rem 1rem rgba(0, 0, 0, 0.12);
+
+  /* Motion. ease-out for things entering or responding to a press,
+     ease-in-out for things moving on screen, drawer for sheets/panels. */
+  --mp-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --mp-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --mp-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --mp-duration-fast: 150ms;
+  --mp-duration: 200ms;
 
   /* Assistant (AI) halo palette. Only ever used for borders, glows and
      decorative dots: text never sits on the gradient. */
@@ -75,12 +101,42 @@
   initial-value: 0deg;
 }
 
-[data-bs-theme="dark"] {
+/* Dark values that do not depend on Bootstrap. */
+[data-bs-theme="dark"],
+.mp-theme-dark {
   --mp-primary-text: #818cf8;
+  --mp-text-subtle: #a3a9b0;           /* 6.5:1 on #212529 */
+  --mp-focus-ring: #818cf8;            /* 5.2:1 on #212529 (the brand indigo is 2.5:1) */
   --mp-surface: rgba(255, 255, 255, 0.03);
   --mp-border: rgba(255, 255, 255, 0.08);
   --mp-shadow-hover: 0 0.5rem 1rem rgba(0, 0, 0, 0.3);
+  --mp-skeleton-base: rgba(255, 255, 255, 0.08);
+  --mp-skeleton-shine: rgba(255, 255, 255, 0.16);
   --mp-ai-text: #d8b4fe;               /* 9.6:1 on #212529 */
+  --mp-ai-glow-opacity: 0.7;
+  --mp-ai-edge-glow-opacity: 0.8;
+  --mp-ai-diff-add-bg: rgba(34, 197, 94, 0.16);
+  --mp-ai-diff-add-text: #bbf7d0;
+  --mp-ai-diff-del-bg: rgba(239, 68, 68, 0.18);
+  --mp-ai-diff-del-text: #fecaca;
+}
+
+/* .mp-theme-dark alone: the host does not switch Bootstrap's variables, so
+   the host colours are plain values (Bootstrap's dark palette). */
+.mp-theme-dark {
+  --mp-ai-surface: #212529;
+  --mp-ai-fg: #dee2e6;
+  --mp-ai-fg-muted: rgba(222, 226, 230, 0.75);
+  --mp-ai-bg: transparent;
+  --mp-ai-border-color: #495057;
+  --mp-ai-success-text: #75b798;
+  --mp-ai-danger-text: #ea868f;
+}
+
+/* Bootstrap's dark theme: follow its variables, so a plugin that customises
+   them is respected. Declared after .mp-theme-dark so it wins when an element
+   has both. */
+[data-bs-theme="dark"] {
   --mp-ai-surface: var(--bs-body-bg, #212529);
   --mp-ai-fg: var(--bs-body-color, #dee2e6);
   --mp-ai-fg-muted: var(--bs-secondary-color, rgba(222, 226, 230, 0.75));
@@ -88,12 +144,6 @@
   --mp-ai-border-color: var(--bs-border-color, #495057);
   --mp-ai-success-text: var(--bs-success-text-emphasis, #75b798);
   --mp-ai-danger-text: var(--bs-danger-text-emphasis, #ea868f);
-  --mp-ai-glow-opacity: 0.7;
-  --mp-ai-edge-glow-opacity: 0.8;
-  --mp-ai-diff-add-bg: rgba(34, 197, 94, 0.16);
-  --mp-ai-diff-add-text: #bbf7d0;
-  --mp-ai-diff-del-bg: rgba(239, 68, 68, 0.18);
-  --mp-ai-diff-del-text: #fecaca;
 }
 
 /* ── Bootstrap 5 overrides ──────────────────────────────────────────────────
@@ -117,6 +167,47 @@
 .spinner-border.text-primary,
 .spinner-grow.text-primary {
   color: var(--mp-primary) !important;
+}
+
+/* Outline secondary button: Bootstrap's #6c757d text is 4.49:1 on a light
+   surface and 3:1 on the dark background; use the contrast-safe token. */
+.btn-outline-secondary {
+  --bs-btn-color: var(--mp-text-subtle);
+}
+
+/* Touch: no grey tap flash (focus-visible rings still show), and no
+   double-tap-to-zoom delay on buttons and tabs. */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn,
+.nav-link {
+  touch-action: manipulation;
+}
+
+/* Press feedback: Bootstrap's own transition list plus a short scale. */
+.btn {
+  transition:
+    color 0.15s ease-in-out,
+    background-color 0.15s ease-in-out,
+    border-color 0.15s ease-in-out,
+    box-shadow 0.15s ease-in-out,
+    transform 160ms var(--mp-ease-out);
+}
+
+.btn:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn {
+    transition: none;
+  }
+
+  .btn:not(:disabled):active {
+    transform: none;
+  }
 }
 
 /* ── Components ─────────────────────────────────────────────────────────────
@@ -162,6 +253,12 @@
   vertical-align: middle;
 }
 
+/* Spacing between a status dot and its badge label (logical, so RTL works
+   without Bootstrap's RTL build). */
+.badge > .mp-status {
+  margin-inline-end: 0.25rem;
+}
+
 .mp-status-online {
   background-color: var(--mp-status-online);
   box-shadow: 0 0 5px var(--mp-status-online-glow);
@@ -183,19 +280,189 @@
 
 /* ── Device card ────────────────────────────────────────── */
 
+/* Only an interactive card (role="button", a link or a button) looks and
+   moves like one; a plain card is static. */
 .mp-device-card {
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-  cursor: pointer;
+  cursor: default;
 }
 
-.mp-device-card:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--mp-shadow-hover) !important;
+.mp-device-card:is([role="button"], [href], button) {
+  cursor: pointer;
+  transition: transform 160ms var(--mp-ease-out), box-shadow 160ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mp-device-card:is([role="button"], [href], button):hover {
+    transform: translateY(-1px);
+    box-shadow: var(--mp-shadow-hover) !important;
+  }
+}
+
+.mp-device-card:is([role="button"], [href], button):active {
+  transform: scale(0.99);
 }
 
 .mp-device-card:focus-visible {
-  outline: 2px solid var(--mp-primary);
+  outline: 2px solid var(--mp-focus-ring);
   outline-offset: 2px;
+}
+
+/* Default card content rendered by MpKit.DeviceList */
+.mp-device-card-body {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.mp-device-card-icon {
+  flex: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--mp-primary-text);
+}
+
+.mp-device-card-text {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Up to two lines (full name in the title attribute); long unbroken names
+   wrap instead of overflowing. */
+.mp-device-card-name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.mp-device-card-subtitle {
+  font-size: 0.8125rem;
+  color: var(--bs-secondary-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The status badge may shrink (ellipsis) instead of squeezing the name. */
+.mp-device-card-body > .badge {
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Device list ────────────────────────────────────────── */
+
+.mp-device-list-search {
+  margin-bottom: 0.75rem;
+}
+
+/* minmax(0, 1fr): an implicit auto track would grow to the widest card's
+   min-content (a long unbroken subtitle) and push the page sideways. */
+.mp-device-list-items {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem;
+}
+
+.mp-device-card-skeleton {
+  cursor: default;
+}
+
+.mp-device-card-skeleton:hover {
+  transform: none;
+  box-shadow: none !important;
+}
+
+/* ── Skeleton shimmer ───────────────────────────────────── */
+
+.mp-skeleton {
+  display: block;
+  border-radius: 0.25rem;
+  background: linear-gradient(90deg, var(--mp-skeleton-base) 25%, var(--mp-skeleton-shine) 50%, var(--mp-skeleton-base) 75%);
+  background-size: 200% 100%;
+  animation: mp-shimmer 1.4s linear infinite;
+}
+
+.mp-skeleton-text {
+  height: 0.75rem;
+  width: 100%;
+}
+
+.mp-skeleton-text + .mp-skeleton-text {
+  margin-top: 0.5rem;
+}
+
+.mp-skeleton-circle {
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+}
+
+.mp-skeleton-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.mp-skeleton-lines {
+  flex: 1;
+  min-width: 0;
+}
+
+@keyframes mp-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* RTL: shimmer travels the other way */
+[dir="rtl"] .mp-skeleton {
+  animation-direction: reverse;
+}
+
+/* ── Log viewer ─────────────────────────────────────────── */
+
+.mp-log {
+  position: relative;
+}
+
+.mp-log-body {
+  direction: ltr;
+  unicode-bidi: isolate;
+  max-height: var(--mp-log-height, 20rem);
+  overflow: auto;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--mp-border);
+  border-radius: var(--mp-radius);
+  background: var(--mp-surface);
+  font-family: var(--bs-font-monospace, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.mp-log-body:focus-visible {
+  outline: 2px solid var(--mp-focus-ring);
+  outline-offset: 2px;
+}
+
+.mp-log-line {
+  min-height: 1.5em;
+  white-space: pre;
+}
+
+.mp-log-wrap .mp-log-line {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mp-log-jump {
+  position: absolute;
+  inset-block-end: 0.75rem;
+  inset-inline-end: 1.25rem;
 }
 
 /* ── Settings surface card ──────────────────────────────── */
@@ -213,8 +480,10 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  max-width: 100%;
   padding: 3rem 1.5rem;
   text-align: center;
+  overflow-wrap: anywhere;
 }
 
 .mp-empty-state-icon {
@@ -231,11 +500,11 @@
   margin: 0 0 0.25rem;
 }
 
+/* A token instead of opacity: the old 0.7 opacity dropped it to 3.3:1. */
 .mp-empty-state-hint {
   font-size: 0.8125rem;
-  color: var(--bs-secondary-color);
+  color: var(--mp-text-subtle);
   margin: 0;
-  opacity: 0.7;
 }
 
 /* ── Loading state ──────────────────────────────────────── */
@@ -253,8 +522,19 @@
 
 /* ── Nav tabs ───────────────────────────────────────────── */
 
+/* One row that scrolls sideways when the tabs do not fit (no scrollbar).
+   The base line is an inset shadow rather than a border: it is painted under
+   the tabs, so the active tab's 2px line covers it, and a scroll container
+   would clip a tab pulled over a real border with a negative margin. */
 .mp-tabs {
-  border-bottom: 1px solid var(--mp-border);
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  box-shadow: inset 0 -1px 0 var(--mp-border);
+}
+
+.mp-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .mp-tabs .nav-link {
@@ -263,17 +543,27 @@
   border-bottom: 2px solid transparent; /* reserve space so the active tab doesn't shift */
   padding: 0.75rem 1.25rem;
   font-weight: 500;
+  white-space: nowrap;
 }
 
-.mp-tabs .nav-link:hover {
-  color: var(--bs-body-color);
-  border-color: transparent;
+@media (hover: hover) and (pointer: fine) {
+  .mp-tabs .nav-link:hover {
+    color: var(--bs-body-color);
+    border-color: transparent;
+  }
 }
 
-.mp-tabs .nav-link.active {
+.mp-tabs .nav-link.active,
+.mp-tabs .nav-link[aria-selected="true"] {
   color: var(--mp-primary-text);
   background: transparent;
   border-bottom-color: var(--mp-primary);
+}
+
+.mp-tabs .nav-link:focus-visible {
+  outline: 2px solid var(--mp-focus-ring);
+  outline-offset: -2px;
+  box-shadow: none;
 }
 
 /* ── Metadata label ─────────────────────────────────────── */
@@ -293,6 +583,51 @@
 
 .mp-view.active {
   display: block;
+}
+
+/* Entrance for a view or wizard step that just became visible (View.show()
+   and Steps add it when switching). */
+.mp-view-in {
+  animation: mp-view-in var(--mp-duration) var(--mp-ease-out);
+}
+
+@keyframes mp-view-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+
+/* View.show() moves focus to the view's heading (tabindex="-1"); a
+   programmatic focus target needs no ring. */
+.mp-focus-target:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ── Layout utilities ───────────────────────────────────── */
+
+/* A text column in a flex row: takes the free space, may shrink below its
+   content and wraps long words instead of pushing siblings out. */
+.mp-text-col {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Bootstrap 5 has no min-width utility; flex/grid children need it to shrink. */
+.min-w-0 {
+  min-width: 0;
+}
+
+/* ── Screen-reader only ─────────────────────────────────── */
+
+.mp-sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
 }
 
 /* ── Support footer ─────────────────────────────────────── */
@@ -319,8 +654,10 @@
   transition: color 0.15s ease;
 }
 
-.mp-footer a:hover {
-  color: var(--mp-primary-text);
+@media (hover: hover) and (pointer: fine) {
+  .mp-footer a:hover {
+    color: var(--mp-primary-text);
+  }
 }
 
 .mp-footer-icon {
@@ -335,19 +672,514 @@
   user-select: none;
 }
 
+/* ── Forms ──────────────────────────────────────────────── */
+
+/* Bootstrap's invalid colour (#dc3545) is 4.3:1 on light surfaces. */
+.mp-field .invalid-feedback {
+  color: var(--bs-danger-text-emphasis, #b02a37);
+}
+
+.mp-required {
+  color: var(--bs-danger-text-emphasis, #b02a37);
+}
+
+.mp-secret-input {
+  font-family: var(--bs-font-monospace, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+}
+
+/* Room for "Copied" so the label swap does not shift the layout */
+.mp-copy-btn {
+  min-width: 6.5em;
+}
+
+.mp-copy-btn.is-copied {
+  color: var(--bs-success-text-emphasis, #0a3622);
+  border-color: var(--bs-success, #198754);
+}
+
+/* Sticky Save bar shown by MpKit.Form.track() while there are unsaved changes */
+.mp-savebar {
+  position: sticky;
+  inset-block-end: 0;
+  z-index: 1020;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-top: 1rem;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--mp-border);
+  border-radius: var(--mp-radius);
+  background: var(--bs-body-bg, #fff);
+  box-shadow: 0 -0.25rem 1rem rgba(0, 0, 0, 0.08);
+  font-size: 0.875rem;
+}
+
+.mp-savebar[hidden] {
+  display: none;
+}
+
+.mp-savebar-actions {
+  display: inline-flex;
+  gap: 0.5rem;
+  margin-inline-start: auto;
+}
+
+/* ── HomeKit setup code ─────────────────────────────────── */
+
+.mp-pin {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin: 0;
+}
+
+.mp-pin-label-box {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 1rem 0.625rem;
+  border: 2px solid currentColor;
+  border-radius: 0.5rem;
+  color: var(--bs-body-color, #212529);
+}
+
+.mp-pin-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color, #6c757d);
+}
+
+.mp-pin-code {
+  direction: ltr;
+  font-family: var(--bs-font-monospace, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.mp-pin-qr {
+  display: block;
+  width: var(--mp-pin-qr-size, 8rem);
+  height: var(--mp-pin-qr-size, 8rem);
+  padding: 0.375rem;
+  border-radius: 0.375rem;
+  background: #fff; /* QR codes need a light quiet zone, also in dark mode */
+}
+
+.mp-pin-qr-slot:empty {
+  display: none;
+}
+
+.mp-pin-actions {
+  flex-basis: 100%;
+}
+
+/* ── Sign-in (OAuth / device code) card ─────────────────── */
+
+.mp-auth-card {
+  border-color: var(--mp-border);
+}
+
+.mp-auth-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.mp-auth-instructions {
+  color: var(--bs-secondary-color);
+  font-size: 0.875rem;
+}
+
+.mp-auth-steps {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  padding-inline-start: 1.25rem;
+}
+
+.mp-auth-steps > li {
+  padding-inline-start: 0.25rem;
+}
+
+.mp-auth-step-text {
+  display: block;
+  margin-bottom: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.mp-auth-code-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mp-auth-code {
+  direction: ltr;
+  padding: 0.25rem 0.75rem;
+  border: 1px dashed var(--mp-border);
+  border-radius: 0.375rem;
+  background: var(--mp-surface);
+  color: var(--bs-body-color, #212529);
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+.mp-auth-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--bs-secondary-color);
+}
+
+.mp-auth-status-icon {
+  display: none;
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+}
+
+.mp-auth-card.is-polling .mp-auth-status-icon {
+  display: inline-block;
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  animation: mp-spin 0.75s linear infinite;
+}
+
+.mp-auth-card.is-success .mp-auth-status {
+  color: var(--bs-success-text-emphasis, #0a3622);
+}
+
+.mp-auth-card.is-success .mp-auth-status-icon {
+  display: inline-block;
+  background: var(--bs-success, #198754);
+}
+
+.mp-auth-card.is-error .mp-auth-status,
+.mp-auth-card.is-expired .mp-auth-status {
+  color: var(--bs-danger-text-emphasis, #b02a37);
+}
+
+.mp-auth-retry {
+  margin-top: 0.75rem;
+}
+
+@keyframes mp-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Steps (wizard progress) ────────────────────────────── */
+
+.mp-steps {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0 0 1.5rem;
+  padding: 0;
+  list-style: none;
+  counter-reset: none;
+}
+
+.mp-step {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+  color: var(--bs-secondary-color);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+/* Connector line to the previous step */
+.mp-step + .mp-step::before {
+  content: '';
+  position: absolute;
+  inset-block-start: calc(0.875rem - 1px); /* centred on the 1.75rem marker */
+  inset-inline-end: calc(50% + 1.125rem);
+  width: calc(100% - 2.25rem + 0.5rem);
+  height: 2px;
+  background: var(--mp-border);
+}
+
+.mp-step.is-complete::before,
+.mp-step.is-current::before {
+  background: var(--mp-primary);
+}
+
+.mp-step-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 2px solid var(--mp-border);
+  border-radius: 50%;
+  background: var(--bs-body-bg, #fff);
+  font-weight: 600;
+}
+
+.mp-step.is-current {
+  color: var(--mp-primary-text);
+  font-weight: 600;
+}
+
+.mp-step.is-current .mp-step-marker {
+  border-color: var(--mp-primary);
+  color: var(--mp-primary-text);
+}
+
+.mp-step.is-complete .mp-step-marker {
+  border-color: var(--mp-primary);
+  background: var(--mp-primary);
+  color: #fff;
+}
+
+.mp-step-title {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* Narrow: keep markers, hide titles except the current one */
+@media (max-width: 30rem) {
+  .mp-step:not(.is-current) .mp-step-title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}
+
+/* ── Toasts (fallback outside Homebridge) ───────────────── */
+
+.mp-toast-container {
+  position: fixed;
+  inset-block-end: 1rem;
+  inset-inline-end: 1rem;
+  z-index: 1095;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: min(22rem, calc(100vw - 2rem));
+  pointer-events: none;
+}
+
+.mp-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-inline-start: 4px solid var(--mp-toast-accent, var(--mp-primary));
+  border-radius: var(--mp-radius);
+  background: var(--bs-body-bg, #fff);
+  color: var(--bs-body-color, #212529);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  font-size: 0.875rem;
+  pointer-events: auto;
+  transition:
+    opacity var(--mp-duration) var(--mp-ease-out),
+    transform var(--mp-duration) var(--mp-ease-out);
+}
+
+/* Entrance: a transition from these values when the toast is inserted, so a
+   toast added while another leaves never restarts a keyframe. */
+@starting-style {
+  .mp-toast {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+}
+
+/* Exit: Toast.close() adds this and removes the element on transitionend. */
+.mp-toast.is-leaving {
+  opacity: 0;
+  transform: translateY(0.25rem);
+  pointer-events: none;
+  transition:
+    opacity var(--mp-duration-fast) ease-out,
+    transform var(--mp-duration-fast) ease-out;
+}
+
+.mp-toast-success { --mp-toast-accent: var(--bs-success, #198754); }
+.mp-toast-error { --mp-toast-accent: var(--bs-danger, #dc3545); }
+.mp-toast-warning { --mp-toast-accent: var(--bs-warning, #ffc107); }
+.mp-toast-info { --mp-toast-accent: var(--mp-primary); }
+
+.mp-toast-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: var(--mp-toast-accent);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.mp-toast-warning .mp-toast-icon {
+  color: #000;
+}
+
+.mp-toast-body {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.mp-toast-title {
+  margin: 0 0 0.125rem;
+  font-weight: 600;
+}
+
+.mp-toast-message {
+  margin: 0;
+}
+
+.mp-toast-close,
+.mp-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-width: 1.75rem;
+  min-height: 1.75rem;
+  padding: 0 0.25rem;
+  border: 0;
+  border-radius: 0.25rem;
+  background: transparent;
+  color: var(--bs-secondary-color, #6c757d);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mp-toast-close:hover {
+    color: var(--bs-body-color, #212529);
+  }
+}
+
+.mp-toast-close:focus-visible,
+.mp-icon-button:focus-visible {
+  outline: 2px solid var(--mp-focus-ring);
+  outline-offset: 1px;
+}
+
+/* ── Confirm dialog ─────────────────────────────────────── */
+
+.mp-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.5);
+  animation: mp-fade-in var(--mp-duration-fast) ease-out;
+}
+
+.mp-dialog {
+  width: min(28rem, 100%);
+  padding: 1.25rem;
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-radius: var(--mp-radius);
+  background: var(--bs-body-bg, #fff);
+  color: var(--bs-body-color, #212529);
+  box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.3);
+  overflow-wrap: anywhere;
+  animation: mp-dialog-in var(--mp-duration) var(--mp-ease-out);
+}
+
+.mp-dialog-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.mp-dialog-message {
+  margin: 0;
+  color: var(--bs-secondary-color, #6c757d);
+}
+
+.mp-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.mp-dialog-open {
+  overflow: hidden;
+}
+
+@keyframes mp-fade-in {
+  from { opacity: 0; }
+}
+
+@keyframes mp-dialog-in {
+  from { opacity: 0; transform: scale(0.96); }
+}
+
+/* ── Forced colours: box-shadow lines vanish ────────────── */
+
+@media (forced-colors: active) {
+  .mp-tabs {
+    border-bottom: 1px solid CanvasText;
+  }
+}
+
 /* ── Reduced motion ─────────────────────────────────────── */
 
+/* Nothing moves; activity indicators and entrances keep an opacity change. */
 @media (prefers-reduced-motion: reduce) {
-  .mp-status-checking {
+  .mp-skeleton,
+  .mp-dialog-backdrop {
     animation: none;
   }
 
-  .mp-device-card,
-  .mp-footer a {
+  /* The polling spinner pulses instead of rotating; the checking dot keeps its
+     (opacity-only) pulse. */
+  .mp-auth-card.is-polling .mp-auth-status-icon {
+    animation: mp-pulse 1.5s ease-in-out infinite;
+  }
+
+  .mp-dialog,
+  .mp-view-in {
+    animation-name: mp-fade-in;
+  }
+
+  .mp-device-card:is([role="button"], [href], button),
+  .mp-footer a,
+  .mp-toast,
+  .mp-toast.is-leaving {
     transition: none;
   }
 
-  .mp-device-card:hover {
+  .mp-device-card:is([role="button"], [href], button):hover,
+  .mp-device-card:is([role="button"], [href], button):active {
     transform: none;
   }
 }
@@ -371,6 +1203,12 @@
 @keyframes mp-ai-orb-pulse {
   0%, 100% { transform: scale(0.8); opacity: 0.65; }
   50% { transform: scale(1.1); opacity: 1; }
+}
+
+/* Reduced-motion stand-in for the orb: opacity only, no scale. */
+@keyframes mp-ai-orb-fade {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
 }
 
 @keyframes mp-ai-blink {
@@ -433,9 +1271,14 @@
   border-radius: var(--mp-radius, 0.5rem);
 }
 
-.mp-ai-halo::before,
-.mp-ai-halo::after {
+/* Only the 2px ring rotates. Rotating the blurred glow would repaint (and
+   re-blur) it every frame for as long as the halo is on screen. */
+.mp-ai-halo::before {
   animation: mp-ai-spin var(--mp-ai-duration) linear infinite;
+}
+
+.mp-ai-halo::after {
+  animation: none;
 }
 
 /* ── Badge ──────────────────────────────────────────────── */
@@ -479,25 +1322,45 @@
   line-height: 1.5;
   text-decoration: none;
   cursor: pointer;
+  transition: transform 160ms var(--mp-ease-out);
+}
+
+.mp-ai-button:not(:disabled):active {
+  transform: scale(0.97);
 }
 
 .mp-ai-button::after {
   opacity: 0;
 }
 
-.mp-ai-button:hover::before,
-.mp-ai-button:hover::after,
+/* The ring always carries a paused rotation and only resumes it, so leaving
+   the button stops it where it is instead of snapping back to 0deg. */
+.mp-ai-button::before,
+.mp-ai-button::after {
+  animation: mp-ai-spin var(--mp-ai-duration) linear infinite paused;
+}
+
 .mp-ai-button:focus-visible::before,
 .mp-ai-button:focus-visible::after,
 .mp-ai-button[aria-busy="true"]::before,
 .mp-ai-button[aria-busy="true"]::after {
-  animation: mp-ai-spin var(--mp-ai-duration) linear infinite;
+  animation-play-state: running;
 }
 
-.mp-ai-button:hover::after,
 .mp-ai-button:focus-visible::after,
 .mp-ai-button[aria-busy="true"]::after {
   opacity: var(--mp-ai-glow-opacity);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mp-ai-button:hover::before,
+  .mp-ai-button:hover::after {
+    animation-play-state: running;
+  }
+
+  .mp-ai-button:hover::after {
+    opacity: var(--mp-ai-glow-opacity);
+  }
 }
 
 .mp-ai-button:focus-visible {
@@ -629,7 +1492,7 @@
   display: inline-block;
   width: 0.5em;
   height: 1.1em;
-  margin-left: 2px;
+  margin-inline-start: 2px;
   vertical-align: text-bottom;
   border-radius: 1px;
   background: var(--mp-ai-text);
@@ -655,7 +1518,7 @@
 
 .mp-ai-prose ul,
 .mp-ai-prose ol {
-  padding-left: 1.25rem;
+  padding-inline-start: 1.25rem;
 }
 
 .mp-ai-prose code {
@@ -668,7 +1531,10 @@
   font-size: 0.85em;
 }
 
+/* Code reads left to right even on an RTL page. */
 .mp-ai-prose pre {
+  direction: ltr;
+  unicode-bidi: isolate;
   padding: 0.625rem 0.75rem;
   overflow-x: auto;
   border-radius: 0.375rem;
@@ -739,14 +1605,14 @@
 }
 
 .is-user > .mp-ai-chat-bubble {
-  border-bottom-right-radius: 0.25rem;
+  border-end-end-radius: 0.25rem;
   background: var(--mp-primary, #4f46e5);
   color: #fff;
 }
 
 .is-assistant > .mp-ai-chat-bubble {
   border: 1px solid var(--mp-border, rgba(0, 0, 0, 0.1));
-  border-bottom-left-radius: 0.25rem;
+  border-end-start-radius: 0.25rem;
   background: var(--mp-surface, rgba(0, 0, 0, 0.02));
 }
 
@@ -770,6 +1636,13 @@
   color: inherit;
   font: inherit;
   font-size: 0.9rem;
+}
+
+/* 16px on touch screens, or iOS Safari zooms the page on focus. */
+@media (pointer: coarse) {
+  .mp-ai-chat-input {
+    font-size: 1rem;
+  }
 }
 
 .mp-ai-chat-input:focus {
@@ -816,7 +1689,7 @@
 .mp-ai-diff-stats {
   flex: none;
   display: inline-flex;
-  margin-left: auto;
+  margin-inline-start: auto;
   gap: 0.5rem;
   font-family: var(--bs-font-monospace, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
 }
@@ -830,6 +1703,8 @@
 }
 
 .mp-ai-diff-body {
+  direction: ltr;
+  unicode-bidi: isolate;
   max-height: 24rem;
   margin: 0;
   padding: 0.375rem 0;
@@ -839,10 +1714,16 @@
   line-height: 1.55;
 }
 
-.mp-ai-diff-line {
+/* The code block is as wide as the longest line, so every line's background
+   spans the full scroll width (not just its own text). */
+.mp-ai-diff-body > code {
   display: block;
   min-width: max-content;
-  padding-right: 0.75rem;
+}
+
+.mp-ai-diff-line {
+  display: block;
+  padding-inline-end: 0.75rem;
   white-space: pre;
 }
 
@@ -871,6 +1752,7 @@
 
 .mp-ai-diff-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 0.5rem;
@@ -879,7 +1761,7 @@
 }
 
 .mp-ai-diff-status {
-  margin-right: auto;
+  margin-inline-end: auto;
   color: var(--mp-ai-fg-muted);
   font-size: 0.8125rem;
 }
@@ -901,8 +1783,10 @@
   cursor: pointer;
 }
 
-.mp-ai-action:hover {
-  background: var(--mp-surface, rgba(0, 0, 0, 0.04));
+@media (hover: hover) and (pointer: fine) {
+  .mp-ai-action:hover {
+    background: var(--mp-surface, rgba(0, 0, 0, 0.04));
+  }
 }
 
 .mp-ai-action-primary {
@@ -911,9 +1795,11 @@
   color: #fff;
 }
 
-.mp-ai-action-primary:hover {
-  border-color: var(--mp-primary-hover, #4338ca);
-  background: var(--mp-primary-hover, #4338ca);
+@media (hover: hover) and (pointer: fine) {
+  .mp-ai-action-primary:hover {
+    border-color: var(--mp-primary-hover, #4338ca);
+    background: var(--mp-primary-hover, #4338ca);
+  }
 }
 
 .mp-ai-action:focus-visible {
@@ -947,11 +1833,12 @@
   position: absolute;
   inset: 0;
   background: conic-gradient(from var(--mp-ai-angle) at 50% 50%, var(--mp-ai-stops));
-  animation: mp-ai-spin var(--mp-ai-duration) linear infinite;
 }
 
-/* Crisp 3px line along the edges */
+/* Crisp 3px line along the edges; only this line rotates (the soft glow is a
+   full-viewport layer that would repaint every frame). */
 .mp-ai-edge-glow::before {
+  animation: mp-ai-spin var(--mp-ai-duration) linear infinite;
   padding: 3px;
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
@@ -991,7 +1878,7 @@
   border: 0 !important;
 }
 
-/* ── Reduced motion: static gradient, no pulse ──────────── */
+/* ── Reduced motion: static gradient; "thinking" only pulses ── */
 
 @media (prefers-reduced-motion: reduce) {
   .mp-ai-halo::before,
@@ -1000,8 +1887,6 @@
   .mp-ai-button::after,
   .mp-ai-panel::before,
   .mp-ai-panel::after,
-  .mp-ai-thinking::before,
-  .mp-ai-thinking::after,
   .mp-ai-edge-glow,
   .mp-ai-edge-glow::before,
   .mp-ai-edge-glow::after,
@@ -1009,8 +1894,22 @@
     animation: none !important;
   }
 
+  /* Keep the thinking indicator, as an opacity change only. */
+  .mp-ai-thinking:is(.mp-ai-halo, .mp-ai-button, .mp-ai-panel)::after {
+    animation: mp-ai-glow-pulse 1.6s ease-in-out infinite !important;
+  }
+
+  .mp-ai-thinking:not(.mp-ai-halo, .mp-ai-button, .mp-ai-badge, .mp-ai-panel)::before {
+    animation: mp-ai-orb-fade 1.4s ease-in-out infinite;
+  }
+
+  .mp-ai-button,
   .mp-ai-button::after {
     transition: none;
+  }
+
+  .mp-ai-button:not(:disabled):active {
+    transform: none;
   }
 }
 

@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Settings page** uses `@mp-consulting/homebridge-ui-kit` 1.4.0: long device names wrap to two lines, tabs scroll instead of wrapping, buttons press in, hover effects only apply with a mouse or trackpad, dialogs and toasts ease in and out, and the Assistant glow no longer repaints every frame.
 - **Scenes**: the selected-scenes panel scrolls past 12rem, scene tiles press in and report `aria-pressed`, category tabs switch without a fade, and hover effects only apply with a mouse. Empty device types are dimmed, and new devices are named after their type.
 
 ## [1.6.3] - 2026-10-18
