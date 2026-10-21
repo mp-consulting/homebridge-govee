@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+
+- **Settings page on phones**: the scene category strip scrolls instead of stacking 20 categories on top of each other, long device names wrap, the light editor tabs stay on one line, and the Back button no longer squeezes.
+- **Settings**: refresh intervals the user never set are no longer saved; empty fields show the schema default, and values are clamped to the schema's limits (the BLE refresh minimum is 60s, the HTTP minimum 30s). Sliders show out-of-range config values clamped instead of a badge that disagrees with the slider.
+- **Devices**: removing a device asks for confirmation first, accordions stay open or closed as left, and the icon-only buttons have labels.
+- **Discovery summary**: counts are pluralised and device types use readable names.
+
+### Changed
+
+- **Settings page** uses `@mp-consulting/homebridge-ui-kit` 1.4.0: long device names wrap to two lines, tabs scroll instead of wrapping, buttons press in, hover effects only apply with a mouse or trackpad, dialogs and toasts ease in and out, and the Assistant glow no longer repaints every frame.
+- **Scenes**: the selected-scenes panel scrolls past 12rem, scene tiles press in and report `aria-pressed`, category tabs switch without a fade, and hover effects only apply with a mouse. Empty device types are dimmed, and new devices are named after their type.
+
 ## [1.6.3] - 2026-10-18
 
 ### Added

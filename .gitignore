@@ -53,3 +53,10 @@ tmp/
 # BMad agent files
 _bmad/
 _bmad-output/
+
+# ui-kit dist files the settings page does not load (it uses lib/kit.css and lib/kit.js)
+homebridge-ui/public/lib/ai.min.css
+homebridge-ui/public/lib/kit.min.css
+homebridge-ui/public/lib/kit.min.js
+homebridge-ui/public/lib/kit.mjs
+homebridge-ui/public/lib/theme-boot.js
