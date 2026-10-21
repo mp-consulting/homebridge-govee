@@ -4,6 +4,8 @@
 .card { margin-bottom: 1rem; }
 .device-list { max-height: 400px; overflow-y: auto; }
 .spinner-border { width: 1rem; height: 1rem; }
+/* Bootstrap ships no min-width utility; flex children need it to let text truncate or wrap. */
+.min-w-0 { min-width: 0; }
 .form-check { margin-bottom: 0.5rem; }
 .nav-tabs { margin-bottom: 1rem; }
 .info-icon {
@@ -11,10 +13,6 @@
   color: var(--bs-secondary-color);
   margin-left: 0.25rem;
 }
-.info-icon:hover { color: var(--bs-primary); }
-.device-card { border-left: 4px solid var(--bs-primary); }
-.device-card.ignored { border-left-color: var(--bs-danger); opacity: 0.7; }
-.device-type-badge { font-size: 0.75rem; }
 .btn-add-device { margin-top: 0.75rem; margin-bottom: 1rem; }
 
 /* ── Device list rows ──────────────────────────────────────── */
@@ -26,6 +24,11 @@
 .device-row:last-child {
   border-bottom: none !important;
 }
+
+/* A device type with nothing configured yet stays in the list, but recedes. */
+.gv-type-empty .accordion-button { color: var(--bs-secondary-color); }
+.gv-type-empty .accordion-button > .bi { opacity: 0.6; }
+.gv-type-empty .accordion-button > .badge { opacity: 0.55; }
 
 /* ── Scene picker ──────────────────────────────────────────── */
 
@@ -63,10 +66,9 @@
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
-.gv-advanced-toggle:hover { color: var(--bs-body-color); }
 .gv-advanced-chevron {
   margin-right: 0.5rem;
-  transition: transform 0.15s ease;
+  transition: transform 160ms var(--mp-ease-out, cubic-bezier(0.23, 1, 0.32, 1));
   transform: rotate(90deg);
 }
 .gv-advanced-toggle.collapsed .gv-advanced-chevron { transform: rotate(0deg); }
@@ -87,7 +89,12 @@
   background: var(--bs-tertiary-bg);
   border-bottom: 1px solid var(--bs-border-color);
 }
-.gv-scene-panel-body { padding: 1rem; }
+/* Bounded so a long selection cannot push the library below it off screen. */
+.gv-scene-panel-body {
+  padding: 1rem;
+  max-height: 12rem;
+  overflow-y: auto;
+}
 
 /* Empty state, shown before anything has been picked */
 .gv-scene-empty {
@@ -203,6 +210,13 @@
     overflow-x: auto;
     max-height: none;
   }
+  /* The column layout pins each item to 100% width; in a row that would squeeze every
+     category into one screen width and overprint them, so let them size and scroll. */
+  .gv-scene-cats .nav-item {
+    width: auto;
+    flex: 0 0 auto;
+    max-width: 12rem;
+  }
   .gv-scene-cats .nav-link { width: auto; }
 }
 
@@ -217,9 +231,18 @@
 
 /* Tabs across the top of a device card. Slightly tighter than Bootstrap's default,
    since these sit inside an accordion inside a page-level tab. */
+.gv-device-tabs {
+  /* At phone width the three tabs would stack; keep them on one line and scroll instead. */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.gv-device-tabs::-webkit-scrollbar { display: none; }
 .gv-device-tabs .nav-link {
   padding: 0.4rem 0.85rem;
   font-size: 0.9375rem;
+  white-space: nowrap;
 }
 .gv-scene-tile {
   position: relative;
@@ -234,9 +257,9 @@
   color: inherit;
   text-align: center;
   cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 120ms ease-out;
 }
-.gv-scene-tile:hover { border-color: var(--bs-primary); }
+.gv-scene-tile:active { transform: scale(0.97); }
 .gv-scene-tile.selected {
   border-color: var(--bs-primary);
   box-shadow: inset 0 0 0 1px var(--bs-primary);
@@ -280,16 +303,6 @@
   border-radius: var(--bs-border-radius);
 }
 
-/* The picker lives inside the plugin-settings iframe, so Bootstrap's modal
-   breakpoints see the iframe's width and fall back to the narrow 500px dialog.
-   Size it against the available width instead so the grid gets real room. */
-#scenePickerModal .modal-dialog {
-  max-width: calc(100vw - 2rem);
-  width: 60rem;
-  margin-left: auto;
-  margin-right: auto;
-}
-
 /* Segmented icon picker, used where a <select> could not show an icon */
 .gv-icon-select .btn {
   display: flex;
@@ -304,3 +317,23 @@
 
 /* Slider rows: the value badge sits inline with the label */
 .form-range { padding-top: 0.25rem; }
+
+/* Slider readouts keep a steady width so the label does not shift while dragging. */
+.gv-range-value {
+  font-variant-numeric: tabular-nums;
+  min-width: 4.5ch;
+  text-align: end;
+}
+
+/* Hover colour only where a real pointer can hover; on touch it would stick after a tap. */
+@media (hover: hover) and (pointer: fine) {
+  .info-icon:hover { color: var(--bs-primary); }
+  .gv-advanced-toggle:hover { color: var(--bs-body-color); }
+  .gv-scene-tile:hover { border-color: var(--bs-primary); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gv-advanced-chevron { transition: none; }
+  .gv-scene-tile { transition: border-color 0.15s ease, background-color 0.15s ease; }
+  .gv-scene-tile:active { transform: none; }
+}

@@ -337,9 +337,9 @@
                 <label for="httpRefreshTime" class="form-label">
                   HTTP Refresh (seconds)
                   <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top"
-                    title="How often to poll the Govee API for device state updates. Minimum 60 seconds.">&#9432;</span>
+                    title="How often to poll the Govee API for device state updates. Minimum 30 seconds; leave blank for the default of 30.">&#9432;</span>
                 </label>
-                <input type="number" class="form-control form-control-sm" id="httpRefreshTime" min="60" value="60">
+                <input type="number" class="form-control form-control-sm" id="httpRefreshTime" min="30" step="1" placeholder="30" inputmode="numeric">
               </div>
               <div class="col-md-4">
                 <h6 class="fw-semibold mb-2"><i class="bi bi-hdd-network me-1"></i>LAN</h6>
@@ -354,15 +354,15 @@
                 <label for="lanRefreshTime" class="form-label">
                   Refresh (seconds)
                   <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top"
-                    title="How often to poll LAN devices for state updates. Minimum 15 seconds.">&#9432;</span>
+                    title="How often to poll LAN devices for state updates. Minimum 15 seconds; leave blank for the default of 30.">&#9432;</span>
                 </label>
-                <input type="number" class="form-control form-control-sm" id="lanRefreshTime" min="15" value="30">
+                <input type="number" class="form-control form-control-sm" id="lanRefreshTime" min="15" step="1" placeholder="30" inputmode="numeric">
                 <label for="lanScanInterval" class="form-label mt-2">
                   Scan Interval (seconds)
                   <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top"
-                    title="How often to scan the network for new LAN-capable devices. Minimum 30 seconds.">&#9432;</span>
+                    title="How often to scan the network for new LAN-capable devices. Minimum 30 seconds; leave blank for the default of 60.">&#9432;</span>
                 </label>
-                <input type="number" class="form-control form-control-sm" id="lanScanInterval" min="30" value="60">
+                <input type="number" class="form-control form-control-sm" id="lanScanInterval" min="30" step="1" placeholder="60" inputmode="numeric">
               </div>
               <div class="col-md-4">
                 <h6 class="fw-semibold mb-2"><i class="bi bi-bluetooth me-1"></i>Bluetooth (BLE)</h6>
@@ -377,15 +377,15 @@
                 <label for="bleRefreshTime" class="form-label">
                   Refresh (seconds)
                   <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top"
-                    title="How often to scan for BLE sensor readings. Minimum 15 seconds.">&#9432;</span>
+                    title="How often to scan for BLE sensor readings. Minimum 60 seconds; leave blank for the default of 300.">&#9432;</span>
                 </label>
-                <input type="number" class="form-control form-control-sm" id="bleRefreshTime" min="15" value="30">
+                <input type="number" class="form-control form-control-sm" id="bleRefreshTime" min="60" step="1" placeholder="300" inputmode="numeric">
                 <label for="bleControlInterval" class="form-label mt-2">
                   Control Interval (ms)
                   <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top"
-                    title="Minimum time between BLE commands to prevent overwhelming devices. Minimum 500ms.">&#9432;</span>
+                    title="Minimum time between BLE commands to prevent overwhelming devices. Minimum 500 ms; leave blank for the default of 500.">&#9432;</span>
                 </label>
-                <input type="number" class="form-control form-control-sm" id="bleControlInterval" min="500" value="500">
+                <input type="number" class="form-control form-control-sm" id="bleControlInterval" min="500" step="1" placeholder="500" inputmode="numeric">
               </div>
             </div>
           </div>
@@ -475,7 +475,6 @@
     </div>
   </div>
 
-  <!-- Scene Picker Modal -->
   <script src="lib/bootstrap.bundle.min.js"></script>
   <script src="lib/kit.js"></script>
   <script>MpKit.Footer.render({ github: 'https://github.com/mp-consulting/homebridge-govee', npm: 'https://www.npmjs.com/package/@mp-consulting/homebridge-govee' });</script>

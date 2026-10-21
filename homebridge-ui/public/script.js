@@ -8,6 +8,46 @@ function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 
+const pluralRules = new Intl.PluralRules('en');
+
+/** "1 device", "3 devices". */
+function pluralize(count, one, other) {
+  return `${count} ${pluralRules.select(count) === 'one' ? one : other}`;
+}
+
+/**
+ * A number held inside [min, max]; `fallback` when it is not a number at all. Used to
+ * show an out-of-range saved value the way the control can actually display it.
+ */
+function clampNumber(value, min, max, fallback) {
+  const num = Number(value);
+  if (value === null || value === '' || !Number.isFinite(num)) {
+    return fallback;
+  }
+  return Math.min(max ?? Infinity, Math.max(min ?? -Infinity, num));
+}
+
+/** How each device list is named in the UI, matching the accordion titles. */
+const deviceTypeNames = {
+  lightDevices: { one: 'light', other: 'lights', badge: 'Light' },
+  switchDevices: { one: 'switch/outlet', other: 'switches/outlets', badge: 'Switch/Outlet' },
+  thermoDevices: { one: 'temperature/humidity sensor', other: 'temperature/humidity sensors', badge: 'Temp/Humidity Sensor' },
+  leakDevices: { one: 'leak sensor', other: 'leak sensors', badge: 'Leak Sensor' },
+  fanDevices: { one: 'fan', other: 'fans', badge: 'Fan' },
+  heaterDevices: { one: 'heater', other: 'heaters', badge: 'Heater' },
+  humidifierDevices: { one: 'humidifier', other: 'humidifiers', badge: 'Humidifier' },
+  purifierDevices: { one: 'air purifier', other: 'air purifiers', badge: 'Air Purifier' },
+  dehumidifierDevices: { one: 'dehumidifier', other: 'dehumidifiers', badge: 'Dehumidifier' },
+  diffuserDevices: { one: 'diffuser', other: 'diffusers', badge: 'Diffuser' },
+  kettleDevices: { one: 'kettle', other: 'kettles', badge: 'Kettle' },
+  iceMakerDevices: { one: 'ice maker', other: 'ice makers', badge: 'Ice Maker' },
+};
+
+function deviceTypeName(type) {
+  const fallback = String(type || '').replace('Devices', '').replace(/([A-Z])/g, ' $1').trim().toLowerCase() || 'device';
+  return deviceTypeNames[type] || { one: fallback, other: `${fallback}s`, badge: fallback };
+}
+
 // Device type configurations
 const deviceTypes = {
   lightDevices: {
@@ -106,7 +146,7 @@ const deviceTypes = {
       { id: 'deviceId', label: 'Device ID', type: 'text', required: true },
       { id: 'label', label: 'Custom Label', type: 'text' },
       { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' },
-      { id: 'lowBattThreshold', label: 'Low Battery Threshold (%)', type: 'number', min: 1, max: 100 },
+      { id: 'lowBattThreshold', label: 'Low Battery Threshold (%)', type: 'number', min: 1, max: 100, default: 20 },
       { id: 'showExtraSwitch', label: 'Show Extra Switch', type: 'checkbox' },
     ],
   },
@@ -115,7 +155,7 @@ const deviceTypes = {
       { id: 'deviceId', label: 'Device ID', type: 'text', required: true },
       { id: 'label', label: 'Custom Label', type: 'text' },
       { id: 'ignoreDevice', label: 'Ignore Device', type: 'checkbox' },
-      { id: 'lowBattThreshold', label: 'Low Battery Threshold (%)', type: 'number', min: 1, max: 100 },
+      { id: 'lowBattThreshold', label: 'Low Battery Threshold (%)', type: 'number', min: 1, max: 100, default: 20 },
     ],
   },
   fanDevices: {
@@ -389,11 +429,15 @@ function renderDeviceField(type, index, field, value) {
         ${buttons}
       </div>${help}`;
   } else if (field.type === 'range') {
-    const current = value ?? field.default ?? field.min ?? 0;
+    // A hand-edited config can hold a value the slider cannot show (the thumb would pin
+    // to the end while the badge read 250%); display it clamped. The saved value is only
+    // rewritten once the user moves the slider.
+    const fallback = field.default ?? field.min ?? 0;
+    const current = clampNumber(value ?? fallback, field.min ?? 0, field.max ?? 100, fallback);
     inner = `
       <label class="form-label d-flex justify-content-between align-items-center" for="${fieldId}">
         <span>${field.label}</span>
-        <output class="badge bg-secondary" id="${fieldId}_out">${current}${field.unit || ''}</output>
+        <output class="badge bg-secondary gv-range-value" id="${fieldId}_out">${current}${field.unit || ''}</output>
       </label>
       <input type="range" class="form-range device-field" id="${fieldId}"
         data-type="${type}" data-index="${index}" data-field="${field.id}"
@@ -406,7 +450,10 @@ function renderDeviceField(type, index, field, value) {
     // the user know that -1 is magic.
     const off = field.offValue;
     const isOn = value === undefined ? field.defaultOn !== false : value !== off;
-    const amount = (value === undefined || value === off) ? (field.default ?? field.min ?? 0) : value;
+    const fallback = field.default ?? field.min ?? 0;
+    const amount = (value === undefined || value === off)
+      ? fallback
+      : clampNumber(value, field.min ?? 0, field.max ?? 100, fallback);
     const toggleId = `${fieldId}_on`;
     const rangeId = `${fieldId}_amount`;
     inner = `
@@ -420,7 +467,7 @@ function renderDeviceField(type, index, field, value) {
       <div class="pt-2 ${isOn ? '' : 'd-none'}" data-togglerange-body="${toggleId}">
         <label class="form-label d-flex justify-content-between align-items-center mb-1" for="${rangeId}">
           <span class="small">${escapeHtml(field.rangeLabel || field.label)}</span>
-          <output class="badge bg-secondary" id="${rangeId}_out">${amount}${field.unit || ''}</output>
+          <output class="badge bg-secondary gv-range-value" id="${rangeId}_out">${amount}${field.unit || ''}</output>
         </label>
         <input type="range" class="form-range device-field" id="${rangeId}"
           data-type="${type}" data-index="${index}" data-field="${field.id}"
@@ -446,6 +493,7 @@ function renderDeviceField(type, index, field, value) {
       <input type="${field.type}" class="form-control form-control-sm device-field" id="${fieldId}"
         data-type="${type}" data-index="${index}" data-field="${field.id}"
         value="${escapeHtml(value ?? '')}" ${field.min !== undefined ? `min="${field.min}"` : ''}
+        ${field.type === 'number' && field.default !== undefined ? `placeholder="${escapeHtml(field.default)}"` : ''}
         ${field.max !== undefined ? `max="${field.max}"` : ''}>${help}`;
   }
   return `<div class="col-md-6">${inner}</div>`;
@@ -471,7 +519,7 @@ function renderScenesTab(type, index, device) {
       </div>
       <div class="d-flex justify-content-between align-items-start gap-3 pt-2">
         <span class="text-muted small" id="scenePickerCount">0 scenes selected</span>
-        <span class="text-warning small text-end d-none" id="scenePickerWarning"></span>
+        <span class="text-warning-emphasis small text-end d-none" id="scenePickerWarning"></span>
       </div>
     </div>`;
 }
@@ -656,9 +704,23 @@ function hydrateSceneIcons(root) {
   pending.forEach(img => observer.observe(img));
 }
 
+/**
+ * The name a device is shown under. Devices with neither a label nor an ID yet are
+ * numbered by type ("New light", "New light 2") so several of them stay distinguishable.
+ */
+function deviceDisplayName(type, index, device) {
+  if (device.label || device.deviceId) {
+    return device.label || device.deviceId;
+  }
+  const devices = pluginConfig[type] || [];
+  const position = devices.slice(0, index).filter(d => !d?.label && !d?.deviceId).length + 1;
+  const noun = deviceTypeName(type).one;
+  return position === 1 ? `New ${noun}` : `New ${noun} ${position}`;
+}
+
 function renderDeviceRow(type, index, device) {
   const isIgnored = device.ignoreDevice;
-  const displayName = device.label || device.deviceId || 'New Device';
+  const displayName = deviceDisplayName(type, index, device);
   const deviceId = device.deviceId || '';
 
   return `
@@ -668,11 +730,13 @@ function renderDeviceRow(type, index, device) {
         ${deviceId ? `<code class="small text-muted">${escapeHtml(deviceId)}</code>` : ''}
       </div>
       <div class="d-flex gap-1 flex-shrink-0">
-        <button class="btn btn-outline-primary btn-sm" onclick="editDevice('${type}', ${index})">
-          <i class="bi bi-pencil"></i>
+        <button type="button" class="btn btn-outline-primary btn-sm" onclick="editDevice('${type}', ${index})"
+          aria-label="Edit ${escapeHtml(displayName)}" title="Edit">
+          <i class="bi bi-pencil" aria-hidden="true"></i>
         </button>
-        <button class="btn btn-outline-danger btn-sm" onclick="removeDevice('${type}', ${index})">
-          <i class="bi bi-trash"></i>
+        <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeDevice('${type}', ${index})"
+          aria-label="Remove ${escapeHtml(displayName)}" title="Remove">
+          <i class="bi bi-trash" aria-hidden="true"></i>
         </button>
       </div>
     </div>`;
@@ -837,16 +901,16 @@ function renderTabbedBody(type, index, device, config) {
  */
 function renderDeviceEditForm(type, index, device) {
   const config = deviceTypes[type];
-  const displayName = device.label || device.deviceId || 'New Device';
+  const displayName = deviceDisplayName(type, index, device);
   const body = config.tabs
     ? renderTabbedBody(type, index, device, config)
     : renderStackedBody(type, index, device, config);
 
   return `
     <div class="card" id="${type}_${index}_card">
-      <div class="card-header d-flex justify-content-between align-items-center py-2">
-        <span class="fw-semibold">${escapeHtml(displayName)}</span>
-        <button class="btn btn-sm btn-outline-secondary" onclick="cancelEdit('${type}')">
+      <div class="card-header d-flex justify-content-between align-items-center gap-2 py-2">
+        <span class="fw-semibold min-w-0" style="overflow-wrap: anywhere">${escapeHtml(displayName)}</span>
+        <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0" onclick="cancelEdit('${type}')">
           <i class="bi bi-arrow-left me-1"></i>Back
         </button>
       </div>
@@ -854,10 +918,16 @@ function renderDeviceEditForm(type, index, device) {
     </div>`;
 }
 
-function renderDeviceList(type) {
+/**
+ * Draw one device type's section. `autoExpand` opens it when it has devices; that is
+ * only wanted on first load and after discovery, so every other re-render leaves the
+ * section open or closed as the user left it.
+ */
+function renderDeviceList(type, { autoExpand = false } = {}) {
   const devices = pluginConfig[type] || [];
   const container = document.getElementById(`${type}List`);
   const countBadge = document.getElementById(`${type}Count`);
+  const collapseEl = document.getElementById(`${type}Collapse`);
 
   if (editingState[type] !== undefined) {
     const index = editingState[type];
@@ -866,9 +936,7 @@ function renderDeviceList(type) {
     container.innerHTML = '<p class="text-muted small mb-0">No devices configured.</p>';
   } else {
     container.innerHTML = `<div class="device-list-items">${devices.map((d, i) => renderDeviceRow(type, i, d)).join('')}</div>`;
-    // Auto-expand accordion section when it has devices
-    const collapseEl = document.getElementById(`${type}Collapse`);
-    if (collapseEl && !collapseEl.classList.contains('show')) {
+    if (autoExpand && collapseEl && !collapseEl.classList.contains('show')) {
       collapseEl.classList.add('show');
       const btn = collapseEl.closest('.accordion-item')?.querySelector('.accordion-button');
       if (btn) {
@@ -880,6 +948,7 @@ function renderDeviceList(type) {
 
   countBadge.textContent = devices.length;
   countBadge.className = `badge me-2 ${devices.length > 0 ? 'bg-primary' : 'bg-secondary'}`;
+  collapseEl?.closest('.accordion-item')?.classList.toggle('gv-type-empty', devices.length === 0);
 
   // Add event listeners for field changes (only relevant in edit mode)
   container.querySelectorAll('.device-field').forEach(field => {
@@ -993,7 +1062,15 @@ function handleDeviceFieldChange(event) {
   } else if (field.type === 'checkbox') {
     setFieldValue(entry, fieldName, field.checked);
   } else if (field.type === 'number' || field.type === 'range') {
-    const val = parseInt(field.value, 10);
+    let val = parseInt(field.value, 10);
+    if (!isNaN(val) && field.type === 'number') {
+      // Keep typed numbers inside the schema's bounds. The box itself is only corrected
+      // once the user leaves it, so typing is not fought keystroke by keystroke.
+      val = clampNumber(val, numberAttr(field, 'min'), numberAttr(field, 'max'), val);
+      if (event.type === 'change') {
+        field.value = val;
+      }
+    }
     setFieldValue(entry, fieldName, isNaN(val) ? undefined : val);
     // Keep the slider's readout in step as it is dragged
     const output = document.getElementById(`${field.id}_out`);
@@ -1006,6 +1083,13 @@ function handleDeviceFieldChange(event) {
   }
 }
 
+/** A numeric `min`/`max` attribute of an input, or undefined when it has none. */
+function numberAttr(input, name) {
+  const raw = input.getAttribute(name);
+  const num = raw === null || raw === '' ? NaN : Number(raw);
+  return Number.isFinite(num) ? num : undefined;
+}
+
 function addDevice(type) {
   if (!pluginConfig[type]) {
     pluginConfig[type] = [];
@@ -1016,7 +1100,20 @@ function addDevice(type) {
   renderDeviceList(type);
 }
 
-function removeDevice(type, index) {
+async function removeDevice(type, index) {
+  const device = pluginConfig[type]?.[index];
+  if (!device) {
+    return;
+  }
+  const confirmed = await showConfirm(
+    'Remove device',
+    `Remove "${deviceDisplayName(type, index, device)}" and its settings from the configuration? `
+      + 'The change is kept once you click Save Configuration.',
+    { confirmLabel: 'Remove', variant: 'danger' },
+  );
+  if (!confirmed) {
+    return;
+  }
   if (pluginConfig[type]) {
     pluginConfig[type].splice(index, 1);
     if (pluginConfig[type].length === 0) {
@@ -1283,10 +1380,10 @@ function renderScenePicker(library, diys) {
     </li>`).join('');
 
   const panes = groups.map((group, i) => `
-    <div class="tab-pane fade ${i === 0 ? 'show active' : ''}" id="${escapeHtml(group.id)}">
+    <div class="tab-pane ${i === 0 ? 'active' : ''}" id="${escapeHtml(group.id)}">
       <div class="gv-scene-grid">
         ${group.items.map(item => `
-          <button type="button" class="gv-scene-tile" data-scene-key="${escapeHtml(item.key)}">
+          <button type="button" class="gv-scene-tile" data-scene-key="${escapeHtml(item.key)}" aria-pressed="false">
             ${sceneIconMarkup(item, 'gv-scene-icon-lg')}
             <span class="gv-scene-tile-name">${escapeHtml(item.name)}</span>
             ${item.variants.length > 1 ? `<span class="badge bg-secondary gv-scene-variants">${item.variants.length}</span>` : ''}
@@ -1371,7 +1468,9 @@ function refreshScenePickerSelection() {
   const selected = new Set((device?.scenes || []).map(selectionKey));
 
   document.querySelectorAll('#scenePickerBody .gv-scene-tile').forEach(tile => {
-    tile.classList.toggle('selected', selected.has(tile.dataset.sceneKey));
+    const isSelected = selected.has(tile.dataset.sceneKey);
+    tile.classList.toggle('selected', isSelected);
+    tile.setAttribute('aria-pressed', String(isSelected));
   });
 
   const count = selected.size;
@@ -1381,7 +1480,7 @@ function refreshScenePickerSelection() {
     // The tab was swapped out while a request was in flight.
     return;
   }
-  countEl.textContent = count === 1 ? '1 scene selected' : `${count} scenes selected`;
+  countEl.textContent = `${pluralize(count, 'scene', 'scenes')} selected`;
 
   // HomeKit refuses to publish an accessory with too many services; warn well before
   // the user hits that wall rather than letting the bridge fail to start.
@@ -1389,6 +1488,42 @@ function refreshScenePickerSelection() {
   warning.textContent = count > 50
     ? `${count} scenes means ${count} HomeKit switches on this accessory. Much beyond this and HomeKit may refuse to add it — consider trimming the list.`
     : '';
+}
+
+/**
+ * Ask a yes/no question in the shared confirm modal. Resolves true only when the
+ * confirm button is pressed; closing the dialog any other way resolves false.
+ */
+function showConfirm(title, message, { confirmLabel = 'Confirm', variant = 'warning' } = {}) {
+  return new Promise((resolve) => {
+    const modalEl = document.getElementById('confirmModal');
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    document.getElementById('confirmModalLabel').textContent = title;
+    document.getElementById('confirmModalBody').textContent = message;
+
+    // Clean up previous listeners by cloning the button
+    const confirmBtn = document.getElementById('confirmModalBtn');
+    const newConfirmBtn = confirmBtn.cloneNode(true);
+    newConfirmBtn.textContent = confirmLabel;
+    newConfirmBtn.className = `btn btn-${variant}`;
+    confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+
+    let resolved = false;
+
+    newConfirmBtn.addEventListener('click', () => {
+      resolved = true;
+      modal.hide();
+      resolve(true);
+    });
+
+    modalEl.addEventListener('hidden.bs.modal', () => {
+      if (!resolved) {
+        resolve(false);
+      }
+    }, { once: true });
+
+    modal.show();
+  });
 }
 
 (async () => {
@@ -1447,11 +1582,12 @@ function refreshScenePickerSelection() {
       }
     });
 
-    // Load number fields
+    // Load number fields. An unset one stays empty and shows the schema default as its
+    // placeholder, so the plugin's own default keeps applying.
     numberFields.forEach(field => {
       const el = document.getElementById(field);
-      if (el && pluginConfig[field] !== undefined) {
-        el.value = pluginConfig[field];
+      if (el) {
+        el.value = pluginConfig[field] ?? '';
       }
     });
 
@@ -1479,15 +1615,24 @@ function refreshScenePickerSelection() {
       }
     });
 
-    // Save number fields
+    // Save number fields: only the ones the user filled in. A value they typed is held
+    // to the schema's bounds; one already in the config is left as it was, since the
+    // plugin accepts some older forms the schema does not (bleControlInterval in seconds).
     numberFields.forEach(field => {
       const el = document.getElementById(field);
-      if (el) {
-        const value = parseInt(el.value, 10);
-        if (!isNaN(value)) {
-          target[field] = value;
-        }
+      if (!el) {
+        return;
       }
+      let value = parseInt(el.value, 10);
+      if (isNaN(value)) {
+        delete target[field];
+        return;
+      }
+      if (value !== pluginConfig[field]) {
+        value = clampNumber(value, numberAttr(el, 'min'), numberAttr(el, 'max'), value);
+        el.value = value;
+      }
+      target[field] = value;
     });
 
     // Save boolean fields
@@ -1510,8 +1655,8 @@ function refreshScenePickerSelection() {
       // Auto-populate devices from cached discovery (from plugin startup)
       await loadCachedDevices();
 
-      // Render device lists
-      Object.keys(deviceTypes).forEach(type => renderDeviceList(type));
+      // Render device lists, opening the sections that have devices in them
+      Object.keys(deviceTypes).forEach(type => renderDeviceList(type, { autoExpand: true }));
 
     } catch (err) {
       console.error('Failed to load config:', err);
@@ -1626,6 +1771,17 @@ function refreshScenePickerSelection() {
       passwordField.type = 'password';
       toggleBtn.textContent = 'Show';
     }
+  });
+
+  // Hold a typed number to its input's bounds once the user leaves the box
+  numberFields.forEach(field => {
+    const el = document.getElementById(field);
+    el?.addEventListener('change', () => {
+      const value = parseInt(el.value, 10);
+      if (!isNaN(value)) {
+        el.value = clampNumber(value, numberAttr(el, 'min'), numberAttr(el, 'max'), value);
+      }
+    });
   });
 
   // Save button
@@ -1773,40 +1929,40 @@ function refreshScenePickerSelection() {
           }
         }
 
-        // Re-render all device lists
-        Object.keys(deviceTypes).forEach(type => renderDeviceList(type));
+        // Re-render all device lists, opening the sections discovery filled
+        Object.keys(deviceTypes).forEach(type => renderDeviceList(type, { autoExpand: true }));
 
         // Build summary message
         let summaryHtml = '';
         if (addedCount > 0) {
+          const byType = Object.entries(addedByType)
+            .map(([type, count]) => {
+              const name = deviceTypeName(type);
+              return escapeHtml(pluralize(count, name.one, name.other));
+            })
+            .join('<br>');
           summaryHtml += `<div class="alert alert-success mb-2">
-            <strong>Added ${addedCount} new device(s):</strong><br>`;
-          for (const [type, count] of Object.entries(addedByType)) {
-            const typeName = type.replace('Devices', '').replace(/([A-Z])/g, ' $1').trim();
-            summaryHtml += `${count} ${typeName} device(s)<br>`;
-          }
-          summaryHtml += '</div>';
+            <strong>Added ${pluralize(addedCount, 'new device', 'new devices')}:</strong><br>${byType}</div>`;
         }
         if (skippedCount > 0) {
-          summaryHtml += `<div class="alert alert-info mb-2">${skippedCount} device(s) already in configuration.</div>`;
+          summaryHtml += `<div class="alert alert-info mb-2">${pluralize(skippedCount, 'device was', 'devices were')} already in the configuration.</div>`;
         }
 
         // Show device list
-        let html = summaryHtml + '<ul class="list-group">';
+        let html = summaryHtml + '<ul class="list-group device-list">';
         for (const device of devices) {
           const deviceId = device.device || device.deviceId || '';
           const model = device.sku || device.model || '';
-          const deviceType = getDeviceTypeFromModel(model);
-          const typeName = deviceType.replace('Devices', '');
+          const typeName = deviceTypeName(getDeviceTypeFromModel(model)).badge;
 
-          html += `<li class="list-group-item d-flex justify-content-between align-items-center">
-            <div>
+          html += `<li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+            <div class="min-w-0">
               <strong>${escapeHtml(device.deviceName || 'Unknown')}</strong><br>
               <small class="text-muted">Model: ${escapeHtml(model || 'Unknown')}</small>
               <span class="badge bg-primary ms-2">${escapeHtml(typeName)}</span>
             </div>
-            <div class="text-end">
-              <code class="user-select-all">${escapeHtml(deviceId)}</code>
+            <div class="text-end min-w-0">
+              <code class="user-select-all text-break">${escapeHtml(deviceId)}</code>
             </div>
           </li>`;
         }
@@ -1814,7 +1970,7 @@ function refreshScenePickerSelection() {
         deviceList.innerHTML = html;
 
         if (addedCount > 0) {
-          homebridge.toast.success(`Added ${addedCount} device(s). Click "Save Configuration" to persist.`);
+          homebridge.toast.success(`Added ${pluralize(addedCount, 'device', 'devices')}. Click "Save Configuration" to persist.`);
 
           // Switch to Devices tab (accordion sections auto-expand via renderDeviceList)
           const devicesTab = document.getElementById('devices-tab');
@@ -1822,7 +1978,7 @@ function refreshScenePickerSelection() {
             new bootstrap.Tab(devicesTab).show();
           }
         } else {
-          homebridge.toast.info(`Found ${devices.length} device(s). All already configured.`);
+          homebridge.toast.info(`Found ${pluralize(devices.length, 'device', 'devices')}. All already configured.`);
         }
       }
     } catch (err) {
@@ -1837,38 +1993,6 @@ function refreshScenePickerSelection() {
       btn.disabled = false;
     }
   });
-
-  // Helper function to show confirmation modal
-  const showConfirm = (title, message) => {
-    return new Promise((resolve) => {
-      const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
-      document.getElementById('confirmModalLabel').textContent = title;
-      document.getElementById('confirmModalBody').textContent = message;
-
-      const confirmBtn = document.getElementById('confirmModalBtn');
-      const modalEl = document.getElementById('confirmModal');
-
-      // Clean up previous listeners by cloning the button
-      const newConfirmBtn = confirmBtn.cloneNode(true);
-      confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
-
-      let resolved = false;
-
-      newConfirmBtn.addEventListener('click', () => {
-        resolved = true;
-        modal.hide();
-        resolve(true);
-      });
-
-      modalEl.addEventListener('hidden.bs.modal', () => {
-        if (!resolved) {
-          resolve(false);
-        }
-      }, { once: true });
-
-      modal.show();
-    });
-  };
 
   // Clear cache button
   document.getElementById('clearCacheBtn').addEventListener('click', async () => {
