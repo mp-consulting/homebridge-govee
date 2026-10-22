@@ -58,7 +58,7 @@
     "fakegato-history": "^0.6.7",
     "node-forge": "^1.4.0",
     "node-persist": "^4.0.4",
-    "p-queue": "^9.3.3"
+    "p-queue": "^10.0.0"
   },
   "optionalDependencies": {
     "@stoprocent/bluetooth-hci-socket": "^2.3.0",
