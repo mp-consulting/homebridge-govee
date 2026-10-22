@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.6] - 2026-10-22
+
+### Changed
+
+- **Bluetooth update queue**: `p-queue` 10. It needs Node.js 22, which the plugin already requires; the queue is set up and paced the same way.
+
+### Notes
+
+- Development dependencies: vitest 5.0.5, ESLint 10.13, typescript-eslint 8.71.2, `@types/node` 26.6.5, vite 8.3.4, knip 6.41 and `bootstrap-icons` 1.13.2. The settings page bundles `bootstrap-icons`, but 1.13.2 changes no icons.
+
 ## [1.6.5] - 2026-10-22
 
 ### Changed
