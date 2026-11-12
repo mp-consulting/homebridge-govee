@@ -89,7 +89,11 @@
   "overrides": {
     "@nestjs/platform-fastify": "^12.1.2",
     "fastify": "^5.12.5",
-    "node-forge": "$node-forge"
+    "node-forge": "$node-forge",
+    "minimatch": "^11.0.3",
+    "help-me": {
+      "minimatch": "^3.1.5"
+    }
   },
   "files": [
     "dist",
